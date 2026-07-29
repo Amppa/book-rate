@@ -49,6 +49,8 @@ class TestModelsAndFormatters(unittest.TestCase):
         self.assertIn("work", md)
         self.assertIn("Open Library 分數／人數", md)
         self.assertIn("Google Books 分數／人數", md)
+        self.assertIn("Goodreads 分數／人數", md)
+        self.assertIn("豆瓣 分數／人數", md)
         self.assertIn("快思慢想", md)
         self.assertIn("丹尼爾·卡內曼", md)
         self.assertIn("/works/OL27479W", md)
@@ -69,6 +71,68 @@ class TestModelsAndFormatters(unittest.TestCase):
 
 from unittest.mock import MagicMock, patch
 from book_rate.providers.google_books import GoogleBooksProvider
+from book_rate.providers.goodreads import GoodreadsProvider
+from book_rate.providers.douban import DoubanProvider
+
+
+class TestGoodreadsProvider(unittest.TestCase):
+    @patch('requests.Session.get')
+    def test_search_works(self, mock_get):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = [
+            {
+                "bookId": "40121378",
+                "title": "Atomic Habits",
+                "avgRating": "4.31",
+                "ratingsCount": 1397637,
+                "bookUrl": "/book/show/40121378-atomic-habits",
+                "author": {"name": "James Clear"}
+            }
+        ]
+        mock_get.return_value = mock_response
+
+        provider = GoodreadsProvider()
+        works = provider.search_works("Atomic Habits", limit=1)
+
+        self.assertEqual(len(works), 1)
+        self.assertEqual(works[0].title, "Atomic Habits")
+        self.assertEqual(works[0].author, "James Clear")
+        self.assertIn("Goodreads", works[0].ratings)
+        self.assertEqual(works[0].ratings["Goodreads"].rate, 4.31)
+        self.assertEqual(works[0].ratings["Goodreads"].rating_count, 1397637)
+
+
+class TestDoubanProvider(unittest.TestCase):
+    @patch('requests.Session.get')
+    def test_search_works(self, mock_get):
+        def side_effect(url, **kwargs):
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            if "subject_suggest" in url:
+                mock_resp.json.return_value = [
+                    {
+                        "id": "22366506",
+                        "title": "快思慢想",
+                        "author_name": "[美] Daniel Kahneman",
+                        "year": "2018",
+                        "url": "https://book.douban.com/subject/22366506/"
+                    }
+                ]
+            else:
+                mock_resp.text = '<span property="v:average"> 8.7 </span><span property="v:votes"> 208 </span>'
+            return mock_resp
+
+        mock_get.side_effect = side_effect
+
+        provider = DoubanProvider()
+        works = provider.search_works("快思慢想", limit=1)
+
+        self.assertEqual(len(works), 1)
+        self.assertEqual(works[0].title, "快思慢想")
+        self.assertIn("Douban", works[0].ratings)
+        self.assertEqual(works[0].ratings["Douban"].rate, 8.7)
+        self.assertEqual(works[0].ratings["Douban"].rating_count, 208)
 
 class TestGoogleBooksProvider(unittest.TestCase):
     @patch('requests.Session.get')

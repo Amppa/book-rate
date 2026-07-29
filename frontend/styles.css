@@ -146,6 +146,20 @@ td small {
   font-size: var(--fs-xs);
 }
 
+.fetching-tag {
+  display: inline-block;
+  color: var(--accent);
+  font-size: var(--fs-md);
+  font-weight: 700;
+  animation: pulse-fetching 1.2s infinite ease-in-out;
+}
+
+@keyframes pulse-fetching {
+  0% { opacity: 0.35; }
+  50% { opacity: 1.0; }
+  100% { opacity: 0.35; }
+}
+
 summary {
   cursor: pointer;
   font-weight: 700;
@@ -784,13 +798,23 @@ button:disabled:hover {
 }
 
 /* Score hide column triggers */
-.hide-ol-score th:nth-child(4),
-.hide-ol-score td:nth-child(4) {
+.hide-ol-score th.col-ol,
+.hide-ol-score td.col-ol {
   display: none !important;
 }
 
-.hide-gb-score th:nth-child(5),
-.hide-gb-score td:nth-child(5) {
+.hide-gb-score th.col-gb,
+.hide-gb-score td.col-gb {
+  display: none !important;
+}
+
+.hide-gr-score th.col-gr,
+.hide-gr-score td.col-gr {
+  display: none !important;
+}
+
+.hide-db-score th.col-db,
+.hide-db-score td.col-db {
   display: none !important;
 }
 

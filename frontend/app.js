@@ -9,14 +9,22 @@ const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 // Settings selectors & storage keys
 const engineOlCheckbox = document.querySelector("#engine-ol");
 const engineGbCheckbox = document.querySelector("#engine-gb");
+const engineGrCheckbox = document.querySelector("#engine-gr");
+const engineDbCheckbox = document.querySelector("#engine-db");
 const scoreOlCheckbox = document.querySelector("#score-ol");
 const scoreGbCheckbox = document.querySelector("#score-gb");
+const scoreGrCheckbox = document.querySelector("#score-gr");
+const scoreDbCheckbox = document.querySelector("#score-db");
 const ratingTable = document.querySelector("table");
 
 const ENGINE_OL_KEY = "bookrate:engine:ol";
 const ENGINE_GB_KEY = "bookrate:engine:gb";
+const ENGINE_GR_KEY = "bookrate:engine:gr";
+const ENGINE_DB_KEY = "bookrate:engine:db";
 const SCORE_OL_KEY = "bookrate:score:ol";
 const SCORE_GB_KEY = "bookrate:score:gb";
+const SCORE_GR_KEY = "bookrate:score:gr";
+const SCORE_DB_KEY = "bookrate:score:db";
 
 function getCachedData(key) {
   try {
@@ -104,9 +112,9 @@ function fetchJson(url) {
   });
 }
 
-function displayRate(average, count) {
+function displayRate(average, count, maxScore = 5) {
   return Number(count) > 0 && Number(average) > 0
-    ? `${Number(average).toFixed(2)} / 5`
+    ? `${Number(average).toFixed(2)} / ${maxScore}`
     : "暫無評分";
 }
 
@@ -214,7 +222,11 @@ async function selectWork(work) {
   detailsHeading.hidden = false;
   goToStep(3);
   resultBody.replaceChildren();
-  tableWrap.hidden = true;
+  
+  // Render initial placeholder row showing "Fetching..." while loading
+  const initialFragment = renderInitialWorkRow(work);
+  resultBody.append(initialFragment);
+  tableWrap.hidden = false;
   step3Status.classList.remove("error");
   step3Status.textContent = `正在取得《${work.title}》的版本與評分…`;
 
@@ -237,43 +249,117 @@ async function selectWork(work) {
     }
 
     details.work = work;
-    resultBody.append(renderWorkDetailRow(details));
-    tableWrap.hidden = false;
+    updateWorkDetailRow(resultBody.querySelector(".work-row"), details);
     step3Status.textContent = "";
   } catch (error) {
     console.error(error);
     step3Status.classList.add("error");
     step3Status.textContent = "取得作品詳細評分失敗，請確認網路連線後再試一次。";
+    const row = resultBody.querySelector(".work-row");
+    if (row) {
+      row.querySelectorAll(".ol-rate, .gb-rate, .gr-rate, .db-rate").forEach(el => {
+        el.textContent = "暫無評分";
+      });
+      row.querySelectorAll(".ol-count, .gb-count, .gr-count, .db-count").forEach(el => {
+        el.textContent = "讀取失敗";
+      });
+    }
   }
 }
 
-function renderWorkDetailRow({ work, ratings, editions, google }) {
+function renderInitialWorkRow(work) {
   const fragment = resultRowTemplate.content.cloneNode(true);
   const row = fragment.querySelector(".work-row");
 
   row.querySelector(".work-title").textContent = work.title;
   row.querySelector(".author").textContent = (work.author_name || ["資料未提供"]).join("、");
-  row.querySelector(".work-link").href = `${OPEN_LIBRARY_BASE_URL}${work.key}`;
+  const linkEl = row.querySelector(".work-link");
+  if (work.key && work.key.startsWith("/works/")) {
+    linkEl.href = `${OPEN_LIBRARY_BASE_URL}${work.key}`;
+  } else {
+    linkEl.textContent = "Work ↗";
+    linkEl.href = "#";
+  }
 
-  row.querySelector(".ol-rate").textContent = displayRate(ratings.average, ratings.count);
-  row.querySelector(".ol-count").textContent = displayCount(ratings.count);
+  row.querySelector(".ol-rate").innerHTML = '<span class="fetching-tag">Fetching...</span>';
+  row.querySelector(".ol-count").textContent = "讀取中...";
 
-  if (google.quota_exceeded) {
+  row.querySelector(".gb-rate").innerHTML = '<span class="fetching-tag">Fetching...</span>';
+  row.querySelector(".gb-count").textContent = "讀取中...";
+
+  row.querySelector(".gr-rate").innerHTML = '<span class="fetching-tag">Fetching...</span>';
+  row.querySelector(".gr-count").textContent = "讀取中...";
+
+  row.querySelector(".db-rate").innerHTML = '<span class="fetching-tag">Fetching...</span>';
+  row.querySelector(".db-count").textContent = "讀取中...";
+
+  row.querySelector(".edition-count").textContent = "載入中...";
+  return fragment;
+}
+
+function updateWorkDetailRow(row, { work, ratings, editions, google, goodreads, douban }) {
+  if (!row) return;
+
+  row.querySelector(".work-title").textContent = work.title;
+  row.querySelector(".author").textContent = (work.author_name || ["資料未提供"]).join("、");
+  if (work.key && work.key.startsWith("/works/")) {
+    row.querySelector(".work-link").href = `${OPEN_LIBRARY_BASE_URL}${work.key}`;
+  }
+
+  row.querySelector(".ol-rate").textContent = displayRate(ratings?.average, ratings?.count, 5);
+  row.querySelector(".ol-count").textContent = displayCount(ratings?.count);
+
+  if (google?.quota_exceeded) {
     row.querySelector(".gb-rate").innerHTML = '<span class="error">額度超限 (429) ⚠️</span>';
     row.querySelector(".gb-count").textContent = "請在上方設定個人 API Key，或設定環境變數。";
   } else {
-    row.querySelector(".gb-rate").textContent = displayRate(google.average, google.count);
-    row.querySelector(".gb-count").textContent = displayCount(google.count) + (google.title ? ` · ${google.title}` : "");
+    row.querySelector(".gb-rate").textContent = displayRate(google?.average, google?.count, 5);
+    row.querySelector(".gb-count").textContent = displayCount(google?.count) + (google?.title ? ` · ${google.title}` : "");
   }
 
-  const size = editions.size || editions.entries.length;
+  if (goodreads) {
+    const grRateEl = row.querySelector(".gr-rate");
+    const grCountEl = row.querySelector(".gr-count");
+    if (grRateEl) grRateEl.textContent = displayRate(goodreads.average, goodreads.count, 5);
+    if (grCountEl) {
+      let countText = displayCount(goodreads.count);
+      if (goodreads.url) {
+        grCountEl.innerHTML = `<a href="${goodreads.url}" target="_blank" rel="noreferrer">${countText} ↗</a>`;
+      } else {
+        grCountEl.textContent = countText;
+      }
+    }
+  } else {
+    row.querySelector(".gr-rate").textContent = "暫無評分";
+    row.querySelector(".gr-count").textContent = "尚無評價人數";
+  }
+
+  if (douban) {
+    const dbRateEl = row.querySelector(".db-rate");
+    const dbCountEl = row.querySelector(".db-count");
+    if (dbRateEl) dbRateEl.textContent = displayRate(douban.average, douban.count, 10);
+    if (dbCountEl) {
+      let countText = displayCount(douban.count);
+      if (douban.url) {
+        dbCountEl.innerHTML = `<a href="${douban.url}" target="_blank" rel="noreferrer">${countText} ↗</a>`;
+      } else {
+        dbCountEl.textContent = countText;
+      }
+    }
+  } else {
+    row.querySelector(".db-rate").textContent = "暫無評分";
+    row.querySelector(".db-count").textContent = "尚無評價人數";
+  }
+
+  const size = editions?.size || editions?.entries?.length || 0;
   row.querySelector(".edition-count").textContent = `${size.toLocaleString()}個版本`;
 
-  row.querySelector(".show-editions-btn").addEventListener("click", () => {
-    openEditionsModal(work.title, editions);
-  });
-
-  return fragment;
+  const btn = row.querySelector(".show-editions-btn");
+  if (btn) {
+    btn.onclick = () => {
+      openEditionsModal(work.title, editions);
+    };
+  }
 }
 
 function openEditionsModal(title, editions) {
@@ -341,6 +427,8 @@ async function searchWorks(query, page) {
     const activeEngines = [];
     if (engineOlCheckbox && engineOlCheckbox.checked) activeEngines.push("open_library");
     if (engineGbCheckbox && engineGbCheckbox.checked) activeEngines.push("google_books");
+    if (engineGrCheckbox && engineGrCheckbox.checked) activeEngines.push("goodreads");
+    if (engineDbCheckbox && engineDbCheckbox.checked) activeEngines.push("douban");
     const enginesStr = activeEngines.join(",");
 
     const cacheKey = `search:${query}:page:${page}:engines:${enginesStr}`;
@@ -459,45 +547,47 @@ clearApiKeyBtn.addEventListener("click", () => {
 
 // Settings checkboxes logic
 function initSettings() {
-  if (engineOlCheckbox) {
-    engineOlCheckbox.checked = localStorage.getItem(ENGINE_OL_KEY) !== "false";
-  }
-  if (engineGbCheckbox) {
-    engineGbCheckbox.checked = localStorage.getItem(ENGINE_GB_KEY) !== "false";
-  }
-  if (scoreOlCheckbox) {
-    scoreOlCheckbox.checked = localStorage.getItem(SCORE_OL_KEY) !== "false";
-  }
-  if (scoreGbCheckbox) {
-    scoreGbCheckbox.checked = localStorage.getItem(SCORE_GB_KEY) !== "false";
-  }
+  if (engineOlCheckbox) engineOlCheckbox.checked = localStorage.getItem(ENGINE_OL_KEY) !== "false";
+  if (engineGbCheckbox) engineGbCheckbox.checked = localStorage.getItem(ENGINE_GB_KEY) !== "false";
+  if (engineGrCheckbox) engineGrCheckbox.checked = localStorage.getItem(ENGINE_GR_KEY) !== "false";
+  if (engineDbCheckbox) engineDbCheckbox.checked = localStorage.getItem(ENGINE_DB_KEY) !== "false";
+
+  if (scoreOlCheckbox) scoreOlCheckbox.checked = localStorage.getItem(SCORE_OL_KEY) !== "false";
+  if (scoreGbCheckbox) scoreGbCheckbox.checked = localStorage.getItem(SCORE_GB_KEY) !== "false";
+  if (scoreGrCheckbox) scoreGrCheckbox.checked = localStorage.getItem(SCORE_GR_KEY) !== "false";
+  if (scoreDbCheckbox) scoreDbCheckbox.checked = localStorage.getItem(SCORE_DB_KEY) !== "false";
+
   updateTableVisibility();
 }
 
 function updateTableVisibility() {
   if (ratingTable) {
-    if (scoreOlCheckbox) {
-      ratingTable.classList.toggle("hide-ol-score", !scoreOlCheckbox.checked);
-    }
-    if (scoreGbCheckbox) {
-      ratingTable.classList.toggle("hide-gb-score", !scoreGbCheckbox.checked);
-    }
+    if (scoreOlCheckbox) ratingTable.classList.toggle("hide-ol-score", !scoreOlCheckbox.checked);
+    if (scoreGbCheckbox) ratingTable.classList.toggle("hide-gb-score", !scoreGbCheckbox.checked);
+    if (scoreGrCheckbox) ratingTable.classList.toggle("hide-gr-score", !scoreGrCheckbox.checked);
+    if (scoreDbCheckbox) ratingTable.classList.toggle("hide-db-score", !scoreDbCheckbox.checked);
   }
 }
 
 function handleEngineChange() {
-  if (engineOlCheckbox && engineGbCheckbox) {
-    if (!engineOlCheckbox.checked && !engineGbCheckbox.checked) {
+  const engineCheckboxes = [engineOlCheckbox, engineGbCheckbox, engineGrCheckbox, engineDbCheckbox].filter(Boolean);
+  if (engineCheckboxes.length) {
+    const anyChecked = engineCheckboxes.some((cb) => cb.checked);
+    if (!anyChecked) {
       alert("請至少選擇一個書名搜尋引擎！已自動恢復預設。");
-      engineOlCheckbox.checked = true;
+      if (engineOlCheckbox) engineOlCheckbox.checked = true;
     }
-    localStorage.setItem(ENGINE_OL_KEY, engineOlCheckbox.checked);
-    localStorage.setItem(ENGINE_GB_KEY, engineGbCheckbox.checked);
+    if (engineOlCheckbox) localStorage.setItem(ENGINE_OL_KEY, engineOlCheckbox.checked);
+    if (engineGbCheckbox) localStorage.setItem(ENGINE_GB_KEY, engineGbCheckbox.checked);
+    if (engineGrCheckbox) localStorage.setItem(ENGINE_GR_KEY, engineGrCheckbox.checked);
+    if (engineDbCheckbox) localStorage.setItem(ENGINE_DB_KEY, engineDbCheckbox.checked);
   }
 }
 
 if (engineOlCheckbox) engineOlCheckbox.addEventListener("change", handleEngineChange);
 if (engineGbCheckbox) engineGbCheckbox.addEventListener("change", handleEngineChange);
+if (engineGrCheckbox) engineGrCheckbox.addEventListener("change", handleEngineChange);
+if (engineDbCheckbox) engineDbCheckbox.addEventListener("change", handleEngineChange);
 
 if (scoreOlCheckbox) {
   scoreOlCheckbox.addEventListener("change", () => {
@@ -509,6 +599,20 @@ if (scoreOlCheckbox) {
 if (scoreGbCheckbox) {
   scoreGbCheckbox.addEventListener("change", () => {
     localStorage.setItem(SCORE_GB_KEY, scoreGbCheckbox.checked);
+    updateTableVisibility();
+  });
+}
+
+if (scoreGrCheckbox) {
+  scoreGrCheckbox.addEventListener("change", () => {
+    localStorage.setItem(SCORE_GR_KEY, scoreGrCheckbox.checked);
+    updateTableVisibility();
+  });
+}
+
+if (scoreDbCheckbox) {
+  scoreDbCheckbox.addEventListener("change", () => {
+    localStorage.setItem(SCORE_DB_KEY, scoreDbCheckbox.checked);
     updateTableVisibility();
   });
 }

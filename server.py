@@ -14,6 +14,8 @@ google_key = os.environ.get("GOOGLE_BOOKS_API_KEY")
 aggregator = BookAggregator(google_api_key=google_key)
 open_library = aggregator.open_library
 google_books = aggregator.google_books
+goodreads = aggregator.goodreads
+douban = aggregator.douban
 
 def _format_editions(editions_list) -> dict:
     entries = []
@@ -42,7 +44,7 @@ def api_search(
     q: str = Query(..., description="Search query"),
     page: int = Query(1, description="Page number"),
     google_key: str = Query(None, description="Optional Google Books API Key"),
-    engines: str = Query("open_library,google_books", description="Comma-separated engines to use")
+    engines: str = Query("open_library,google_books,goodreads,douban", description="Comma-separated engines to use")
 ):
     print(f"\n[Search API] User query: '{q}', page: {page}, engines: '{engines}'")
     active_engines = [e.strip() for e in engines.split(",") if e.strip()]
@@ -58,6 +60,14 @@ def api_search(
             gb_works = gb_provider.search_works(q, limit=10, page=page)
         elif page == 1:
             gb_works = gb_provider.search_works(q, limit=10, page=1)
+            
+    gr_works = []
+    if "goodreads" in active_engines and "open_library" not in active_engines and "google_books" not in active_engines:
+        gr_works = goodreads.search_works(q, limit=10, page=page)
+        
+    db_works = []
+    if "douban" in active_engines and "open_library" not in active_engines and "google_books" not in active_engines and "goodreads" not in active_engines:
+        db_works = douban.search_works(q, limit=10, page=page)
         
     results = []
     # Add Open Library works
@@ -70,26 +80,28 @@ def api_search(
             "edition_count": w.edition_count
         })
         
-    # Add Google Books works, avoiding obvious duplicates by title/author
     existing_keys = {
         (r["title"].lower().strip(), "".join(r["author_name"]).lower().strip())
         for r in results
     }
     
-    for w in gb_works:
-        author_list = [a.strip() for a in w.author.split(",")] if w.author and w.author != "Unknown Author" else ["資料未提供"]
-        key_tuple = (w.title.lower().strip(), "".join(author_list).lower().strip())
-        if key_tuple not in existing_keys:
-            results.append({
-                "key": w.work_id,
-                "title": w.title,
-                "author_name": author_list,
-                "first_publish_year": w.first_publish_year,
-                "edition_count": w.edition_count
-            })
-            existing_keys.add(key_tuple)
+    for extra_works in [gb_works, gr_works, db_works]:
+        for w in extra_works:
+            author_list = [a.strip() for a in w.author.split(",")] if w.author and w.author != "Unknown Author" else ["資料未提供"]
+            key_tuple = (w.title.lower().strip(), "".join(author_list).lower().strip())
+            if key_tuple not in existing_keys:
+                results.append({
+                    "key": w.work_id,
+                    "title": w.title,
+                    "author_name": author_list,
+                    "first_publish_year": w.first_publish_year,
+                    "edition_count": w.edition_count
+                })
+                existing_keys.add(key_tuple)
             
     return results
+
+from concurrent.futures import ThreadPoolExecutor
 
 @app.get("/api/work-details")
 def api_work_details(
@@ -120,7 +132,6 @@ def api_work_details(
             import re
             q_ol = gb_work.original_title
             
-            # Extract English name from author string if present (e.g. "James Clear")
             eng_author = None
             for a in gb_work.author.split(","):
                 author_matches = re.findall(r'([a-zA-Z\s\-]+)', a)
@@ -175,49 +186,100 @@ def api_work_details(
             "title": (gb_rating.title if gb_rating else None) or title or (gb_work.title if gb_work else ""),
             "quota_exceeded": gb_provider.quota_exceeded
         }
+
+        # Build target Work object for Goodreads and Douban
+        target_work = Work(
+            work_id=work_id,
+            title=title or (gb_work.title if gb_work else ""),
+            author=author or (gb_work.author if gb_work else ""),
+            original_title=gb_work.original_title if gb_work else None,
+            editions=ol_editions or (gb_work.editions if gb_work else [])
+        )
+        
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            fut_gr = executor.submit(goodreads.fetch_ratings, target_work)
+            fut_db = executor.submit(douban.fetch_ratings, target_work)
+            gr_rating = fut_gr.result()
+            db_rating = fut_db.result()
+
+        goodreads_dict = {
+            "average": gr_rating.rate if gr_rating and gr_rating.rate is not None else 0,
+            "count": gr_rating.rating_count if gr_rating and gr_rating.rating_count is not None else 0,
+            "title": gr_rating.title or target_work.title,
+            "url": gr_rating.url
+        }
+
+        douban_dict = {
+            "average": db_rating.rate if db_rating and db_rating.rate is not None else 0,
+            "count": db_rating.rating_count if db_rating and db_rating.rating_count is not None else 0,
+            "title": db_rating.title or target_work.title,
+            "url": db_rating.url
+        }
         
         return {
             "ratings": ratings_dict,
             "editions": editions_dict,
-            "google": google_dict
+            "google": google_dict,
+            "goodreads": goodreads_dict,
+            "douban": douban_dict
         }
         
     else:
         # Ensure work_id starts with /works/
         full_work_id = work_id if work_id.startswith("/works/") else f"/works/{work_id}"
         
-        # 1. Fetch Open Library Ratings
+        # 1. Fetch Open Library Ratings & Editions
         ol_rating = open_library.fetch_ratings(Work(work_id=full_work_id, title="", author=""))
         ratings_dict = {
             "average": ol_rating.rate if ol_rating.rate is not None else 0,
             "count": ol_rating.rating_count if ol_rating.rating_count is not None else 0
         }
         
-        # 2. Fetch Open Library Editions (limit 100 as per frontend)
         editions = open_library.fetch_editions(full_work_id, limit=100)
-        
         editions_dict = _format_editions(editions)
         
-        # 3. Create Work object to query Google Books rating
         dummy_work = Work(
             work_id=full_work_id,
             title=title or "",
             author=author or "",
             editions=editions
         )
+
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            fut_gb = executor.submit(gb_provider.fetch_ratings, dummy_work)
+            fut_gr = executor.submit(goodreads.fetch_ratings, dummy_work)
+            fut_db = executor.submit(douban.fetch_ratings, dummy_work)
+            gb_rating = fut_gb.result()
+            gr_rating = fut_gr.result()
+            db_rating = fut_db.result()
         
-        gb_rating = gb_provider.fetch_ratings(dummy_work)
         google_dict = {
-            "average": gb_rating.rate if gb_rating.rate is not None else 0,
-            "count": gb_rating.rating_count if gb_rating.rating_count is not None else 0,
-            "title": gb_rating.title or dummy_work.title,
+            "average": gb_rating.rate if gb_rating and gb_rating.rate is not None else 0,
+            "count": gb_rating.rating_count if gb_rating and gb_rating.rating_count is not None else 0,
+            "title": (gb_rating.title if gb_rating else None) or dummy_work.title,
             "quota_exceeded": gb_provider.quota_exceeded
+        }
+
+        goodreads_dict = {
+            "average": gr_rating.rate if gr_rating and gr_rating.rate is not None else 0,
+            "count": gr_rating.rating_count if gr_rating and gr_rating.rating_count is not None else 0,
+            "title": (gr_rating.title if gr_rating else None) or dummy_work.title,
+            "url": gr_rating.url if gr_rating else None
+        }
+
+        douban_dict = {
+            "average": db_rating.rate if db_rating and db_rating.rate is not None else 0,
+            "count": db_rating.rating_count if db_rating and db_rating.rating_count is not None else 0,
+            "title": (db_rating.title if db_rating else None) or dummy_work.title,
+            "url": db_rating.url if db_rating else None
         }
         
         return {
             "ratings": ratings_dict,
             "editions": editions_dict,
-            "google": google_dict
+            "google": google_dict,
+            "goodreads": goodreads_dict,
+            "douban": douban_dict
         }
 
 # Serve the frontend prototype files

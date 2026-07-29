@@ -9,7 +9,7 @@ from book_rate.formatters import format_markdown_table, print_rich_table, format
 
 def main():
     parser = argparse.ArgumentParser(
-        description="BookRate Aggregator (MVP) - Query books by Chinese title, map works & editions, aggregate ratings from Open Library & Google Books."
+        description="BookRate Aggregator (MVP) - Query books by Chinese title, map works & editions, aggregate ratings from Open Library, Google Books, Goodreads, and Douban."
     )
     parser.add_argument(
         "query",

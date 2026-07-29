@@ -10,7 +10,7 @@ from book_rate.models import Work
 
 def format_markdown_table(works: List[Work]) -> str:
     """Format a list of Work objects into a Markdown table as specified by the prompt."""
-    headers = ["書名", "原作者", "work", "Open Library 分數／人數", "Google Books 分數／人數"]
+    headers = ["書名", "原作者", "work", "Open Library 分數／人數", "Google Books 分數／人數", "Goodreads 分數／人數", "豆瓣 分數／人數"]
     lines = [
         "| " + " | ".join(headers) + " |",
         "| " + " | ".join(["---"] * len(headers)) + " |"
@@ -19,13 +19,17 @@ def format_markdown_table(works: List[Work]) -> str:
     for work in works:
         ol_summary = work.get_rating_summary("Open Library")
         gb_summary = work.get_rating_summary("Google Books")
+        gr_summary = work.get_rating_summary("Goodreads")
+        db_summary = work.get_rating_summary("Douban")
         
         row = [
             work.title,
             work.author,
             work.work_id,
             ol_summary,
-            gb_summary
+            gb_summary,
+            gr_summary,
+            db_summary
         ]
         # Clean newlines or bar characters in text for markdown table safety
         safe_row = [str(cell).replace("|", "\\|").replace("\n", " ") for cell in row]
@@ -45,16 +49,22 @@ def print_rich_table(works: List[Work], console: Optional[Console] = None) -> No
     table.add_column("work (ID)", style="dim magenta", width=22)
     table.add_column("Open Library 分數／人數", style="yellow", justify="center")
     table.add_column("Google Books 分數／人數", style="blue", justify="center")
+    table.add_column("Goodreads 分數／人數", style="magenta", justify="center")
+    table.add_column("豆瓣 分數／人數", style="red", justify="center")
 
     for work in works:
         ol_summary = work.get_rating_summary("Open Library")
         gb_summary = work.get_rating_summary("Google Books")
+        gr_summary = work.get_rating_summary("Goodreads")
+        db_summary = work.get_rating_summary("Douban")
         table.add_row(
             work.title,
             work.author,
             work.work_id,
             ol_summary,
-            gb_summary
+            gb_summary,
+            gr_summary,
+            db_summary
         )
 
     console.print(table)
@@ -64,12 +74,14 @@ def format_csv(works: List[Work]) -> str:
     """Format works list as CSV string."""
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["書名", "原作者", "work", "Open Library 分數／人數", "Google Books 分語／人數"])
+    writer.writerow(["書名", "原作者", "work", "Open Library 分數／人數", "Google Books 分數／人數", "Goodreads 分數／人數", "豆瓣 分數／人數"])
 
     for work in works:
         ol_summary = work.get_rating_summary("Open Library")
         gb_summary = work.get_rating_summary("Google Books")
-        writer.writerow([work.title, work.author, work.work_id, ol_summary, gb_summary])
+        gr_summary = work.get_rating_summary("Goodreads")
+        db_summary = work.get_rating_summary("Douban")
+        writer.writerow([work.title, work.author, work.work_id, ol_summary, gb_summary, gr_summary, db_summary])
 
     return output.getvalue()
 

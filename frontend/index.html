@@ -32,6 +32,14 @@
               <input type="checkbox" id="engine-gb" />
               <span>Google Books</span>
             </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="engine-gr" />
+              <span>Goodreads</span>
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="engine-db" />
+              <span>豆瓣 (Douban)</span>
+            </label>
           </div>
         </div>
 
@@ -58,6 +66,14 @@
             <label class="checkbox-label">
               <input type="checkbox" id="score-gb" />
               <span>Google Books</span>
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="score-gr" />
+              <span>Goodreads</span>
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="score-db" />
+              <span>豆瓣</span>
             </label>
           </div>
         </div>
@@ -141,8 +157,10 @@
                     <th>書名</th>
                     <th>原作者</th>
                     <th>Work／版本</th>
-                    <th>Open Library 評價</th>
-                    <th>Google Books 評價</th>
+                    <th class="col-ol">Open Library 評價</th>
+                    <th class="col-gb">Google Books 評價</th>
+                    <th class="col-gr">Goodreads 評價</th>
+                    <th class="col-db">豆瓣 評價</th>
                   </tr>
                 </thead>
                 <tbody id="result-body"></tbody>
@@ -166,8 +184,10 @@
           </button>
         </div>
       </td>
-      <td><strong class="ol-rate"></strong><small class="ol-count"></small></td>
-      <td><strong class="gb-rate"></strong><small class="gb-count"></small></td>
+      <td class="col-ol"><strong class="ol-rate"></strong><small class="ol-count"></small></td>
+      <td class="col-gb"><strong class="gb-rate"></strong><small class="gb-count"></small></td>
+      <td class="col-gr"><strong class="gr-rate"></strong><small class="gr-count"></small></td>
+      <td class="col-db"><strong class="db-rate"></strong><small class="db-count"></small></td>
     </tr>
   </template>
   <template id="candidate-template">

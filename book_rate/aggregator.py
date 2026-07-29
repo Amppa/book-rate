@@ -3,6 +3,8 @@ from typing import List, Optional, Dict
 from book_rate.models import Work, PlatformRating
 from book_rate.providers.open_library import OpenLibraryProvider
 from book_rate.providers.google_books import GoogleBooksProvider
+from book_rate.providers.goodreads import GoodreadsProvider
+from book_rate.providers.douban import DoubanProvider
 
 logger = logging.getLogger(__name__)
 
@@ -13,11 +15,13 @@ class BookAggregator:
     def __init__(self, google_api_key: Optional[str] = None):
         self.open_library = OpenLibraryProvider()
         self.google_books = GoogleBooksProvider(api_key=google_api_key)
+        self.goodreads = GoodreadsProvider()
+        self.douban = DoubanProvider()
 
     def aggregate_by_title(self, title_query: str, limit: int = 5) -> List[Work]:
         """
         Search for a book by title, resolve corresponding Works and Editions,
-        and fetch rating metrics across all providers (Open Library & Google Books).
+        and fetch rating metrics across all providers (Open Library, Google Books, Goodreads, Douban).
         """
         clean_query = title_query.strip()
         if not clean_query:
@@ -31,26 +35,29 @@ class BookAggregator:
 
         aggregated_works: List[Work] = []
 
-        if ol_works:
-            for ol_work in ol_works:
-                # Enrich with Google Books ratings by checking ISBNs or Title/Author
-                gb_rating = self.google_books.fetch_ratings(ol_work)
-                if gb_rating and (gb_rating.rate is not None or gb_rating.rating_count is not None):
-                    ol_work.ratings[self.google_books.name] = gb_rating
-                elif not self.google_books.name in ol_work.ratings:
-                    ol_work.ratings[self.google_books.name] = PlatformRating(platform_name=self.google_books.name)
+        target_works = ol_works or gb_works
 
-                # Ensure Open Library rating is populated
-                if not self.open_library.name in ol_work.ratings:
-                    ol_work.ratings[self.open_library.name] = PlatformRating(platform_name=self.open_library.name)
+        for work in target_works:
+            # Enrich with Google Books rating
+            if self.google_books.name not in work.ratings:
+                gb_rating = self.google_books.fetch_ratings(work)
+                work.ratings[self.google_books.name] = gb_rating or PlatformRating(platform_name=self.google_books.name)
 
-                aggregated_works.append(ol_work)
+            # Enrich with Open Library rating
+            if self.open_library.name not in work.ratings:
+                ol_rating = self.open_library.fetch_ratings(work)
+                work.ratings[self.open_library.name] = ol_rating or PlatformRating(platform_name=self.open_library.name)
 
-        # If Open Library yielded no works, fallback to Google Books items
-        if not aggregated_works and gb_works:
-            for gb_work in gb_works:
-                if not self.open_library.name in gb_work.ratings:
-                    gb_work.ratings[self.open_library.name] = PlatformRating(platform_name=self.open_library.name)
-                aggregated_works.append(gb_work)
+            # Enrich with Goodreads rating
+            if self.goodreads.name not in work.ratings:
+                gr_rating = self.goodreads.fetch_ratings(work)
+                work.ratings[self.goodreads.name] = gr_rating or PlatformRating(platform_name=self.goodreads.name)
+
+            # Enrich with Douban rating
+            if self.douban.name not in work.ratings:
+                db_rating = self.douban.fetch_ratings(work)
+                work.ratings[self.douban.name] = db_rating or PlatformRating(platform_name=self.douban.name)
+
+            aggregated_works.append(work)
 
         return aggregated_works
