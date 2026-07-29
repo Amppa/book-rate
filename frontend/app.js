@@ -268,11 +268,30 @@ function renderWorkDetailRow({ work, ratings, editions, google }) {
 
   const size = editions.size || editions.entries.length;
   row.querySelector(".edition-count").textContent = `${size.toLocaleString()}個版本`;
-  row.querySelector(".edition-note").textContent = size > MAX_EDITIONS
+
+  row.querySelector(".show-editions-btn").addEventListener("click", () => {
+    openEditionsModal(work.title, editions);
+  });
+
+  return fragment;
+}
+
+function openEditionsModal(title, editions) {
+  const editionsModal = document.querySelector("#editions-modal");
+  const modalTitle = document.querySelector("#editions-modal-title");
+  const modalNote = document.querySelector("#editions-modal-note");
+  const modalList = document.querySelector("#editions-modal-list");
+
+  if (!editionsModal || !modalTitle || !modalNote || !modalList) return;
+
+  modalTitle.textContent = `《${title}》的版本列表`;
+
+  const size = editions.size || editions.entries.length;
+  modalNote.textContent = size > MAX_EDITIONS
     ? `為維持查詢速度，目前列出前 ${MAX_EDITIONS} 個版本。`
     : "";
 
-  const list = row.querySelector(".edition-list");
+  const fragment = document.createDocumentFragment();
   (editions.entries || []).forEach((edition) => {
     const item = document.createElement("div");
     item.className = "edition";
@@ -285,13 +304,20 @@ function renderWorkDetailRow({ work, ratings, editions, google }) {
     info.textContent = [edition.publish_date, edition.publishers?.[0], languages].filter(Boolean).join(" · ") || "出版資訊未提供";
 
     item.append(editionTitle, info);
-    list.append(item);
+    fragment.appendChild(item);
   });
 
   if (!editions.entries?.length) {
-    list.textContent = "此作品尚未取得版本資料。";
+    const emptyMsg = document.createElement("div");
+    emptyMsg.textContent = "此作品尚未取得版本資料。";
+    fragment.appendChild(emptyMsg);
   }
-  return fragment;
+
+  modalList.replaceChildren(fragment);
+
+  // Open the modal
+  editionsModal.hidden = false;
+  setTimeout(() => editionsModal.classList.add("open"), 10);
 }
 
 async function searchWorks(query, page) {
@@ -561,5 +587,28 @@ if (presetsModal && openPresetsBtn && closePresetsBtn) {
       }
       closeModal();
     });
+  });
+}
+
+// Editions Modal logic
+const editionsModal = document.querySelector("#editions-modal");
+const closeEditionsBtn = document.querySelector("#close-editions-btn");
+
+if (editionsModal && closeEditionsBtn) {
+  const closeEditions = () => {
+    editionsModal.classList.remove("open");
+    setTimeout(() => {
+      if (!editionsModal.classList.contains("open")) {
+        editionsModal.hidden = true;
+      }
+    }, 300);
+  };
+
+  closeEditionsBtn.addEventListener("click", closeEditions);
+
+  editionsModal.addEventListener("click", (event) => {
+    if (event.target === editionsModal) {
+      closeEditions();
+    }
   });
 }

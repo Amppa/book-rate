@@ -149,12 +149,13 @@
     <tr class="work-row">
       <td class="work-title"></td>
       <td class="author"></td>
-      <td><a class="work-link" target="_blank" rel="noreferrer">Open Library Work ↗</a>
-        <details>
-          <summary><span class="edition-count"></span></summary>
-          <div class="edition-note"></div>
-          <div class="edition-list"></div>
-        </details>
+      <td>
+        <div class="work-info-cell">
+          <a class="work-link" target="_blank" rel="noreferrer">Open Library Work ↗</a>
+          <button type="button" class="btn-link show-editions-btn">
+            <span class="edition-count"></span>
+          </button>
+        </div>
       </td>
       <td><strong class="ol-rate"></strong><small class="ol-count"></small></td>
       <td><strong class="gb-rate"></strong><small class="gb-count"></small></td>
@@ -215,6 +216,20 @@
             </tr>
           </tbody>
         </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 版本列表 Modal -->
+  <div id="editions-modal" class="modal" hidden>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="editions-modal-title">版本列表</h3>
+        <button type="button" id="close-editions-btn" class="close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="editions-modal-note" class="edition-note" style="margin-bottom: var(--space-3);"></div>
+        <div id="editions-modal-list" class="edition-list"></div>
       </div>
     </div>
   </div>
