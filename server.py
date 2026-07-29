@@ -15,6 +15,28 @@ aggregator = BookAggregator(google_api_key=google_key)
 open_library = aggregator.open_library
 google_books = aggregator.google_books
 
+def _format_editions(editions_list) -> dict:
+    entries = []
+    for ed in editions_list:
+        langs = []
+        if ed.language:
+            for l in ed.language.split(","):
+                clean_l = l.strip()
+                if clean_l:
+                    langs.append({"key": f"/languages/{clean_l}"})
+        
+        entries.append({
+            "title": ed.title,
+            "publish_date": ed.publish_year if ed.publish_year else "出版年未提供",
+            "publishers": [ed.publisher] if ed.publisher else [],
+            "languages": langs
+        })
+        
+    return {
+        "size": len(editions_list),
+        "entries": entries
+    }
+
 @app.get("/api/search")
 def api_search(
     q: str = Query(..., description="Search query"),
@@ -144,26 +166,7 @@ def api_work_details(
             "count": ol_rating.rating_count if ol_rating and ol_rating.rating_count is not None else 0
         }
         
-        entries = []
-        for ed in ol_editions:
-            langs = []
-            if ed.language:
-                for l in ed.language.split(","):
-                    clean_l = l.strip()
-                    if clean_l:
-                        langs.append({"key": f"/languages/{clean_l}"})
-            
-            entries.append({
-                "title": ed.title,
-                "publish_date": ed.publish_year if ed.publish_year else "出版年未提供",
-                "publishers": [ed.publisher] if ed.publisher else [],
-                "languages": langs
-            })
-            
-        editions_dict = {
-            "size": len(ol_editions),
-            "entries": entries
-        }
+        editions_dict = _format_editions(ol_editions)
         
         gb_rating = gb_work.ratings.get("Google Books") if gb_work else None
         google_dict = {
@@ -193,26 +196,7 @@ def api_work_details(
         # 2. Fetch Open Library Editions (limit 100 as per frontend)
         editions = open_library.fetch_editions(full_work_id, limit=100)
         
-        entries = []
-        for ed in editions:
-            langs = []
-            if ed.language:
-                for l in ed.language.split(","):
-                    clean_l = l.strip()
-                    if clean_l:
-                        langs.append({"key": f"/languages/{clean_l}"})
-            
-            entries.append({
-                "title": ed.title,
-                "publish_date": ed.publish_year if ed.publish_year else "出版年未提供",
-                "publishers": [ed.publisher] if ed.publisher else [],
-                "languages": langs
-            })
-            
-        editions_dict = {
-            "size": len(editions),
-            "entries": entries
-        }
+        editions_dict = _format_editions(editions)
         
         # 3. Create Work object to query Google Books rating
         dummy_work = Work(
