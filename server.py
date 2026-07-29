@@ -3,10 +3,11 @@ from fastapi.staticfiles import StaticFiles
 import os
 import uvicorn
 
-from aggregator import BookAggregator
-from models import Work, Edition, PlatformRating
+from book_rate.aggregator import BookAggregator
+from book_rate.models import Work, Edition, PlatformRating
+from book_rate.providers.google_books import GoogleBooksProvider
 
-app = FastAPI(title="Book Score Aggregator")
+app = FastAPI(title="BookRate Aggregator")
 
 # Initialize aggregator
 google_key = os.environ.get("GOOGLE_BOOKS_API_KEY")
@@ -15,9 +16,13 @@ open_library = aggregator.open_library
 google_books = aggregator.google_books
 
 @app.get("/api/search")
-def api_search(q: str = Query(..., description="Search query")):
+def api_search(
+    q: str = Query(..., description="Search query"),
+    page: int = Query(1, description="Page number")
+):
+    print(f"\n[Search API] User query: '{q}', page: {page}")
     # Call OL search works without fetching editions/ratings
-    works = open_library.search_works(q, limit=10, include_details=False)
+    works = open_library.search_works(q, limit=10, page=page, include_details=False)
     
     results = []
     for w in works:
@@ -34,15 +39,17 @@ def api_search(q: str = Query(..., description="Search query")):
 def api_work_details(
     work_id: str = Query(..., description="Work ID e.g. OL17267881W"),
     title: str = Query(None, description="Title of the work"),
-    author: str = Query(None, description="Author of the work")
+    author: str = Query(None, description="Author of the work"),
+    google_key: str = Query(None, description="Optional Google Books API Key")
 ):
+    print(f"\n[Details API] User locked work: '{work_id}' (Title: '{title}', Author: '{author}')")
     # Ensure work_id starts with /works/
     full_work_id = work_id if work_id.startswith("/works/") else f"/works/{work_id}"
     
     # 1. Fetch Open Library Ratings
     ol_rating = open_library.fetch_ratings(Work(work_id=full_work_id, title="", author=""))
     ratings_dict = {
-        "average": ol_rating.score if ol_rating.score is not None else 0,
+        "average": ol_rating.rate if ol_rating.rate is not None else 0,
         "count": ol_rating.rating_count if ol_rating.rating_count is not None else 0
     }
     
@@ -71,6 +78,8 @@ def api_work_details(
     }
     
     # 3. Create Work object to query Google Books rating
+    gb_provider = GoogleBooksProvider(api_key=google_key) if google_key else google_books
+    
     dummy_work = Work(
         work_id=full_work_id,
         title=title or "",
@@ -78,11 +87,12 @@ def api_work_details(
         editions=editions
     )
     
-    gb_rating = google_books.fetch_ratings(dummy_work)
+    gb_rating = gb_provider.fetch_ratings(dummy_work)
     google_dict = {
-        "average": gb_rating.score if gb_rating.score is not None else 0,
+        "average": gb_rating.rate if gb_rating.rate is not None else 0,
         "count": gb_rating.rating_count if gb_rating.rating_count is not None else 0,
-        "title": gb_rating.title or dummy_work.title
+        "title": gb_rating.title or dummy_work.title,
+        "quota_exceeded": gb_provider.quota_exceeded
     }
     
     return {

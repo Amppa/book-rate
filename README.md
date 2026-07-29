@@ -1,6 +1,6 @@
-# Books Score Aggregator 📚
+# BookRate 📚
 
-A Python tool and framework for searching books by title (including Chinese titles), discovering abstract **Works** and their specific language **Editions**, and aggregating rating scores and review counts across multiple platforms (Open Library, Google Books).
+A Python tool and framework for searching books by title (including Chinese titles), discovering abstract **Works** and their specific language **Editions**, and aggregating ratings and review counts across multiple platforms (Open Library, Google Books).
 
 ---
 
@@ -19,8 +19,8 @@ A Python tool and framework for searching books by title (including Chinese titl
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/your-username/books-score.git
-   cd books-score
+   git clone https://github.com/your-username/bookrate.git
+   cd bookrate
    ```
 
 2. **Install dependencies**:
@@ -98,18 +98,23 @@ python main.py "三體" --google-key "your_api_key_here"
 ## Project Architecture
 
 ```
-books-score/
-├── models.py            # Dataclasses: Work, Edition, PlatformRating
-├── aggregator.py        # BookAggregator class combining provider data
-├── formatters.py        # Markdown, Rich Table, CSV, JSON formatters
-├── main.py              # CLI entry point with argparse
-├── requirements.txt     # Python dependencies (requests, rich)
-├── providers/
-│   ├── base.py          # Abstract BaseProvider interface
-│   ├── open_library.py  # Open Library Work/Edition & Rating API provider
-│   └── google_books.py  # Google Books Volume & Rating API provider
-└── tests/
-    └── test_aggregator.py # Unit tests
+bookrate/
+├── book_rate/           # Core python package
+│   ├── __init__.py
+│   ├── models.py        # Dataclasses: Work, Edition, PlatformRating
+│   ├── aggregator.py    # BookAggregator class combining provider data
+│   ├── formatters.py    # Markdown, Rich Table, CSV, JSON formatters
+│   └── providers/
+│       ├── __init__.py
+│       ├── base.py      # Abstract BaseProvider interface
+│       ├── open_library.py # Open Library API provider
+│       └── google_books.py # Google Books API provider
+├── frontend/            # Web frontend files (HTML, CSS, JS)
+├── tests/
+│   └── test_aggregator.py # Unit tests
+├── main.py              # CLI entry point
+├── server.py            # FastAPI Web Server entry point
+└── requirements.txt     # Python dependencies (requests, rich, fastapi, uvicorn)
 ```
 
 ---

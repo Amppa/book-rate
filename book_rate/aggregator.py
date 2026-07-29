@@ -1,8 +1,8 @@
 import logging
 from typing import List, Optional, Dict
-from models import Work, PlatformRating
-from providers.open_library import OpenLibraryProvider
-from providers.google_books import GoogleBooksProvider
+from book_rate.models import Work, PlatformRating
+from book_rate.providers.open_library import OpenLibraryProvider
+from book_rate.providers.google_books import GoogleBooksProvider
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ class BookAggregator:
             for ol_work in ol_works:
                 # Enrich with Google Books ratings by checking ISBNs or Title/Author
                 gb_rating = self.google_books.fetch_ratings(ol_work)
-                if gb_rating and (gb_rating.score is not None or gb_rating.rating_count is not None):
+                if gb_rating and (gb_rating.rate is not None or gb_rating.rating_count is not None):
                     ol_work.ratings[self.google_books.name] = gb_rating
                 elif not self.google_books.name in ol_work.ratings:
                     ol_work.ratings[self.google_books.name] = PlatformRating(platform_name=self.google_books.name)

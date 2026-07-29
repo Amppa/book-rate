@@ -3,8 +3,8 @@ import urllib.parse
 from typing import List, Optional
 import requests
 
-from models import Work, Edition, PlatformRating
-from providers.base import BaseProvider
+from book_rate.models import Work, Edition, PlatformRating
+from book_rate.providers.base import BaseProvider
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ class OpenLibraryProvider(BaseProvider):
     def name(self) -> str:
         return "Open Library"
 
-    def search_works(self, query: str, limit: int = 5, include_details: bool = True) -> List[Work]:
+    def search_works(self, query: str, limit: int = 5, page: int = 1, include_details: bool = True) -> List[Work]:
         """Search Open Library for works matching query."""
         clean_query = query.strip()
         if not clean_query:
@@ -44,7 +44,7 @@ class OpenLibraryProvider(BaseProvider):
             search_queries.append({"q": f"{clean_query}*"})
 
         for q_params in search_queries:
-            params = {"limit": limit, "fields": fields, **q_params}
+            params = {"limit": limit, "page": page, "fields": fields, **q_params}
             try:
                 url = f"{self.BASE_URL}/search.json"
                 resp = self.session.get(url, params=params, timeout=self.timeout)
@@ -83,7 +83,7 @@ class OpenLibraryProvider(BaseProvider):
             if avg_rating is not None or rating_count is not None:
                 work.ratings[self.name] = PlatformRating(
                     platform_name=self.name,
-                    score=float(avg_rating) if avg_rating is not None else None,
+                    rate=float(avg_rating) if avg_rating is not None else None,
                     rating_count=int(rating_count) if rating_count is not None else 0,
                     url=f"{self.BASE_URL}{work_key}" if work_key else None
                 )
@@ -117,7 +117,7 @@ class OpenLibraryProvider(BaseProvider):
                 count = summary.get("count")
                 return PlatformRating(
                     platform_name=self.name,
-                    score=float(avg) if avg is not None and avg > 0 else None,
+                    rate=float(avg) if avg is not None and avg > 0 else None,
                     rating_count=int(count) if count is not None else 0,
                     url=f"{self.BASE_URL}{work_id}"
                 )

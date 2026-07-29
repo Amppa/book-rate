@@ -1,6 +1,6 @@
 import unittest
-from models import Work, PlatformRating, Edition
-from formatters import format_markdown_table, format_csv, format_json
+from book_rate.models import Work, PlatformRating, Edition
+from book_rate.formatters import format_markdown_table, format_csv, format_json
 
 
 class TestModelsAndFormatters(unittest.TestCase):
@@ -22,13 +22,13 @@ class TestModelsAndFormatters(unittest.TestCase):
             ratings={
                 "Open Library": PlatformRating(
                     platform_name="Open Library",
-                    score=4.25,
+                    rate=4.25,
                     rating_count=150,
                     url="https://openlibrary.org/works/OL17362624W"
                 ),
                 "Google Books": PlatformRating(
                     platform_name="Google Books",
-                    score=4.40,
+                    rate=4.40,
                     rating_count=3200,
                     url="https://books.google.com"
                 )
@@ -36,11 +36,11 @@ class TestModelsAndFormatters(unittest.TestCase):
         )
 
     def test_platform_rating_format(self):
-        rating = PlatformRating(platform_name="Open Library", score=4.5, rating_count=100)
-        self.assertEqual(rating.format_score_count(), "4.50 / 100 reviews")
+        rating = PlatformRating(platform_name="Open Library", rate=4.5, rating_count=100)
+        self.assertEqual(rating.format_rate_count(), "4.50 / 100 reviews")
 
         empty_rating = PlatformRating(platform_name="Google Books")
-        self.assertEqual(empty_rating.format_score_count(), "N/A")
+        self.assertEqual(empty_rating.format_rate_count(), "N/A")
 
     def test_markdown_formatter(self):
         md = format_markdown_table([self.sample_work])

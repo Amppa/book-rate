@@ -3,8 +3,8 @@ import os
 from typing import List, Optional
 import requests
 
-from models import Work, Edition, PlatformRating
-from providers.base import BaseProvider
+from book_rate.models import Work, Edition, PlatformRating
+from book_rate.providers.base import BaseProvider
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +89,7 @@ class GoogleBooksProvider(BaseProvider):
             if avg_rating is not None or ratings_count is not None:
                 work.ratings[self.name] = PlatformRating(
                     platform_name=self.name,
-                    score=float(avg_rating) if avg_rating is not None else None,
+                    rate=float(avg_rating) if avg_rating is not None else None,
                     rating_count=int(ratings_count) if ratings_count is not None else 0,
                     url=vol_info.get("infoLink"),
                     title=title

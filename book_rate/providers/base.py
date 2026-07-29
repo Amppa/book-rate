@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List
-from models import Work, PlatformRating
+from book_rate.models import Work, PlatformRating
 
 
 class BaseProvider(ABC):

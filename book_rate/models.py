@@ -6,19 +6,19 @@ from typing import List, Dict, Optional
 class PlatformRating:
     """Represents rating info from a specific platform (e.g. Open Library, Google Books)."""
     platform_name: str
-    score: Optional[float] = None
+    rate: Optional[float] = None
     rating_count: Optional[int] = None
     url: Optional[str] = None
     title: Optional[str] = None
 
-    def format_score_count(self) -> str:
-        """Format score and count as string (e.g. '4.25 / 150 ratings' or 'N/A')."""
-        if self.score is None and self.rating_count is None:
+    def format_rate_count(self) -> str:
+        """Format rate and count as string (e.g. '4.25 / 150 ratings' or 'N/A')."""
+        if self.rate is None and self.rating_count is None:
             return "N/A"
         
-        score_str = f"{self.score:.2f}" if self.score is not None else "N/A"
+        rate_str = f"{self.rate:.2f}" if self.rate is not None else "N/A"
         count_str = f"{self.rating_count} reviews" if self.rating_count is not None else "0 reviews"
-        return f"{score_str} / {count_str}"
+        return f"{rate_str} / {count_str}"
 
 
 @dataclass
@@ -39,7 +39,6 @@ class Work:
     work_id: str
     title: str
     author: str
-    original_title: Optional[str] = None
     first_publish_year: Optional[int] = None
     edition_count: Optional[int] = None
     editions: List[Edition] = field(default_factory=list)
@@ -48,5 +47,5 @@ class Work:
     def get_rating_summary(self, platform_name: str) -> str:
         """Get formatted rating for a platform or return N/A."""
         if platform_name in self.ratings:
-            return self.ratings[platform_name].format_score_count()
+            return self.ratings[platform_name].format_rate_count()
         return "N/A"

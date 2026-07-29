@@ -5,7 +5,7 @@ from typing import List, Optional
 from rich.console import Console
 from rich.table import Table
 
-from models import Work
+from book_rate.models import Work
 
 
 def format_markdown_table(works: List[Work]) -> str:
@@ -64,7 +64,7 @@ def format_csv(works: List[Work]) -> str:
     """Format works list as CSV string."""
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["書名", "原作者", "work", "Open Library 分數／人數", "Google Books 分數／人數"])
+    writer.writerow(["書名", "原作者", "work", "Open Library 分數／人數", "Google Books 分語／人數"])
 
     for work in works:
         ol_summary = work.get_rating_summary("Open Library")
@@ -84,7 +84,7 @@ def format_json(works: List[Work]) -> str:
             "author": work.author,
             "ratings": {
                 name: {
-                    "score": r.score,
+                    "rate": r.rate,
                     "rating_count": r.rating_count,
                     "url": r.url
                 } for name, r in work.ratings.items()

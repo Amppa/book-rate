@@ -3,13 +3,13 @@ import sys
 import os
 from rich.console import Console
 
-from aggregator import BookAggregator
-from formatters import format_markdown_table, print_rich_table, format_csv, format_json
+from book_rate.aggregator import BookAggregator
+from book_rate.formatters import format_markdown_table, print_rich_table, format_csv, format_json
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Book Score Aggregator (MVP) - Query books by Chinese title, map works & editions, aggregate ratings from Open Library & Google Books."
+        description="BookRate Aggregator (MVP) - Query books by Chinese title, map works & editions, aggregate ratings from Open Library & Google Books."
     )
     parser.add_argument(
         "query",

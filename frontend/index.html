@@ -1,67 +1,144 @@
 <!doctype html>
 <html lang="zh-Hant">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="以中文書名尋找 Open Library 作品、版本與評分。" />
-    <title>書籍版本與評分查詢</title>
-    <link rel="stylesheet" href="./styles.css" />
-  </head>
-  <body>
-    <main class="page-shell">
-      <header>
-        <p class="eyebrow">BOOK SCORE · MVP</p>
-        <h1>先鎖定作品，再比較評分</h1>
-        <p class="lede">輸入中英文書名或 ISBN，先選擇正確的 Open Library Work，再取得版本與公開評分。</p>
-      </header>
 
-      <form id="search-form" class="search-form">
-        <label for="title">書名或 ISBN</label>
-        <div class="search-row">
-          <input id="title" name="title" type="search" placeholder="例如：原子習慣、Atomic Habits、9780735211292" required autofocus />
-          <button type="submit">尋找作品</button>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="以中文書名尋找 Open Library 作品、版本與評分。" />
+  <title>BookRate 書籍評價查詢</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+
+<body>
+  <main class="page-shell">
+    <details class="settings-details">
+      <summary>⚙️ Google Books API Key 設定與說明 (選填)</summary>
+      <div class="settings-content">
+        <p class="settings-desc">當 Google Books 評分顯示「額度超限 (HTTP 429)」時，可在下方填入您的 API Key（儲存於瀏覽器）：</p>
+        <div class="api-key-input-row">
+          <input type="password" id="google-api-key" placeholder="輸入 API 金鑰 (例如 AIzaSy...)" />
+          <button type="button" id="save-api-key-btn">儲存</button>
+          <button type="button" id="clear-api-key-btn" class="btn-secondary">清除</button>
         </div>
-        <p class="hint">第 1 步會列出最相關的 10 個作品，請選擇你要鎖定的那一本。</p>
-      </form>
+        <div class="env-help">
+          <p><strong>命令列/伺服器環境變數設定法（免重複輸入）：</strong></p>
+          <p>您也可以在啟動伺服器前，於終端機設定環境變數，重啟伺服器即可：</p>
+          <pre><code># Windows (PowerShell)
+$env:GOOGLE_BOOKS_API_KEY="您的金鑰"
+python server.py
 
-      <section id="history-section" class="history-section" hidden>
-        <p>最近查詢</p><div id="history-list" class="history-list"></div>
-      </section>
-
-      <section id="status" class="status" aria-live="polite">請輸入書名開始查詢。</section>
-      <section id="candidate-section" hidden aria-live="polite">
-        <div class="section-heading"><p class="eyebrow">第 1 步</p><h2>選擇要鎖定的作品</h2></div>
-        <div id="candidate-list" class="candidate-list"></div>
-      </section>
-      <section id="results" aria-live="polite">
-        <div id="details-heading" class="section-heading" hidden><p class="eyebrow">第 2 步</p><h2>版本與評分</h2></div>
-        <div class="table-wrap" hidden>
-          <table>
-            <thead><tr><th>書名</th><th>原作者</th><th>Work／版本</th><th>Open Library 分數／人數</th><th>Google Books 分數／人數</th></tr></thead>
-            <tbody id="result-body"></tbody>
-          </table>
+# macOS / Linux
+export GOOGLE_BOOKS_API_KEY="您的金鑰"
+python server.py</code></pre>
         </div>
-      </section>
-    </main>
-    <template id="result-template">
-      <tr class="work-row">
-        <td class="work-title"></td>
-        <td class="author"></td>
-        <td><a class="work-link" target="_blank" rel="noreferrer">Open Library Work ↗</a><details>
-          <summary>版本 <span class="edition-count"></span></summary>
+      </div>
+    </details>
+
+    <header>
+      <p class="eyebrow">BOOK RATE · MVP</p>
+      <h1>書譽: 查詢書籍風評</h1>
+      <p class="lede">輸入中英文書名或 ISBN，選擇書籍(work)，再取得公開評分。</p>
+    </header>
+
+    <section id="status" class="status" aria-live="polite">請輸入書名開始查詢。</section>
+
+    <div class="wizard-container">
+      <div class="wizard-track" id="wizard-track">
+
+        <!-- 步驟 1 面板 -->
+        <div class="wizard-step" id="step-1">
+          <div class="section-heading">
+            <p class="eyebrow">第 1 步</p>
+            <h2>搜尋書籍</h2>
+          </div>
+          <form id="search-form" class="search-form">
+            <label for="title">書名或 ISBN</label>
+            <div class="search-row">
+              <input id="title" name="title" type="search" placeholder="例如：原子習慣、Atomic Habits、9780735211292" required
+                autofocus />
+              <button type="submit">尋找</button>
+            </div>
+            <section id="history-section" class="history-section" hidden>
+              <p>最近查詢</p>
+              <div id="history-list" class="history-list"></div>
+            </section>
+          </form>
+        </div>
+
+        <!-- 步驟 2 面板 -->
+        <div class="wizard-step" id="step-2">
+          <div class="step-nav">
+            <button type="button" id="btn-prev-to-1" class="btn-secondary">← 返回搜尋</button>
+          </div>
+          <div id="candidate-heading" class="section-heading" hidden>
+            <p class="eyebrow">第 2 步</p>
+            <h2>選取書籍 (work)</h2>
+          </div>
+          <section id="candidate-section" hidden aria-live="polite">
+            <div id="candidate-list" class="candidate-list"></div>
+            <div id="pagination-controls" class="pagination-controls" hidden>
+              <button type="button" id="prev-page-btn" class="btn-secondary">上一頁</button>
+              <span id="page-indicator">第 1 頁</span>
+              <button type="button" id="next-page-btn">下一頁</button>
+            </div>
+          </section>
+        </div>
+
+        <!-- 步驟 3 面板 -->
+        <div class="wizard-step" id="step-3">
+          <div class="step-nav">
+            <button type="button" id="btn-prev-to-2" class="btn-secondary">← 返回候選書籍</button>
+          </div>
+          <div id="details-heading" class="section-heading" hidden>
+            <p class="eyebrow">第 3 步</p>
+            <h2>版本與評分</h2>
+          </div>
+          <section id="results" aria-live="polite">
+            <div class="table-wrap" hidden>
+              <table>
+                <thead>
+                  <tr>
+                    <th>書名</th>
+                    <th>原作者</th>
+                    <th>Work／版本</th>
+                    <th>Open Library 評價</th>
+                    <th>Google Books 評價</th>
+                  </tr>
+                </thead>
+                <tbody id="result-body"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+
+      </div>
+    </div>
+  </main>
+  <template id="result-template">
+    <tr class="work-row">
+      <td class="work-title"></td>
+      <td class="author"></td>
+      <td><a class="work-link" target="_blank" rel="noreferrer">Open Library Work ↗</a>
+        <details>
+          <summary><span class="edition-count"></span></summary>
           <div class="edition-note"></div>
           <div class="edition-list"></div>
-        </details></td>
-        <td><strong class="ol-score"></strong><small class="ol-count"></small></td>
-        <td><strong class="gb-score"></strong><small class="gb-count"></small></td>
-      </tr>
-    </template>
-    <template id="candidate-template">
-      <article class="candidate-card">
-        <div><h3 class="candidate-title"></h3><p class="candidate-author"></p><p class="candidate-meta"></p></div>
-        <button type="button" class="select-work">鎖定這本書</button>
-      </article>
-    </template>
-    <script src="./app.js"></script>
-  </body>
+        </details>
+      </td>
+      <td><strong class="ol-rate"></strong><small class="ol-count"></small></td>
+      <td><strong class="gb-rate"></strong><small class="gb-count"></small></td>
+    </tr>
+  </template>
+  <template id="candidate-template">
+    <article class="candidate-card">
+      <div>
+        <h3 class="candidate-title"></h3>
+        <p class="candidate-meta"></p>
+      </div>
+      <button type="button" class="select-work">選這本書</button>
+    </article>
+  </template>
+  <script src="./app.js"></script>
+</body>
+
 </html>
