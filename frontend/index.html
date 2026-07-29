@@ -37,10 +37,8 @@ python server.py</code></pre>
     <header>
       <p class="eyebrow">BOOK RATE · MVP</p>
       <h1>書譽: 查詢書籍風評</h1>
-      <p class="lede">輸入中英文書名或 ISBN，選擇書籍(work)，再取得公開評分。</p>
+      <p class="lede">輸入書名或 ISBN，確認要選擇書籍，顯示查尋網友評分。</p>
     </header>
-
-    <section id="status" class="status" aria-live="polite">請輸入書名開始查詢。</section>
 
     <div class="wizard-container">
       <div class="wizard-track" id="wizard-track">
@@ -59,7 +57,7 @@ python server.py</code></pre>
               <button type="submit">尋找</button>
             </div>
             <section id="history-section" class="history-section" hidden>
-              <p>最近查詢</p>
+              <p>最近查詢：</p>
               <div id="history-list" class="history-list"></div>
             </section>
           </form>
@@ -72,8 +70,9 @@ python server.py</code></pre>
           </div>
           <div id="candidate-heading" class="section-heading" hidden>
             <p class="eyebrow">第 2 步</p>
-            <h2>選取書籍 (work)</h2>
+            <h2>選取書籍</h2>
           </div>
+          <div id="step-2-status" class="status" aria-live="polite"></div>
           <section id="candidate-section" hidden aria-live="polite">
             <div id="candidate-list" class="candidate-list"></div>
             <div id="pagination-controls" class="pagination-controls" hidden>
@@ -93,6 +92,7 @@ python server.py</code></pre>
             <p class="eyebrow">第 3 步</p>
             <h2>版本與評分</h2>
           </div>
+          <div id="step-3-status" class="status" aria-live="polite"></div>
           <section id="results" aria-live="polite">
             <div class="table-wrap" hidden>
               <table>

@@ -54,7 +54,8 @@ cleanExpiredCache();
 
 const searchForm = document.querySelector("#search-form");
 const searchInput = document.querySelector("#title");
-const statusMessage = document.querySelector("#status");
+const step2Status = document.querySelector("#step-2-status");
+const step3Status = document.querySelector("#step-3-status");
 const candidateSection = document.querySelector("#candidate-section");
 const candidateList = document.querySelector("#candidate-list");
 const candidateTemplate = document.querySelector("#candidate-template");
@@ -203,8 +204,8 @@ async function selectWork(work) {
   goToStep(3);
   resultBody.replaceChildren();
   tableWrap.hidden = true;
-  statusMessage.classList.remove("error");
-  statusMessage.textContent = `正在取得《${work.title}》的版本與評分…`;
+  step3Status.classList.remove("error");
+  step3Status.textContent = `正在取得《${work.title}》的版本與評分…`;
   
   try {
     const apiKey = localStorage.getItem("bookrate:google-api-key") || "";
@@ -227,11 +228,11 @@ async function selectWork(work) {
     details.work = work;
     resultBody.append(renderWorkDetailRow(details));
     tableWrap.hidden = false;
-    statusMessage.textContent = `選取《${work.title}》；下方顯示其版本與評分。`;
+    step3Status.textContent = `選取《${work.title}》；下方顯示其版本與評分。`;
   } catch (error) {
     console.error(error);
-    statusMessage.classList.add("error");
-    statusMessage.textContent = "取得作品詳細評分失敗，請確認網路連線後再試一次。";
+    step3Status.classList.add("error");
+    step3Status.textContent = "取得作品詳細評分失敗，請確認網路連線後再試一次。";
   }
 }
 
@@ -292,8 +293,8 @@ async function searchWorks(query, page) {
   detailsHeading.hidden = true; 
   tableWrap.hidden = true; 
   resultBody.replaceChildren(); 
-  statusMessage.classList.remove("error"); 
-  statusMessage.textContent = `正在尋找「${query}」的相關作品 (第 ${page} 頁)…`; 
+  step2Status.classList.remove("error"); 
+  step2Status.textContent = `正在尋找「${query}」的相關作品 (第 ${page} 頁)…`; 
   
   if (page === 1) {
     saveHistory(query);
@@ -309,8 +310,18 @@ async function searchWorks(query, page) {
       }
     }
     if (!works || !works.length) { 
-      statusMessage.classList.add("error"); 
-      statusMessage.textContent = page === 1 ? "找不到相符的作品；可嘗試完整書名、作者或 ISBN。" : "已無更多作品。"; 
+      step2Status.classList.add("error"); 
+      step2Status.textContent = page === 1 ? "找不到相符的作品；可嘗試完整書名、作者或 ISBN。" : "已無更多作品。"; 
+      if (page === 1) {
+        candidateList.replaceChildren();
+        const noResultsEl = document.createElement("div");
+        noResultsEl.className = "no-results";
+        noResultsEl.textContent = "找不到書籍";
+        noResultsEl.style.padding = "2rem";
+        noResultsEl.style.textAlign = "center";
+        noResultsEl.style.color = "#647068";
+        candidateList.append(noResultsEl);
+      }
       return; 
     }
     
@@ -320,11 +331,11 @@ async function searchWorks(query, page) {
     renderCandidates(works);
     candidateHeading.hidden = false;
     updatePagination(works.length);
-    statusMessage.textContent = `找到 ${works.length} 個候選作品。請在第 1 步選取正確的書籍。`;
+    step2Status.textContent = "";
   } catch (error) { 
     console.error(error); 
-    statusMessage.classList.add("error"); 
-    statusMessage.textContent = "查詢失敗，請確認網路連線後再試一次。"; 
+    step2Status.classList.add("error"); 
+    step2Status.textContent = "查詢失敗，請確認網路連線後再試一次。"; 
   }
 }
 
@@ -337,6 +348,10 @@ searchForm.addEventListener("submit", (event) => {
 
 function updatePagination(itemsCount) {
   if (!currentQuery) {
+    paginationControls.hidden = true;
+    return;
+  }
+  if (currentPage === 1 && itemsCount < MAX_CANDIDATES) {
     paginationControls.hidden = true;
     return;
   }
@@ -391,10 +406,14 @@ clearApiKeyBtn.addEventListener("click", () => {
 
 btnPrevTo1.addEventListener("click", () => {
   goToStep(1);
+  step2Status.textContent = "";
+  step2Status.classList.remove("error");
 });
 
 btnPrevTo2.addEventListener("click", () => {
   goToStep(2);
+  step3Status.textContent = "";
+  step3Status.classList.remove("error");
   candidateList.querySelectorAll(".candidate-card").forEach((card) => {
     card.classList.remove("selected");
     const btn = card.querySelector(".select-work");
