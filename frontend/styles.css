@@ -20,8 +20,27 @@ button:hover { background: #0d3d2d; }
 .history-section p { display: inline; margin-right: .6rem; }
 .history-list { display: inline-flex; flex-wrap: wrap; gap: .4rem; }
 .history-item { padding: .35rem .6rem; color: #174f3c; background: #edf2ea; font-size: .8rem; }
-.section-heading { margin: 2rem 0 1rem; }
-.section-heading .eyebrow { margin: 0 0 .2rem; }
+.section-heading {
+  text-align: center;
+  margin: 1.5rem 0;
+}
+#step-1 .section-heading {
+  margin-top: 0.5rem;
+}
+.section-heading h2 {
+  margin: 0;
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.6rem;
+}
+.section-heading .step-num {
+  font-size: 0.65em;
+  font-weight: 800;
+  color: #a44d28;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
 .candidate-list {
   display: flex;
   flex-direction: column;
@@ -72,7 +91,7 @@ summary { cursor: pointer; font-weight: 700; }
 .edition { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .75rem; padding: .7rem .8rem; background: #faf8f2; border-radius: 8px; font-size: .9rem; }
 .edition span { color: #647068; text-align: right; }
 .error { color: #9d321d; }
-.settings-details { position: absolute; top: 72px; right: 0; width: 340px; margin: 0; padding: 1.2rem; background: #fffdfa; border: 1px solid #e5ded0; border-radius: 16px; box-shadow: 0 4px 12px #453a2405; font-size: .9rem; z-index: 100; }
+.settings-details { position: absolute; top: 92px; right: 0; width: 340px; margin: 0; padding: 1.2rem; background: #fffdfa; border: 1px solid #e5ded0; border-radius: 16px; box-shadow: 0 4px 12px #453a2405; font-size: .9rem; z-index: 100; }
 .settings-details[open] { box-shadow: 0 8px 24px #453a240c; }
 .settings-details summary { font-weight: 700; color: #174f3c; cursor: pointer; user-select: none; }
 .settings-content { margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed #e5ded0; }
@@ -92,7 +111,7 @@ summary { cursor: pointer; font-weight: 700; }
   width: 100%;
   overflow: hidden;
   position: relative;
-  margin-top: 1rem;
+  margin-top: 0.5rem;
 }
 .wizard-track {
   display: flex;
@@ -121,7 +140,54 @@ summary { cursor: pointer; font-weight: 700; }
   background: #dfebd8;
 }
 
+/* Subtitle style */
+h1 .subtitle {
+  font-size: 0.55em;
+  font-weight: 400;
+  color: #5d6962;
+  letter-spacing: normal;
+  margin-left: 0.6rem;
+}
+
+/* Horizontal step header layout with relative/absolute positioning */
+.step-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.8rem;
+  margin: 1.5rem 0;
+}
+.step-header .section-heading {
+  margin: 0;
+  width: 100%;
+}
+.step-header button {
+  position: absolute;
+  left: 0;
+  padding: .5rem 1rem;
+  font-size: .88rem;
+  border-radius: 8px;
+  background: #edf2ea;
+  color: #174f3c;
+  border: 1px solid #bfc7b9;
+  flex-shrink: 0;
+  z-index: 10;
+}
+.step-header button:hover {
+  background: #dfebd8;
+}
+
+/* Divider line between header and steps */
+.header-line {
+  border: 0;
+  height: 1px;
+  background: #e5ded0;
+  margin: 1.5rem 0 0.5rem; /* Reduced bottom margin */
+}
+
 /* Ensure HTML5 hidden attribute works even with display overridden by class selectors */
 [hidden] {
   display: none !important;
 }
+

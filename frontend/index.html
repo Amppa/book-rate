@@ -12,7 +12,7 @@
 <body>
   <main class="page-shell">
     <details class="settings-details">
-      <summary>⚙️ Google Books API Key 設定與說明 (選填)</summary>
+      <summary>⚙️ Google Books API Key 設定 (選填)</summary>
       <div class="settings-content">
         <p class="settings-desc">當 Google Books 評分顯示「額度超限 (HTTP 429)」時，可在下方填入您的 API Key（儲存於瀏覽器）：</p>
         <div class="api-key-input-row">
@@ -36,9 +36,10 @@ python server.py</code></pre>
 
     <header>
       <p class="eyebrow">BOOK RATE · MVP</p>
-      <h1>書譽: 查詢書籍風評</h1>
+      <h1>書譽<span class="subtitle">查詢書籍風評</span></h1>
       <p class="lede">輸入書名或 ISBN，確認要選擇書籍，顯示查尋網友評分。</p>
     </header>
+    <hr class="header-line" />
 
     <div class="wizard-container">
       <div class="wizard-track" id="wizard-track">
@@ -46,8 +47,7 @@ python server.py</code></pre>
         <!-- 步驟 1 面板 -->
         <div class="wizard-step" id="step-1">
           <div class="section-heading">
-            <p class="eyebrow">第 1 步</p>
-            <h2>搜尋書籍</h2>
+            <h2><small class="step-num">第 1 步</small>搜尋書籍</h2>
           </div>
           <form id="search-form" class="search-form">
             <label for="title">書名或 ISBN</label>
@@ -65,12 +65,11 @@ python server.py</code></pre>
 
         <!-- 步驟 2 面板 -->
         <div class="wizard-step" id="step-2">
-          <div class="step-nav">
-            <button type="button" id="btn-prev-to-1" class="btn-secondary">← 返回搜尋</button>
-          </div>
-          <div id="candidate-heading" class="section-heading" hidden>
-            <p class="eyebrow">第 2 步</p>
-            <h2>選取書籍</h2>
+          <div class="step-header">
+            <button type="button" id="btn-prev-to-1" class="btn-secondary">← 上一步</button>
+            <div id="candidate-heading" class="section-heading" hidden>
+              <h2><small class="step-num">第 2 步</small>選取書籍</h2>
+            </div>
           </div>
           <div id="step-2-status" class="status" aria-live="polite"></div>
           <section id="candidate-section" hidden aria-live="polite">
@@ -85,12 +84,11 @@ python server.py</code></pre>
 
         <!-- 步驟 3 面板 -->
         <div class="wizard-step" id="step-3">
-          <div class="step-nav">
-            <button type="button" id="btn-prev-to-2" class="btn-secondary">← 返回候選書籍</button>
-          </div>
-          <div id="details-heading" class="section-heading" hidden>
-            <p class="eyebrow">第 3 步</p>
-            <h2>版本與評分</h2>
+          <div class="step-header">
+            <button type="button" id="btn-prev-to-2" class="btn-secondary">← 上一步</button>
+            <div id="details-heading" class="section-heading" hidden>
+              <h2><small class="step-num">第 3 步</small>版本與評分</h2>
+            </div>
           </div>
           <div id="step-3-status" class="status" aria-live="polite"></div>
           <section id="results" aria-live="polite">
