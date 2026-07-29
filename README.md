@@ -10,7 +10,7 @@ A Python tool and framework for searching books by title (including Chinese titl
 - **Multi-Provider Aggregation**: Fetches and aggregates score ratings and rating counts across APIs:
   - **Open Library API**: Work ratings (`average`, `count`) and Work editions list.
   - **Google Books API**: Volume `averageRating` and `ratingsCount` with optional API key support.
-- **Chinese Title Support**: Smart search fallback strategies handling short Chinese queries (e.g. `三體`, `原子習慣`).
+- **Chinese Title Support**: Smart search fallback strategies handling short Chinese queries (e.g. `快思慢想`, `原子習慣`).
 - **Flexible Table Formatting**: Outputs formatted Markdown tables, colored terminal tables (powered by `rich`), CSV, or JSON exports.
 
 ---
@@ -65,14 +65,14 @@ You can configure a Google Books API Key in two ways to avoid hitting rate limit
 
 Search for a book by title:
 ```bash
-python main.py "三體"
+python main.py "快思慢想"
 ```
 
 Output:
 ```markdown
 | 書名 | 原作者 | work | Open Library 分數／人數 | Google Books 分數／人數 |
 | --- | --- | --- | --- | --- |
-| 三体 | 刘慈欣, Vincent Schmitt, Gwennaël Gaffric, Marc Simonetti | /works/OL17267881W | 3.93 / 216 reviews | 4.40 / 3200 reviews |
+| 快思慢想 | 丹尼爾·卡內曼 (Daniel Kahneman) | /works/OL27479W | 4.15 / 2200 reviews | 4.30 / 350 reviews |
 ```
 
 ### Detailed Edition Breakdown
@@ -96,11 +96,11 @@ python main.py "原子習慣" -f csv
 To bypass default IP rate limits on Google Books API, provide an API key via environment variable or CLI argument:
 ```bash
 export GOOGLE_BOOKS_API_KEY="your_api_key_here"
-python main.py "三體"
+python main.py "快思慢想"
 ```
 Or directly:
 ```bash
-python main.py "三體" --google-key "your_api_key_here"
+python main.py "快思慢想" --google-key "your_api_key_here"
 ```
 
 ---

@@ -525,3 +525,42 @@ if (clearCacheBtn) {
     alert("快取已清除！");
   });
 }
+
+// Presets Modal logic
+const presetsModal = document.querySelector("#presets-modal");
+const openPresetsBtn = document.querySelector("#open-presets-btn");
+const closePresetsBtn = document.querySelector("#close-presets-btn");
+
+if (presetsModal && openPresetsBtn && closePresetsBtn) {
+  openPresetsBtn.addEventListener("click", () => {
+    presetsModal.hidden = false;
+    setTimeout(() => presetsModal.classList.add("open"), 10);
+  });
+
+  const closeModal = () => {
+    presetsModal.classList.remove("open");
+    setTimeout(() => {
+      if (!presetsModal.classList.contains("open")) {
+        presetsModal.hidden = true;
+      }
+    }, 300);
+  };
+
+  closePresetsBtn.addEventListener("click", closeModal);
+
+  presetsModal.addEventListener("click", (event) => {
+    if (event.target === presetsModal) {
+      closeModal();
+    }
+  });
+
+  document.querySelectorAll(".clickable-preset").forEach((cell) => {
+    cell.addEventListener("click", () => {
+      const query = cell.getAttribute("data-query");
+      if (query && searchInput) {
+        searchInput.value = query;
+      }
+      closeModal();
+    });
+  });
+}

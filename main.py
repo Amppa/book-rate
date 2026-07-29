@@ -15,7 +15,7 @@ def main():
         "query",
         type=str,
         nargs="?",
-        help="Book title to search for (e.g. '三體', '原子習慣', '被討厭的勇氣')"
+        help="Book title to search for (e.g. '快思慢想', '原子習慣')"
     )
     parser.add_argument(
         "-f", "--format",
