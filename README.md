@@ -10,7 +10,7 @@ A Python tool and framework for searching books by title (including Chinese titl
 - **Multi-Provider Aggregation**: Fetches and aggregates score ratings and rating counts across APIs:
   - **Open Library API**: Work ratings (`average`, `count`) and Work editions list.
   - **Google Books API**: Volume `averageRating` and `ratingsCount` with optional API key support.
-- **Chinese Title Support**: Smart search fallback strategies handling short Chinese queries (e.g. `三體`, `原子習慣`, `被討厭的勇氣`).
+- **Chinese Title Support**: Smart search fallback strategies handling short Chinese queries (e.g. `三體`, `原子習慣`).
 - **Flexible Table Formatting**: Outputs formatted Markdown tables, colored terminal tables (powered by `rich`), CSV, or JSON exports.
 
 ---
@@ -38,18 +38,28 @@ Start the local FastAPI server hosting the web application:
 ```bash
 python server.py
 ```
-Then open your browser and navigate to `http://localhost:8000`.
+Then open your browser and navigate to `http://127.0.0.1:8000`.
 
-To secure and speed up queries with a Google Books API Key, set the environment variable:
-```bash
-# Windows (PowerShell)
-$env:GOOGLE_BOOKS_API_KEY="your_api_key"
-python server.py
+#### Setting Google Books API Key
 
-# macOS / Linux
-export GOOGLE_BOOKS_API_KEY="your_api_key"
-python server.py
-```
+You can configure a Google Books API Key in two ways to avoid hitting rate limits:
+
+**1. Directly on the Web UI (Stored in Browser)**
+- Expand the **⚙️ Google Books API Key Settings** details panel at the top-right corner.
+- Input your key and click **Save**. It will be saved locally in your browser's `localStorage` and sent with requests.
+
+**2. Via Server-side Environment Variables**
+- Set the API key before running `server.py`:
+  ```bash
+  # Windows (PowerShell)
+  $env:GOOGLE_BOOKS_API_KEY="your_api_key"
+  python server.py
+
+  # macOS / Linux
+  export GOOGLE_BOOKS_API_KEY="your_api_key"
+  python server.py
+  ```
+
 
 ### Basic CLI Search
 

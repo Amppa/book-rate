@@ -124,21 +124,6 @@ summary { cursor: pointer; font-weight: 700; }
   flex-shrink: 0;
   padding: 0 4px;
 }
-.step-nav {
-  margin-bottom: 1.5rem;
-  display: flex;
-}
-.step-nav button {
-  padding: .5rem 1rem;
-  font-size: .88rem;
-  border-radius: 8px;
-  background: #edf2ea;
-  color: #174f3c;
-  border: 1px solid #bfc7b9;
-}
-.step-nav button:hover {
-  background: #dfebd8;
-}
 
 /* Subtitle style */
 h1 .subtitle {
@@ -168,14 +153,8 @@ h1 .subtitle {
   padding: .5rem 1rem;
   font-size: .88rem;
   border-radius: 8px;
-  background: #edf2ea;
-  color: #174f3c;
-  border: 1px solid #bfc7b9;
   flex-shrink: 0;
   z-index: 10;
-}
-.step-header button:hover {
-  background: #dfebd8;
 }
 
 /* Divider line between header and steps */
