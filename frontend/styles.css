@@ -123,7 +123,6 @@ h2 {
   line-height: 1.7;
 }
 
-.hint,
 .status,
 .edition-note,
 .history-section {
@@ -409,7 +408,7 @@ input {
 }
 
 .checkbox-label span {
-  color: var(--text-dark-green);
+  color: var(--text-green-gray);
   transition: color 0.2s ease;
 }
 
@@ -761,10 +760,6 @@ button:disabled:hover {
 
 .hide-gb-score th:nth-child(5),
 .hide-gb-score td:nth-child(5) {
-  display: none !important;
-}
-
-.col-hidden {
   display: none !important;
 }
 
