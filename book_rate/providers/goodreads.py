@@ -108,32 +108,73 @@ class GoodreadsProvider(BaseProvider):
 
         return works
 
+    def _select_best_rating(self, gr_works: List[Work]) -> Optional[PlatformRating]:
+        """Select the best non-summary Goodreads rating with highest review count."""
+        if not gr_works:
+            return None
+
+        # Filter out summary/workbook brochures
+        valid_works = []
+        for w in gr_works:
+            t_lower = w.title.lower()
+            if any(k in t_lower for k in ["summary", "workbook", "30 minute", "study guide", "collection set"]):
+                continue
+            valid_works.append(w)
+
+        target_list = valid_works if valid_works else gr_works
+        best_work = max(
+            target_list,
+            key=lambda w: (w.ratings.get(self.name).rating_count or 0) if (self.name in w.ratings and w.ratings[self.name].rating_count) else 0
+        )
+        return best_work.ratings.get(self.name)
+
     def fetch_ratings(self, work: Work) -> PlatformRating:
         """Fetch Goodreads rating for a given Work by ISBN or title/author."""
-        if self.name in work.ratings:
+        if self.name in work.ratings and work.ratings[self.name].rate is not None:
             return work.ratings[self.name]
 
-        # 1. Search by ISBN if available
+        # 1. Check if ISBN is present in work.editions or work_id
+        isbns_to_check = []
+        if work.work_id:
+            raw_id = work.work_id.replace("gb:", "").replace("gr:", "").replace("db:", "").replace("/works/", "")
+            if re.match(r'^\d{10,13}$', raw_id):
+                isbns_to_check.append(raw_id)
+            
         for ed in work.editions:
             isbn = ed.isbn_13 or ed.isbn_10
-            if isbn:
-                try:
-                    gr_works = self.search_works(isbn, limit=1)
-                    if gr_works and self.name in gr_works[0].ratings:
-                        return gr_works[0].ratings[self.name]
-                except Exception as e:
-                    logger.debug(f"Goodreads rating query failed for ISBN {isbn}: {e}")
+            if isbn and isbn not in isbns_to_check:
+                isbns_to_check.append(isbn)
 
-        # 2. Try original_title or main title
-        search_query = work.original_title or work.title
-        if search_query:
-            if work.author and work.author not in ["Unknown Author", "資料未提供"]:
-                search_query += f" {work.author}"
+        for isbn in isbns_to_check:
             try:
-                gr_works = self.search_works(search_query, limit=1)
-                if gr_works and self.name in gr_works[0].ratings:
-                    return gr_works[0].ratings[self.name]
+                gr_works = self.search_works(isbn, limit=5)
+                best_rating = self._select_best_rating(gr_works)
+                if best_rating and (best_rating.rate is not None or best_rating.rating_count is not None):
+                    return best_rating
             except Exception as e:
-                logger.debug(f"Goodreads rating query failed for title '{search_query}': {e}")
+                logger.debug(f"Goodreads rating query failed for ISBN {isbn}: {e}")
+
+        # 2. Try title search (first without author, as appending author to title can pollute search ranking)
+        titles_to_try = [t for t in [work.original_title, work.title] if t]
+        for title in titles_to_try:
+            try:
+                gr_works = self.search_works(title, limit=5)
+                best_rating = self._select_best_rating(gr_works)
+                if best_rating and (best_rating.rate is not None or best_rating.rating_count is not None):
+                    return best_rating
+            except Exception as e:
+                logger.debug(f"Goodreads rating query failed for title '{title}': {e}")
+
+        # 3. Fallback: Try title + author
+        for title in titles_to_try:
+            if work.author and work.author not in ["Unknown Author", "資料未提供"]:
+                query = f"{title} {work.author}"
+                try:
+                    gr_works = self.search_works(query, limit=5)
+                    best_rating = self._select_best_rating(gr_works)
+                    if best_rating and (best_rating.rate is not None or best_rating.rating_count is not None):
+                        return best_rating
+                except Exception as e:
+                    logger.debug(f"Goodreads rating query failed for query '{query}': {e}")
 
         return PlatformRating(platform_name=self.name)
