@@ -659,13 +659,55 @@ if (clearCacheBtn) {
 const presetsModal = document.querySelector("#presets-modal");
 const openPresetsBtn = document.querySelector("#open-presets-btn");
 const closePresetsBtn = document.querySelector("#close-presets-btn");
+const presetsTableBody = document.querySelector("#presets-table-body");
+let cachedPresets = null;
+
+async function loadPresets() {
+  if (cachedPresets) return cachedPresets;
+  try {
+    const res = await fetch("./presets.json");
+    if (!res.ok) throw new Error("Failed to load presets");
+    cachedPresets = await res.json();
+    return cachedPresets;
+  } catch (e) {
+    console.error(e);
+    return [];
+  }
+}
+
+function renderPresetsTable(presets, closeModalFn) {
+  if (!presetsTableBody) return;
+  const fragment = document.createDocumentFragment();
+  (presets || []).forEach((item) => {
+    const tr = document.createElement("tr");
+
+    const tdTitle = document.createElement("td");
+    tdTitle.className = "clickable-preset";
+    tdTitle.dataset.query = item.title || "";
+    tdTitle.textContent = item.title || "";
+
+    const tdIsbn = document.createElement("td");
+    tdIsbn.className = "clickable-preset";
+    tdIsbn.dataset.query = item.isbn || "";
+    tdIsbn.textContent = item.isbn || "";
+
+    const selectPreset = (q) => {
+      if (q && searchInput) {
+        searchInput.value = q;
+      }
+      closeModalFn();
+    };
+
+    tdTitle.addEventListener("click", () => selectPreset(item.title));
+    tdIsbn.addEventListener("click", () => selectPreset(item.isbn));
+
+    tr.append(tdTitle, tdIsbn);
+    fragment.append(tr);
+  });
+  presetsTableBody.replaceChildren(fragment);
+}
 
 if (presetsModal && openPresetsBtn && closePresetsBtn) {
-  openPresetsBtn.addEventListener("click", () => {
-    presetsModal.hidden = false;
-    setTimeout(() => presetsModal.classList.add("open"), 10);
-  });
-
   const closeModal = () => {
     presetsModal.classList.remove("open");
     setTimeout(() => {
@@ -675,22 +717,19 @@ if (presetsModal && openPresetsBtn && closePresetsBtn) {
     }, 300);
   };
 
+  openPresetsBtn.addEventListener("click", async () => {
+    const presets = await loadPresets();
+    renderPresetsTable(presets, closeModal);
+    presetsModal.hidden = false;
+    setTimeout(() => presetsModal.classList.add("open"), 10);
+  });
+
   closePresetsBtn.addEventListener("click", closeModal);
 
   presetsModal.addEventListener("click", (event) => {
     if (event.target === presetsModal) {
       closeModal();
     }
-  });
-
-  document.querySelectorAll(".clickable-preset").forEach((cell) => {
-    cell.addEventListener("click", () => {
-      const query = cell.getAttribute("data-query");
-      if (query && searchInput) {
-        searchInput.value = query;
-      }
-      closeModal();
-    });
   });
 }
 
