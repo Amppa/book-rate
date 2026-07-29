@@ -362,6 +362,70 @@ function updateWorkDetailRow(row, { work, ratings, editions, google, goodreads, 
   }
 }
 
+const LANGUAGE_NAME_MAP = {
+  eng: "English",
+  en: "English",
+  zho: "Chinese",
+  chi: "Chinese",
+  zh: "Chinese",
+  cht: "Traditional Chinese",
+  "zh-hant": "Traditional Chinese",
+  "zh-tw": "Traditional Chinese",
+  chs: "Simplified Chinese",
+  "zh-hans": "Simplified Chinese",
+  "zh-cn": "Simplified Chinese",
+  jpn: "Japanese",
+  ja: "Japanese",
+  fre: "French",
+  fra: "French",
+  fr: "French",
+  ger: "German",
+  deu: "German",
+  de: "German",
+  spa: "Spanish",
+  es: "Spanish",
+  rus: "Russian",
+  ru: "Russian",
+  ita: "Italian",
+  it: "Italian",
+  lat: "Latin",
+  la: "Latin",
+  por: "Portuguese",
+  pt: "Portuguese",
+  kor: "Korean",
+  ko: "Korean",
+  nld: "Dutch",
+  dut: "Dutch",
+  nl: "Dutch",
+  swe: "Swedish",
+  sv: "Swedish",
+  pol: "Polish",
+  pl: "Polish",
+  ara: "Arabic",
+  ar: "Arabic",
+  hin: "Hindi",
+  hi: "Hindi",
+  vie: "Vietnamese",
+  vi: "Vietnamese",
+  tha: "Thai",
+  th: "Thai",
+  ind: "Indonesian",
+  id: "Indonesian"
+};
+
+function formatLanguageFullName(langItem) {
+  if (!langItem) return "";
+  let code = "";
+  if (typeof langItem === "string") {
+    code = langItem;
+  } else if (typeof langItem === "object" && langItem.key) {
+    code = langItem.key.replace("/languages/", "");
+  }
+  code = code.trim().toLowerCase();
+  if (!code) return "";
+  return LANGUAGE_NAME_MAP[code] || (code.length <= 3 ? code.toUpperCase() : code);
+}
+
 function openEditionsModal(title, editions) {
   const editionsModal = document.querySelector("#editions-modal");
   const modalTitle = document.querySelector("#editions-modal-title");
@@ -378,25 +442,71 @@ function openEditionsModal(title, editions) {
     : "";
 
   const fragment = document.createDocumentFragment();
-  (editions.entries || []).forEach((edition) => {
-    const item = document.createElement("div");
-    item.className = "edition";
-
-    const editionTitle = document.createElement("b");
-    editionTitle.textContent = edition.title || "未命名版本";
-
-    const info = document.createElement("span");
-    const languages = (edition.languages || []).map((language) => language.key?.replace("/languages/", "")).join(", ");
-    info.textContent = [edition.publish_date, edition.publishers?.[0], languages].filter(Boolean).join(" · ") || "出版資訊未提供";
-
-    item.append(editionTitle, info);
-    fragment.appendChild(item);
-  });
 
   if (!editions.entries?.length) {
     const emptyMsg = document.createElement("div");
     emptyMsg.textContent = "此作品尚未取得版本資料。";
     fragment.appendChild(emptyMsg);
+  } else {
+    const tableWrap = document.createElement("div");
+    tableWrap.className = "editions-table-wrap";
+
+    const table = document.createElement("table");
+    table.className = "editions-table";
+
+    const thead = document.createElement("thead");
+    thead.innerHTML = `
+      <tr>
+        <th>書名</th>
+        <th>出版年份</th>
+        <th>語言</th>
+        <th>ISBN</th>
+      </tr>
+    `;
+    table.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+
+    (editions.entries || []).forEach((edition) => {
+      const tr = document.createElement("tr");
+
+      // 1. Title
+      const tdTitle = document.createElement("td");
+      const titleStr = edition.title && edition.title.trim() ? edition.title.trim() : "-";
+      tdTitle.textContent = titleStr;
+      if (titleStr === "-") tdTitle.className = "empty-cell";
+
+      // 2. Publish Year
+      const tdYear = document.createElement("td");
+      const rawDate = edition.publish_date;
+      const pubDate = rawDate && rawDate !== "出版年未提供" ? String(rawDate).trim() : "-";
+      tdYear.textContent = pubDate || "-";
+      if (!pubDate || pubDate === "-") tdYear.className = "empty-cell";
+
+      // 3. Language (Full Name)
+      const tdLang = document.createElement("td");
+      const rawLangs = edition.languages || [];
+      const formattedLangs = (Array.isArray(rawLangs) ? rawLangs : [rawLangs])
+        .map(formatLanguageFullName)
+        .filter(Boolean);
+      const langText = formattedLangs.length ? formattedLangs.join("、") : "-";
+      tdLang.textContent = langText;
+      if (langText === "-") tdLang.className = "empty-cell";
+
+      // 4. ISBN (13 first, fallback to 10)
+      const tdIsbn = document.createElement("td");
+      const isbnVal = edition.isbn_13 || edition.isbn_10;
+      const isbnText = isbnVal && String(isbnVal).trim() ? String(isbnVal).trim() : "-";
+      tdIsbn.textContent = isbnText;
+      tdIsbn.className = isbnText === "-" ? "empty-cell" : "isbn-cell";
+
+      tr.append(tdTitle, tdYear, tdLang, tdIsbn);
+      tbody.appendChild(tr);
+    });
+
+    table.appendChild(tbody);
+    tableWrap.appendChild(table);
+    fragment.appendChild(tableWrap);
   }
 
   modalList.replaceChildren(fragment);
@@ -618,6 +728,16 @@ if (scoreDbCheckbox) {
 }
 
 initSettings();
+
+// Auto-close settings details when clicking outside of it
+const settingsDetails = document.querySelector(".settings-details");
+if (settingsDetails) {
+  document.addEventListener("click", (event) => {
+    if (settingsDetails.open && !settingsDetails.contains(event.target)) {
+      settingsDetails.removeAttribute("open");
+    }
+  });
+}
 
 btnPrevTo1.addEventListener("click", () => {
   goToStep(1);

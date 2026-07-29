@@ -29,9 +29,11 @@ def _format_editions(editions_list) -> dict:
         
         entries.append({
             "title": ed.title,
-            "publish_date": ed.publish_year if ed.publish_year else "出版年未提供",
+            "publish_date": ed.publish_year if ed.publish_year else None,
             "publishers": [ed.publisher] if ed.publisher else [],
-            "languages": langs
+            "languages": langs,
+            "isbn_13": ed.isbn_13,
+            "isbn_10": ed.isbn_10
         })
         
     return {
