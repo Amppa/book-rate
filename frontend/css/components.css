@@ -387,3 +387,9 @@ tbody tr:last-child td {
   padding: 0.55rem 0.8rem;
   font-size: var(--fs-sm);
 }
+
+/* Application Footer */
+.app-footer {
+  margin-top: var(--space-7);
+  text-align: center;
+}
