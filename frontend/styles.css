@@ -120,3 +120,8 @@ summary { cursor: pointer; font-weight: 700; }
 .step-nav button:hover {
   background: #dfebd8;
 }
+
+/* Ensure HTML5 hidden attribute works even with display overridden by class selectors */
+[hidden] {
+  display: none !important;
+}
