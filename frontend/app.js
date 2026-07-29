@@ -248,7 +248,7 @@ function renderWorkDetailRow({ work, ratings, editions, google }) {
   row.querySelector(".ol-count").textContent = displayCount(ratings.count);
   
   if (google.quota_exceeded) {
-    row.querySelector(".gb-score").innerHTML = '<span class="error">額度超限 (429) ⚠️</span>';
+    row.querySelector(".gb-rate").innerHTML = '<span class="error">額度超限 (429) ⚠️</span>';
     row.querySelector(".gb-count").textContent = "請在上方設定個人 API Key，或設定環境變數。";
   } else {
     row.querySelector(".gb-rate").textContent = displayRate(google.average, google.count);
