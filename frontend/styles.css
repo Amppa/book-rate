@@ -126,7 +126,8 @@ h2 {
 .status,
 .edition-note,
 .history-section,
-.search-engine-note {
+.search-engine-note,
+.search-engine-note p {
   color: var(--text-muted);
   font-size: var(--fs-md);
   line-height: 1.5;
@@ -836,6 +837,14 @@ button:disabled:hover {
 
 .search-engine-note {
   margin-top: var(--space-4);
+}
+
+.search-engine-note p {
+  margin: 0;
+}
+
+.search-engine-note p + p {
+  margin-top: var(--space-1);
 }
 
 .search-engine-note a {
