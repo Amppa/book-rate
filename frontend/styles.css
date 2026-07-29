@@ -15,6 +15,7 @@ button { border: 0; border-radius: 9px; padding: .85rem 1.15rem; background: #17
 button:hover { background: #0d3d2d; }
 .hint, .status, .edition-note { color: #647068; font-size: .86rem; line-height: 1.5; }
 .status { min-height: 1.6rem; margin: 1rem 0; }
+.status:empty { display: none; }
 .history-section { margin: .9rem 0; color: #647068; font-size: .86rem; }
 .history-section p { display: inline; margin-right: .6rem; }
 .history-list { display: inline-flex; flex-wrap: wrap; gap: .4rem; }

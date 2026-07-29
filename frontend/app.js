@@ -228,7 +228,7 @@ async function selectWork(work) {
     details.work = work;
     resultBody.append(renderWorkDetailRow(details));
     tableWrap.hidden = false;
-    step3Status.textContent = `選取《${work.title}》；下方顯示其版本與評分。`;
+    step3Status.textContent = "";
   } catch (error) {
     console.error(error);
     step3Status.classList.add("error");
@@ -313,6 +313,7 @@ async function searchWorks(query, page) {
       step2Status.classList.add("error"); 
       step2Status.textContent = page === 1 ? "找不到相符的作品；可嘗試完整書名、作者或 ISBN。" : "已無更多作品。"; 
       if (page === 1) {
+        paginationControls.hidden = true;
         candidateList.replaceChildren();
         const noResultsEl = document.createElement("div");
         noResultsEl.className = "no-results";
@@ -321,6 +322,11 @@ async function searchWorks(query, page) {
         noResultsEl.style.textAlign = "center";
         noResultsEl.style.color = "#647068";
         candidateList.append(noResultsEl);
+      } else {
+        paginationControls.hidden = false;
+        pageIndicator.textContent = `第 ${currentPage} 頁`;
+        prevPageBtn.disabled = false;
+        nextPageBtn.disabled = true;
       }
       return; 
     }
