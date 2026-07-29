@@ -618,20 +618,12 @@ label {
   align-items: flex-start;
 }
 
-.work-row summary {
-  font-weight: normal;
-}
-
 .work-title {
   font-weight: 800;
 }
 
 .author {
   color: var(--text-muted);
-}
-
-details {
-  margin-top: var(--space-3);
 }
 
 .edition-list {

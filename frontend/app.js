@@ -426,6 +426,20 @@ function formatLanguageFullName(langItem) {
   return LANGUAGE_NAME_MAP[code] || (code.length <= 3 ? code.toUpperCase() : code);
 }
 
+function createEditionsTableCell(value, isMonospace = false) {
+  const td = document.createElement("td");
+  const text = value && String(value).trim() && String(value).trim() !== "出版年未提供"
+    ? String(value).trim()
+    : "-";
+  td.textContent = text;
+  if (text === "-") {
+    td.className = "empty-cell";
+  } else if (isMonospace) {
+    td.className = "isbn-cell";
+  }
+  return td;
+}
+
 function openEditionsModal(title, editions) {
   const editionsModal = document.querySelector("#editions-modal");
   const modalTitle = document.querySelector("#editions-modal-title");
@@ -470,37 +484,19 @@ function openEditionsModal(title, editions) {
     (editions.entries || []).forEach((edition) => {
       const tr = document.createElement("tr");
 
-      // 1. Title
-      const tdTitle = document.createElement("td");
-      const titleStr = edition.title && edition.title.trim() ? edition.title.trim() : "-";
-      tdTitle.textContent = titleStr;
-      if (titleStr === "-") tdTitle.className = "empty-cell";
-
-      // 2. Publish Year
-      const tdYear = document.createElement("td");
-      const rawDate = edition.publish_date;
-      const pubDate = rawDate && rawDate !== "出版年未提供" ? String(rawDate).trim() : "-";
-      tdYear.textContent = pubDate || "-";
-      if (!pubDate || pubDate === "-") tdYear.className = "empty-cell";
-
-      // 3. Language (Full Name)
-      const tdLang = document.createElement("td");
       const rawLangs = edition.languages || [];
       const formattedLangs = (Array.isArray(rawLangs) ? rawLangs : [rawLangs])
         .map(formatLanguageFullName)
         .filter(Boolean);
-      const langText = formattedLangs.length ? formattedLangs.join("、") : "-";
-      tdLang.textContent = langText;
-      if (langText === "-") tdLang.className = "empty-cell";
-
-      // 4. ISBN (13 first, fallback to 10)
-      const tdIsbn = document.createElement("td");
+      const langText = formattedLangs.length ? formattedLangs.join("、") : null;
       const isbnVal = edition.isbn_13 || edition.isbn_10;
-      const isbnText = isbnVal && String(isbnVal).trim() ? String(isbnVal).trim() : "-";
-      tdIsbn.textContent = isbnText;
-      tdIsbn.className = isbnText === "-" ? "empty-cell" : "isbn-cell";
 
-      tr.append(tdTitle, tdYear, tdLang, tdIsbn);
+      tr.append(
+        createEditionsTableCell(edition.title),
+        createEditionsTableCell(edition.publish_date),
+        createEditionsTableCell(langText),
+        createEditionsTableCell(isbnVal, true)
+      );
       tbody.appendChild(tr);
     });
 
