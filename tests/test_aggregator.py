@@ -67,5 +67,71 @@ class TestModelsAndFormatters(unittest.TestCase):
         self.assertIn("三體", json_out)
 
 
+from unittest.mock import MagicMock, patch
+from book_rate.providers.google_books import GoogleBooksProvider
+
+class TestGoogleBooksProvider(unittest.TestCase):
+    @patch('requests.Session.get')
+    def test_fetch_volume_by_id(self, mock_get):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "id": "test_vol_123",
+            "volumeInfo": {
+                "title": "原子習慣",
+                "authors": ["詹姆斯‧克利爾"],
+                "publisher": "方智",
+                "publishedDate": "2019-06-01",
+                "averageRating": 4.8,
+                "ratingsCount": 250,
+                "industryIdentifiers": [
+                    {"type": "ISBN_13", "identifier": "9789861755267"}
+                ],
+                "language": "zh-TW",
+                "infoLink": "https://books.google.com/test"
+            }
+        }
+        mock_get.return_value = mock_response
+
+        provider = GoogleBooksProvider(api_key="fake_key")
+        work = provider.fetch_volume_by_id("test_vol_123")
+
+        self.assertIsNotNone(work)
+        self.assertEqual(work.work_id, "gb:test_vol_123")
+        self.assertEqual(work.title, "原子習慣")
+        self.assertEqual(work.author, "詹姆斯‧克利爾")
+        self.assertEqual(work.first_publish_year, 2019)
+        self.assertEqual(len(work.editions), 1)
+        self.assertEqual(work.editions[0].publisher, "方智")
+        self.assertEqual(work.editions[0].isbn_13, "9789861755267")
+
+        gb_rating = work.ratings.get("Google Books")
+        self.assertIsNotNone(gb_rating)
+        self.assertEqual(gb_rating.rate, 4.8)
+        self.assertEqual(gb_rating.rating_count, 250)
+
+
+    @patch('requests.Session.get')
+    def test_original_title_extraction(self, mock_get):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "id": "test_vol_456",
+            "volumeInfo": {
+                "title": "原子習慣：細微改變帶來巨大成就的實證法則",
+                "authors": ["詹姆斯‧克利爾 (James Clear)"],
+                "description": "「每天進步1%，一年後，你會進步37倍。」 這是暢銷書《原子習慣》（Atomic Habits）的核心觀點。",
+                "publishedDate": "2019"
+            }
+        }
+        mock_get.return_value = mock_response
+
+        provider = GoogleBooksProvider(api_key="fake_key")
+        work = provider.fetch_volume_by_id("test_vol_456")
+
+        self.assertIsNotNone(work)
+        self.assertEqual(work.original_title, "Atomic Habits")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -170,3 +170,26 @@ h1 .subtitle {
   display: none !important;
 }
 
+.clear-cache-container {
+  position: absolute;
+  top: 145px;
+  right: 12px;
+  z-index: 90;
+}
+
+.clear-cache-btn {
+  background: transparent;
+  color: #8fa095;
+  border: 0;
+  padding: 0;
+  font-size: 0.8rem;
+  font-weight: normal;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.clear-cache-btn:hover {
+  background: transparent;
+  color: #647068;
+}
+

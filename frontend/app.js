@@ -304,7 +304,12 @@ async function searchWorks(query, page) {
     const cacheKey = `search:${query}:page:${page}`;
     let works = getCachedData(cacheKey);
     if (!works) {
-      works = await fetchJson(`/api/search?q=${encodeURIComponent(query)}&page=${page}`);
+      let url = `/api/search?q=${encodeURIComponent(query)}&page=${page}`;
+      const apiKey = localStorage.getItem("bookrate:google-api-key") || "";
+      if (apiKey) {
+        url += `&google_key=${encodeURIComponent(apiKey)}`;
+      }
+      works = await fetchJson(url);
       if (works && works.length > 0) {
         setCachedData(cacheKey, works);
       }
@@ -429,3 +434,19 @@ btnPrevTo2.addEventListener("click", () => {
     }
   });
 });
+
+const clearCacheBtn = document.querySelector("#clear-cache-btn");
+if (clearCacheBtn) {
+  clearCacheBtn.addEventListener("click", () => {
+    // Clear all localStorage cache keys starting with bookrate:cache:
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(CACHE_PREFIX)) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((k) => localStorage.removeItem(k));
+    alert("快取已清除！");
+  });
+}

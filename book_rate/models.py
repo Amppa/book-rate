@@ -43,6 +43,7 @@ class Work:
     edition_count: Optional[int] = None
     editions: List[Edition] = field(default_factory=list)
     ratings: Dict[str, PlatformRating] = field(default_factory=dict)
+    original_title: Optional[str] = None
 
     def get_rating_summary(self, platform_name: str) -> str:
         """Get formatted rating for a platform or return N/A."""
