@@ -363,13 +363,13 @@ summary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.35rem 0.6rem;
-  font-size: 0.75rem;
+  padding: 0.85rem 1.15rem;
+  font-size: 1rem;
   font-weight: 700;
   color: #174f3c;
   background: #edf2ea;
   border: 1px solid #bfc7b9;
-  border-radius: 6px;
+  border-radius: 9px;
   cursor: pointer;
   user-select: none;
   list-style: none;

@@ -66,8 +66,8 @@
 
     <header>
       <p class="eyebrow">BOOK RATE · MVP</p>
-      <h1>書譽<span class="subtitle">查詢書籍風評</span></h1>
-      <p class="lede">輸入書名或 ISBN，確認要選擇書籍，顯示查尋網友評分。</p>
+      <h1>書譽<span class="subtitle">書籍風評查詢</span></h1>
+      <p class="lede">輸入書名或 ISBN，選擇書籍，顯示網友評分。</p>
     </header>
     <hr class="header-line" />
 
@@ -84,7 +84,7 @@
             <div class="search-row">
               <input id="title" name="title" type="search" placeholder="例如：原子習慣、Atomic Habits、9780735211292" required
                 autofocus />
-              <button type="submit">尋找</button>
+              <button type="submit">Search</button>
             </div>
             <div class="history-presets-row">
               <section id="history-section" class="history-section" hidden>
@@ -174,14 +174,14 @@
   <div id="presets-modal" class="modal" hidden>
     <div class="modal-content">
       <div class="modal-header">
-        <h3>測試書名/ISBN</h3>
+        <h3>測試</h3>
         <button type="button" id="close-presets-btn" class="close-btn">&times;</button>
       </div>
       <div class="modal-body">
         <table class="presets-table">
           <thead>
             <tr>
-              <th>書籍名稱</th>
+              <th>書名</th>
               <th>ISBN</th>
             </tr>
           </thead>

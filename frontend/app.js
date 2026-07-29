@@ -58,7 +58,7 @@ function cleanExpiredCache() {
       }
     }
     keysToRemove.forEach((key) => localStorage.removeItem(key));
-  } catch (e) {}
+  } catch (e) { }
 }
 
 // Clean expired cache entries on load
@@ -146,7 +146,7 @@ function renderHistory() {
   const history = getHistory();
   historyList.replaceChildren();
   historySection.hidden = !history.length;
-  
+
   history.forEach((query) => {
     const button = document.createElement("button");
     button.type = "button";
@@ -154,7 +154,6 @@ function renderHistory() {
     button.textContent = query;
     button.addEventListener("click", () => {
       searchInput.value = query;
-      searchForm.requestSubmit();
     });
     historyList.append(button);
   });
@@ -169,7 +168,7 @@ function renderCandidates(works) {
       cardEl.dataset.key = work.key;
     }
     fragment.querySelector(".candidate-title").textContent = work.title;
-    
+
     const authorText = (work.author_name || []).length
       ? `作者：${work.author_name.join("、")}`
       : "作者：資料未提供";
@@ -179,13 +178,13 @@ function renderCandidates(works) {
     const editionText = work.edition_count
       ? `${work.edition_count.toLocaleString()} 個版本`
       : "";
-    
+
     fragment.querySelector(".candidate-meta").textContent = [
       authorText,
       publishText,
       editionText
     ].filter(Boolean).join(" · ");
-    
+
     fragment.querySelector(".select-work").addEventListener("click", () => selectWork(work));
     candidateList.append(fragment);
   });
@@ -197,7 +196,7 @@ async function selectWork(work) {
     card.classList.remove("selected");
     const btn = card.querySelector(".select-work");
     if (btn) {
-      btn.textContent = "選這本書";
+      btn.textContent = "Choose";
       btn.disabled = false;
     }
   });
@@ -218,7 +217,7 @@ async function selectWork(work) {
   tableWrap.hidden = true;
   step3Status.classList.remove("error");
   step3Status.textContent = `正在取得《${work.title}》的版本與評分…`;
-  
+
   try {
     const apiKey = localStorage.getItem("bookrate:google-api-key") || "";
     const cacheKey = `work:${work.key}`;
@@ -251,14 +250,14 @@ async function selectWork(work) {
 function renderWorkDetailRow({ work, ratings, editions, google }) {
   const fragment = resultRowTemplate.content.cloneNode(true);
   const row = fragment.querySelector(".work-row");
-  
+
   row.querySelector(".work-title").textContent = work.title;
   row.querySelector(".author").textContent = (work.author_name || ["資料未提供"]).join("、");
   row.querySelector(".work-link").href = `${OPEN_LIBRARY_BASE_URL}${work.key}`;
-  
+
   row.querySelector(".ol-rate").textContent = displayRate(ratings.average, ratings.count);
   row.querySelector(".ol-count").textContent = displayCount(ratings.count);
-  
+
   if (google.quota_exceeded) {
     row.querySelector(".gb-rate").innerHTML = '<span class="error">額度超限 (429) ⚠️</span>';
     row.querySelector(".gb-count").textContent = "請在上方設定個人 API Key，或設定環境變數。";
@@ -266,29 +265,29 @@ function renderWorkDetailRow({ work, ratings, editions, google }) {
     row.querySelector(".gb-rate").textContent = displayRate(google.average, google.count);
     row.querySelector(".gb-count").textContent = displayCount(google.count) + (google.title ? ` · ${google.title}` : "");
   }
-  
+
   const size = editions.size || editions.entries.length;
   row.querySelector(".edition-count").textContent = `${size.toLocaleString()}個版本`;
   row.querySelector(".edition-note").textContent = size > MAX_EDITIONS
     ? `為維持查詢速度，目前列出前 ${MAX_EDITIONS} 個版本。`
     : "";
-  
+
   const list = row.querySelector(".edition-list");
   (editions.entries || []).forEach((edition) => {
     const item = document.createElement("div");
     item.className = "edition";
-    
+
     const editionTitle = document.createElement("b");
     editionTitle.textContent = edition.title || "未命名版本";
-    
+
     const info = document.createElement("span");
     const languages = (edition.languages || []).map((language) => language.key?.replace("/languages/", "")).join(", ");
     info.textContent = [edition.publish_date, edition.publishers?.[0], languages].filter(Boolean).join(" · ") || "出版資訊未提供";
-    
+
     item.append(editionTitle, info);
     list.append(item);
   });
-  
+
   if (!editions.entries?.length) {
     list.textContent = "此作品尚未取得版本資料。";
   }
@@ -297,21 +296,21 @@ function renderWorkDetailRow({ work, ratings, editions, google }) {
 
 async function searchWorks(query, page) {
   candidateList.replaceChildren();
-  candidateSection.hidden = false; 
+  candidateSection.hidden = false;
   candidateHeading.hidden = false;
   goToStep(2);
-  
+
   paginationControls.hidden = true;
-  detailsHeading.hidden = true; 
-  tableWrap.hidden = true; 
-  resultBody.replaceChildren(); 
-  step2Status.classList.remove("error"); 
-  step2Status.textContent = `正在尋找「${query}」的相關作品 (第 ${page} 頁)…`; 
-  
+  detailsHeading.hidden = true;
+  tableWrap.hidden = true;
+  resultBody.replaceChildren();
+  step2Status.classList.remove("error");
+  step2Status.textContent = `正在尋找「${query}」的相關作品 (第 ${page} 頁)…`;
+
   if (page === 1) {
     saveHistory(query);
   }
-  
+
   try {
     const activeEngines = [];
     if (engineOlCheckbox && engineOlCheckbox.checked) activeEngines.push("open_library");
@@ -331,9 +330,9 @@ async function searchWorks(query, page) {
         setCachedData(cacheKey, works);
       }
     }
-    if (!works || !works.length) { 
-      step2Status.classList.add("error"); 
-      step2Status.textContent = page === 1 ? "找不到相符的作品；可嘗試完整書名、作者或 ISBN。" : "已無更多作品。"; 
+    if (!works || !works.length) {
+      step2Status.classList.add("error");
+      step2Status.textContent = page === 1 ? "找不到相符的作品；可嘗試完整書名、作者或 ISBN。" : "已無更多作品。";
       if (page === 1) {
         paginationControls.hidden = true;
         candidateList.replaceChildren();
@@ -350,26 +349,26 @@ async function searchWorks(query, page) {
         prevPageBtn.disabled = false;
         nextPageBtn.disabled = true;
       }
-      return; 
+      return;
     }
-    
+
     currentQuery = query;
     currentPage = page;
-    
+
     renderCandidates(works);
     candidateHeading.hidden = false;
     updatePagination(works.length);
     step2Status.textContent = "";
-  } catch (error) { 
-    console.error(error); 
-    step2Status.classList.add("error"); 
-    step2Status.textContent = "查詢失敗，請確認網路連線後再試一次。"; 
+  } catch (error) {
+    console.error(error);
+    step2Status.classList.add("error");
+    step2Status.textContent = "查詢失敗，請確認網路連線後再試一次。";
   }
 }
 
 searchForm.addEventListener("submit", (event) => {
-  event.preventDefault(); 
-  const query = searchInput.value.trim(); 
+  event.preventDefault();
+  const query = searchInput.value.trim();
   if (!query) return;
   searchWorks(query, 1);
 });
