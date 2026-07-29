@@ -27,15 +27,17 @@ class GoogleBooksProvider(BaseProvider):
     def name(self) -> str:
         return "Google Books"
 
-    def search_works(self, query: str, limit: int = 5, include_details: bool = True) -> List[Work]:
+    def search_works(self, query: str, limit: int = 5, include_details: bool = True, page: int = 1) -> List[Work]:
         """Search Google Books volumes for query."""
         clean_query = query.strip()
         if not clean_query:
             return []
 
+        max_results = min(limit, 10)
         params = {
             "q": clean_query,
-            "maxResults": min(limit, 10),
+            "maxResults": max_results,
+            "startIndex": (page - 1) * max_results
         }
         if self.api_key:
             params["key"] = self.api_key

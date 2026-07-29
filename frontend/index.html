@@ -12,30 +12,57 @@
 <body>
   <main class="page-shell">
     <details class="settings-details">
-      <summary>⚙️ Google Books API Key 設定 (選填)</summary>
+      <summary>⚙️設定</summary>
       <div class="settings-content">
-        <p class="settings-desc">當 Google Books 評分顯示「額度超限 (HTTP 429)」時，可在下方填入您的 API Key（儲存於瀏覽器）：</p>
-        <div class="api-key-input-row">
-          <input type="password" id="google-api-key" placeholder="輸入 API 金鑰 (例如 AIzaSy...)" />
-          <button type="button" id="save-api-key-btn">儲存</button>
-          <button type="button" id="clear-api-key-btn" class="btn-secondary">清除</button>
+        <!-- 1. 清除快取 -->
+        <div class="setting-item">
+          <label>1. 系統快取</label>
+          <button type="button" id="clear-cache-btn" class="btn-secondary btn-full">清除本地快取</button>
         </div>
-        <div class="env-help">
-          <p><strong>命令列/伺服器環境變數設定法（免重複輸入）：</strong></p>
-          <p>您也可以在啟動伺服器前，於終端機設定環境變數，重啟伺服器即可：</p>
-          <pre><code># Windows (PowerShell)
-$env:GOOGLE_BOOKS_API_KEY="您的金鑰"
-python server.py
 
-# macOS / Linux
-export GOOGLE_BOOKS_API_KEY="您的金鑰"
-python server.py</code></pre>
+        <!-- 2. 書名搜尋引擎 -->
+        <div class="setting-item">
+          <label>2. 書名搜尋引擎</label>
+          <div class="checkbox-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="engine-ol" />
+              <span>Open Library</span>
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="engine-gb" />
+              <span>Google Books</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 3. Google API Key 設定 -->
+        <div class="setting-item">
+          <label for="google-api-key">3. Google Books API Key</label>
+          <div class="api-key-input-row">
+            <input type="password" id="google-api-key" placeholder="輸入 API 金鑰 (例如 AIzaSy...)" />
+            <div class="api-key-actions">
+              <button type="button" id="save-api-key-btn">儲存</button>
+              <button type="button" id="clear-api-key-btn" class="btn-secondary">清除</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. 顯示哪些分數 -->
+        <div class="setting-item">
+          <label>4. 分數顯示</label>
+          <div class="checkbox-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="score-ol" />
+              <span>Open Library</span>
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="score-gb" />
+              <span>Google Books</span>
+            </label>
+          </div>
         </div>
       </div>
     </details>
-    <div class="clear-cache-container">
-      <button type="button" id="clear-cache-btn" class="clear-cache-btn">清除快取</button>
-    </div>
 
     <header>
       <p class="eyebrow">BOOK RATE · MVP</p>

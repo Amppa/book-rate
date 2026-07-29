@@ -19,17 +19,23 @@ google_books = aggregator.google_books
 def api_search(
     q: str = Query(..., description="Search query"),
     page: int = Query(1, description="Page number"),
-    google_key: str = Query(None, description="Optional Google Books API Key")
+    google_key: str = Query(None, description="Optional Google Books API Key"),
+    engines: str = Query("open_library,google_books", description="Comma-separated engines to use")
 ):
-    print(f"\n[Search API] User query: '{q}', page: {page}")
-    # Call OL search works without fetching editions/ratings
-    works = open_library.search_works(q, limit=10, page=page, include_details=False)
+    print(f"\n[Search API] User query: '{q}', page: {page}, engines: '{engines}'")
+    active_engines = [e.strip() for e in engines.split(",") if e.strip()]
+
+    works = []
+    if "open_library" in active_engines:
+        works = open_library.search_works(q, limit=10, page=page, include_details=False)
     
-    # Call Google Books search on page 1 to combine results
-    gb_provider = GoogleBooksProvider(api_key=google_key) if google_key else google_books
     gb_works = []
-    if page == 1:
-        gb_works = gb_provider.search_works(q, limit=10)
+    if "google_books" in active_engines:
+        gb_provider = GoogleBooksProvider(api_key=google_key) if google_key else google_books
+        if "open_library" not in active_engines:
+            gb_works = gb_provider.search_works(q, limit=10, page=page)
+        elif page == 1:
+            gb_works = gb_provider.search_works(q, limit=10, page=1)
         
     results = []
     # Add Open Library works

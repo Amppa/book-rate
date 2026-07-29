@@ -6,6 +6,18 @@ const HISTORY_KEY = "bookrate:recent-searches";
 const CACHE_PREFIX = "bookrate:cache:";
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
+// Settings selectors & storage keys
+const engineOlCheckbox = document.querySelector("#engine-ol");
+const engineGbCheckbox = document.querySelector("#engine-gb");
+const scoreOlCheckbox = document.querySelector("#score-ol");
+const scoreGbCheckbox = document.querySelector("#score-gb");
+const ratingTable = document.querySelector("table");
+
+const ENGINE_OL_KEY = "bookrate:engine:ol";
+const ENGINE_GB_KEY = "bookrate:engine:gb";
+const SCORE_OL_KEY = "bookrate:score:ol";
+const SCORE_GB_KEY = "bookrate:score:gb";
+
 function getCachedData(key) {
   try {
     const cached = localStorage.getItem(CACHE_PREFIX + key);
@@ -301,10 +313,15 @@ async function searchWorks(query, page) {
   }
   
   try {
-    const cacheKey = `search:${query}:page:${page}`;
+    const activeEngines = [];
+    if (engineOlCheckbox && engineOlCheckbox.checked) activeEngines.push("open_library");
+    if (engineGbCheckbox && engineGbCheckbox.checked) activeEngines.push("google_books");
+    const enginesStr = activeEngines.join(",");
+
+    const cacheKey = `search:${query}:page:${page}:engines:${enginesStr}`;
     let works = getCachedData(cacheKey);
     if (!works) {
-      let url = `/api/search?q=${encodeURIComponent(query)}&page=${page}`;
+      let url = `/api/search?q=${encodeURIComponent(query)}&page=${page}&engines=${encodeURIComponent(enginesStr)}`;
       const apiKey = localStorage.getItem("bookrate:google-api-key") || "";
       if (apiKey) {
         url += `&google_key=${encodeURIComponent(apiKey)}`;
@@ -414,6 +431,64 @@ clearApiKeyBtn.addEventListener("click", () => {
   apiKeyInput.placeholder = "輸入 API 金鑰 (例如 AIzaSy...)";
   alert("Google Books API Key 已清除！");
 });
+
+// Settings checkboxes logic
+function initSettings() {
+  if (engineOlCheckbox) {
+    engineOlCheckbox.checked = localStorage.getItem(ENGINE_OL_KEY) !== "false";
+  }
+  if (engineGbCheckbox) {
+    engineGbCheckbox.checked = localStorage.getItem(ENGINE_GB_KEY) !== "false";
+  }
+  if (scoreOlCheckbox) {
+    scoreOlCheckbox.checked = localStorage.getItem(SCORE_OL_KEY) !== "false";
+  }
+  if (scoreGbCheckbox) {
+    scoreGbCheckbox.checked = localStorage.getItem(SCORE_GB_KEY) !== "false";
+  }
+  updateTableVisibility();
+}
+
+function updateTableVisibility() {
+  if (ratingTable) {
+    if (scoreOlCheckbox) {
+      ratingTable.classList.toggle("hide-ol-score", !scoreOlCheckbox.checked);
+    }
+    if (scoreGbCheckbox) {
+      ratingTable.classList.toggle("hide-gb-score", !scoreGbCheckbox.checked);
+    }
+  }
+}
+
+function handleEngineChange() {
+  if (engineOlCheckbox && engineGbCheckbox) {
+    if (!engineOlCheckbox.checked && !engineGbCheckbox.checked) {
+      alert("請至少選擇一個書名搜尋引擎！已自動恢復預設。");
+      engineOlCheckbox.checked = true;
+    }
+    localStorage.setItem(ENGINE_OL_KEY, engineOlCheckbox.checked);
+    localStorage.setItem(ENGINE_GB_KEY, engineGbCheckbox.checked);
+  }
+}
+
+if (engineOlCheckbox) engineOlCheckbox.addEventListener("change", handleEngineChange);
+if (engineGbCheckbox) engineGbCheckbox.addEventListener("change", handleEngineChange);
+
+if (scoreOlCheckbox) {
+  scoreOlCheckbox.addEventListener("change", () => {
+    localStorage.setItem(SCORE_OL_KEY, scoreOlCheckbox.checked);
+    updateTableVisibility();
+  });
+}
+
+if (scoreGbCheckbox) {
+  scoreGbCheckbox.addEventListener("change", () => {
+    localStorage.setItem(SCORE_GB_KEY, scoreGbCheckbox.checked);
+    updateTableVisibility();
+  });
+}
+
+initSettings();
 
 btnPrevTo1.addEventListener("click", () => {
   goToStep(1);
