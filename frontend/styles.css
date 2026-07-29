@@ -12,6 +12,16 @@ body {
   margin: 0;
 }
 
+/* Common Card Panel Styles */
+.search-form,
+.candidate-list,
+.table-wrap,
+.settings-details[open] {
+  background: #fffdfa;
+  border: 1px solid #e5ded0;
+  border-radius: 16px;
+}
+
 .page-shell {
   width: min(1060px, calc(100% - 32px));
   margin: 0 auto;
@@ -51,9 +61,6 @@ h2 {
 .search-form {
   margin: 0 0 1rem;
   padding: 1rem 1.4rem 1.4rem;
-  background: #fffdfa;
-  border: 1px solid #e5ded0;
-  border-radius: 16px;
   box-shadow: 0 10px 28px #453a2410;
 }
 
@@ -78,15 +85,20 @@ input {
   font: inherit;
 }
 
-button {
-  border: 0;
+button,
+.settings-details summary {
   border-radius: 9px;
   padding: .85rem 1.15rem;
-  background: #174f3c;
-  color: white;
   font: inherit;
   font-weight: 700;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+button {
+  border: 0;
+  background: #174f3c;
+  color: white;
 }
 
 button:hover {
@@ -95,7 +107,8 @@ button:hover {
 
 .hint,
 .status,
-.edition-note {
+.edition-note,
+.history-section {
   color: #647068;
   font-size: .86rem;
   line-height: 1.5;
@@ -112,8 +125,6 @@ button:hover {
 
 .history-section {
   margin: .9rem 0;
-  color: #647068;
-  font-size: .86rem;
 }
 
 .history-section p {
@@ -162,9 +173,6 @@ button:hover {
 .candidate-list {
   display: flex;
   flex-direction: column;
-  background: #fffdfa;
-  border: 1px solid #e5ded0;
-  border-radius: 16px;
   overflow: hidden;
   box-shadow: 0 4px 12px #453a2405;
 }
@@ -247,9 +255,6 @@ button:disabled:hover {
 .table-wrap {
   overflow-x: auto;
   margin-top: 1rem;
-  border: 1px solid #e5ded0;
-  border-radius: 16px;
-  background: #fffdfa;
 }
 
 table {
@@ -353,9 +358,6 @@ summary {
 .settings-details[open] {
   width: 340px;
   padding: 1.25rem;
-  background: #fffdfa;
-  border: 1px solid #e5ded0;
-  border-radius: 16px;
   box-shadow: 0 8px 24px #453a240c;
 }
 
@@ -363,25 +365,12 @@ summary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.85rem 1.15rem;
-  font-size: 1rem;
-  font-weight: 700;
-  color: #174f3c;
-  background: #edf2ea;
-  border: 1px solid #bfc7b9;
-  border-radius: 9px;
-  cursor: pointer;
   user-select: none;
   list-style: none;
-  transition: all 0.2s ease;
 }
 
 .settings-details summary::-webkit-details-marker {
   display: none;
-}
-
-.settings-details summary:hover {
-  background: #dfebd8;
 }
 
 .settings-details[open] summary {
@@ -476,13 +465,16 @@ summary {
   font-size: 0.82rem;
 }
 
-.btn-secondary {
+.btn-secondary,
+.settings-details summary {
   background: #edf2ea;
   color: #174f3c;
   border: 1px solid #bfc7b9;
 }
 
-.btn-secondary:hover {
+.btn-secondary:hover,
+.settings-details summary:hover,
+.history-item:hover {
   background: #dfebd8;
 }
 
@@ -678,9 +670,6 @@ h1 .subtitle {
 }
 
 .presets-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
   font-size: 0.9rem;
 }
 
@@ -695,13 +684,11 @@ h1 .subtitle {
   width: 50%;
   white-space: nowrap;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-
 }
 
 .presets-table th,
 .presets-table td {
   padding: 0.9rem 1.15rem;
-  border-bottom: 1px solid #e5ded0;
   vertical-align: middle;
 }
 
@@ -711,10 +698,6 @@ h1 .subtitle {
   font-weight: 700;
   font-size: 0.82rem;
   border-bottom: 2px solid #e5ded0;
-}
-
-.presets-table tr:last-child td {
-  border-bottom: 0;
 }
 
 /* History & Presets Layout */

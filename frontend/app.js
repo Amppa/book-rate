@@ -503,7 +503,7 @@ btnPrevTo2.addEventListener("click", () => {
     card.classList.remove("selected");
     const btn = card.querySelector(".select-work");
     if (btn) {
-      btn.textContent = "選這本書";
+      btn.textContent = "Choose";
       btn.disabled = false;
     }
   });
