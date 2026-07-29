@@ -1,0 +1,134 @@
+/* ==========================================================================
+   Typography & Primitives
+   ========================================================================== */
+.eyebrow {
+  color: var(--accent);
+  font-size: var(--fs-xs);
+  font-weight: 800;
+  letter-spacing: .14em;
+}
+
+h1 {
+  margin: var(--space-1) 0 var(--space-3);
+  font-size: var(--fs-display);
+  line-height: 1.08;
+  letter-spacing: -.05em;
+}
+
+h1 .subtitle {
+  font-size: 0.55em;
+  font-weight: 400;
+  color: var(--text-light);
+  letter-spacing: normal;
+  margin-left: var(--space-2);
+}
+
+h2 {
+  margin: 0;
+  font-size: var(--fs-title);
+}
+
+.lede {
+  color: var(--text-light);
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
+
+.status,
+.edition-note,
+.history-section,
+.search-engine-note,
+.search-engine-note p {
+  color: var(--text-muted);
+  font-size: var(--fs-md);
+  line-height: 1.5;
+}
+
+a {
+  color: var(--link);
+  font-size: var(--fs-md);
+  white-space: nowrap;
+}
+
+td small {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--text-td-small);
+  font-size: var(--fs-xs);
+}
+
+.fetching-tag {
+  display: inline-block;
+  color: var(--accent);
+  font-size: var(--fs-md);
+  font-weight: 700;
+  animation: pulse-fetching 1.2s infinite ease-in-out;
+}
+
+@keyframes pulse-fetching {
+  0% { opacity: 0.35; }
+  50% { opacity: 1.0; }
+  100% { opacity: 0.35; }
+}
+
+summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+/* Button & Summary Primitives */
+button,
+.settings-details summary {
+  border-radius: var(--radius-md);
+  padding: .85rem 1.15rem;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+button {
+  border: 0;
+  background: var(--primary);
+  color: var(--text-contrast);
+}
+
+.btn-secondary,
+.settings-details summary {
+  background: var(--secondary);
+  color: var(--primary);
+  border: 1px solid var(--border);
+}
+
+button.btn-link {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  border-radius: 0;
+  color: var(--link);
+  font-size: var(--fs-md);
+  font-family: inherit;
+  font-weight: normal;
+  cursor: pointer;
+  text-decoration: underline;
+  display: inline;
+  white-space: nowrap;
+  transition: var(--transition-fast);
+}
+
+/* Input Primitive */
+input {
+  min-width: 0;
+  flex: 1;
+  padding: .85rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font: inherit;
+}
+
+label {
+  display: block;
+  margin-bottom: 0.6rem;
+  font-size: var(--fs-lg);
+  font-weight: 700;
+}

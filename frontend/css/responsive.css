@@ -1,0 +1,105 @@
+/* ==========================================================================
+   State & Interactive Feedback
+   ========================================================================== */
+button:not(:disabled):hover,
+.settings-details summary:hover,
+.history-item:not(:disabled):hover,
+.test-link-btn:hover,
+.clickable-preset:hover,
+.close-btn:hover,
+a:hover,
+.checkbox-label:hover span {
+  filter: brightness(92%);
+  color: var(--primary);
+}
+
+button:not(:disabled):not(.btn-link):hover {
+  color: var(--text-contrast);
+}
+
+.close-btn:hover {
+  color: var(--error);
+}
+
+.checkbox-label:hover span {
+  color: var(--primary);
+}
+
+.candidate-card.selected {
+  background: var(--surface-subtle);
+}
+
+.candidate-card.selected h3 {
+  color: var(--primary);
+}
+
+button:disabled,
+button:disabled:hover {
+  background: var(--btn-disabled-bg);
+  color: var(--btn-disabled-text);
+  cursor: not-allowed;
+  filter: none;
+}
+
+.modal.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal.open .modal-content {
+  transform: translateY(0);
+}
+
+/* Dynamic Rating Table Column Visibility */
+.hide-ol-score th.col-ol,
+.hide-ol-score td.col-ol {
+  display: none !important;
+}
+
+.hide-gb-score th.col-gb,
+.hide-gb-score td.col-gb {
+  display: none !important;
+}
+
+.hide-gr-score th.col-gr,
+.hide-gr-score td.col-gr {
+  display: none !important;
+}
+
+.hide-db-score th.col-db,
+.hide-db-score td.col-db {
+  display: none !important;
+}
+
+/* ==========================================================================
+   Responsive Breakpoints
+   ========================================================================== */
+@media (max-width: 850px) {
+  .settings-details {
+    position: static;
+    width: auto;
+    margin-bottom: var(--space-7);
+  }
+
+  .settings-details[open] {
+    width: 100%;
+  }
+}
+
+@media (max-width: 600px) {
+  .page-shell {
+    padding-top: 40px;
+  }
+
+  .search-row,
+  .candidate-card,
+  .api-key-input-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-row button,
+  .api-key-input-row button {
+    width: 100%;
+  }
+}
