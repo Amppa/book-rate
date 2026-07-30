@@ -131,9 +131,18 @@ bookrate/
 
 ## Running Tests
 
-Run the test suite using `unittest`:
+### Standard Fast Unit Tests (Offline, ~0.04s)
+
+Run standard unit tests and edge cases (mocked HTTP requests):
 ```bash
-python -m unittest discover -s tests
+python -m unittest discover tests
+```
+
+### Live Network Integration Tests (Optional, Real HTTP Requests)
+
+To test live HTTP requests against actual external provider APIs (Open Library, Google Books, Goodreads, Douban, Amazon):
+```bash
+python -m unittest tests/live_test_network.py
 ```
 
 ---
