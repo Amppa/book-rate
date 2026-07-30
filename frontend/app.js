@@ -563,6 +563,8 @@ function updateEngineTabs(engine) {
 }
 
 async function searchWorks(query, page, engine = "open_library") {
+  currentQuery = query;
+  currentPage = page;
   currentEngine = engine;
   candidateSection.hidden = false;
   candidateHeading.hidden = false;
@@ -636,9 +638,6 @@ async function searchWorks(query, page, engine = "open_library") {
       return;
     }
 
-    currentQuery = query;
-    currentPage = page;
-
     renderCandidates(works);
     candidateHeading.hidden = false;
     updatePagination(works.length);
@@ -663,7 +662,7 @@ const searchGbBtn = document.querySelector("#search-gb-btn");
 
 if (searchOlBtn) {
   searchOlBtn.addEventListener("click", () => {
-    const q = currentQuery || searchInput.value.trim();
+    const q = searchInput.value.trim() || currentQuery;
     if (q && currentEngine !== "open_library") {
       searchWorks(q, 1, "open_library");
     }
@@ -672,7 +671,7 @@ if (searchOlBtn) {
 
 if (searchGrBtn) {
   searchGrBtn.addEventListener("click", () => {
-    const q = currentQuery || searchInput.value.trim();
+    const q = searchInput.value.trim() || currentQuery;
     if (q && currentEngine !== "goodreads") {
       searchWorks(q, 1, "goodreads");
     }
@@ -681,7 +680,7 @@ if (searchGrBtn) {
 
 if (searchGbBtn) {
   searchGbBtn.addEventListener("click", () => {
-    const q = currentQuery || searchInput.value.trim();
+    const q = searchInput.value.trim() || currentQuery;
     if (q && currentEngine !== "google_books") {
       searchWorks(q, 1, "google_books");
     }
