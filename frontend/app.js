@@ -7,20 +7,12 @@ const CACHE_PREFIX = "bookrate:cache:";
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 // Settings selectors & storage keys
-const engineOlCheckbox = document.querySelector("#engine-ol");
-const engineGbCheckbox = document.querySelector("#engine-gb");
-const engineGrCheckbox = document.querySelector("#engine-gr");
-const engineDbCheckbox = document.querySelector("#engine-db");
 const scoreOlCheckbox = document.querySelector("#score-ol");
 const scoreGbCheckbox = document.querySelector("#score-gb");
 const scoreGrCheckbox = document.querySelector("#score-gr");
 const scoreDbCheckbox = document.querySelector("#score-db");
 const ratingTable = document.querySelector("table");
 
-const ENGINE_OL_KEY = "bookrate:engine:ol";
-const ENGINE_GB_KEY = "bookrate:engine:gb";
-const ENGINE_GR_KEY = "bookrate:engine:gr";
-const ENGINE_DB_KEY = "bookrate:engine:db";
 const SCORE_OL_KEY = "bookrate:score:ol";
 const SCORE_GB_KEY = "bookrate:score:gb";
 const SCORE_GR_KEY = "bookrate:score:gr";
@@ -541,12 +533,7 @@ async function searchWorks(query, page) {
   }
 
   try {
-    const activeEngines = [];
-    if (engineOlCheckbox && engineOlCheckbox.checked) activeEngines.push("open_library");
-    if (engineGbCheckbox && engineGbCheckbox.checked) activeEngines.push("google_books");
-    if (engineGrCheckbox && engineGrCheckbox.checked) activeEngines.push("goodreads");
-    if (engineDbCheckbox && engineDbCheckbox.checked) activeEngines.push("douban");
-    const enginesStr = activeEngines.join(",");
+    const enginesStr = "open_library";
 
     const cacheKey = `search:${query}:page:${page}:engines:${enginesStr}`;
     let works = getCachedData(cacheKey);
@@ -664,11 +651,6 @@ clearApiKeyBtn.addEventListener("click", () => {
 
 // Settings checkboxes logic
 function initSettings() {
-  if (engineOlCheckbox) engineOlCheckbox.checked = localStorage.getItem(ENGINE_OL_KEY) !== "false";
-  if (engineGbCheckbox) engineGbCheckbox.checked = localStorage.getItem(ENGINE_GB_KEY) !== "false";
-  if (engineGrCheckbox) engineGrCheckbox.checked = localStorage.getItem(ENGINE_GR_KEY) !== "false";
-  if (engineDbCheckbox) engineDbCheckbox.checked = localStorage.getItem(ENGINE_DB_KEY) !== "false";
-
   if (scoreOlCheckbox) scoreOlCheckbox.checked = localStorage.getItem(SCORE_OL_KEY) !== "false";
   if (scoreGbCheckbox) scoreGbCheckbox.checked = localStorage.getItem(SCORE_GB_KEY) !== "false";
   if (scoreGrCheckbox) scoreGrCheckbox.checked = localStorage.getItem(SCORE_GR_KEY) !== "false";
@@ -685,26 +667,6 @@ function updateTableVisibility() {
     if (scoreDbCheckbox) ratingTable.classList.toggle("hide-db-score", !scoreDbCheckbox.checked);
   }
 }
-
-function handleEngineChange() {
-  const engineCheckboxes = [engineOlCheckbox, engineGbCheckbox, engineGrCheckbox, engineDbCheckbox].filter(Boolean);
-  if (engineCheckboxes.length) {
-    const anyChecked = engineCheckboxes.some((cb) => cb.checked);
-    if (!anyChecked) {
-      alert("請至少選擇一個書名搜尋引擎！已自動恢復預設。");
-      if (engineOlCheckbox) engineOlCheckbox.checked = true;
-    }
-    if (engineOlCheckbox) localStorage.setItem(ENGINE_OL_KEY, engineOlCheckbox.checked);
-    if (engineGbCheckbox) localStorage.setItem(ENGINE_GB_KEY, engineGbCheckbox.checked);
-    if (engineGrCheckbox) localStorage.setItem(ENGINE_GR_KEY, engineGrCheckbox.checked);
-    if (engineDbCheckbox) localStorage.setItem(ENGINE_DB_KEY, engineDbCheckbox.checked);
-  }
-}
-
-if (engineOlCheckbox) engineOlCheckbox.addEventListener("change", handleEngineChange);
-if (engineGbCheckbox) engineGbCheckbox.addEventListener("change", handleEngineChange);
-if (engineGrCheckbox) engineGrCheckbox.addEventListener("change", handleEngineChange);
-if (engineDbCheckbox) engineDbCheckbox.addEventListener("change", handleEngineChange);
 
 if (scoreOlCheckbox) {
   scoreOlCheckbox.addEventListener("change", () => {
