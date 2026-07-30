@@ -564,7 +564,6 @@ function updateEngineTabs(engine) {
 
 async function searchWorks(query, page, engine = "open_library") {
   currentEngine = engine;
-  candidateList.replaceChildren();
   candidateSection.hidden = false;
   candidateHeading.hidden = false;
   goToStep(2);
@@ -575,6 +574,17 @@ async function searchWorks(query, page, engine = "open_library") {
     goodreads: "Goodreads",
     google_books: "Google Books"
   };
+
+  const engineName = engineNameMap[engine] || "資料庫";
+
+  candidateList.replaceChildren();
+  const loadingEl = document.createElement("div");
+  loadingEl.className = "no-results loading";
+  loadingEl.textContent = `載入中… 正在使用 ${engineName} 尋找「${query}」`;
+  loadingEl.style.padding = "2rem";
+  loadingEl.style.textAlign = "center";
+  loadingEl.style.color = "#647068";
+  candidateList.append(loadingEl);
 
   updateManualSearchLinks(query);
 
