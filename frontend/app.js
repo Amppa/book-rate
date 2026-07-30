@@ -262,31 +262,65 @@ async function selectWork(work) {
       details = null;
     }
 
-    if (!details) {
-      let url = `/api/work-details?work_id=${encodeURIComponent(work.key)}&title=${encodeURIComponent(work.title)}&author=${encodeURIComponent((work.author_name || []).join(","))}&engines=${encodeURIComponent(activeEngines)}`;
-      if (apiKey) {
-        url += `&google_key=${encodeURIComponent(apiKey)}`;
-      }
-      details = await fetchJson(url);
-      setCachedData(cacheKey, details);
+    const row = resultBody.querySelector(".work-row");
+
+    if (details) {
+      details.work = work;
+      updateWorkDetailRow(row, details);
+      step3Status.textContent = "";
+      return;
     }
 
-    details.work = work;
-    updateWorkDetailRow(resultBody.querySelector(".work-row"), details);
-    step3Status.textContent = "";
+    let url = `/api/work-details-stream?work_id=${encodeURIComponent(work.key)}&title=${encodeURIComponent(work.title)}&author=${encodeURIComponent((work.author_name || []).join(","))}&engines=${encodeURIComponent(activeEngines)}`;
+    if (apiKey) {
+      url += `&google_key=${encodeURIComponent(apiKey)}`;
+    }
+
+    const collectedDetails = { work, ratings: {}, editions: {}, google: {}, goodreads: {}, douban: {}, amazon: {} };
+    const eventSource = new EventSource(url);
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === "init") {
+          collectedDetails.ratings = data.ratings;
+          collectedDetails.editions = data.editions;
+          if (data.google) collectedDetails.google = data.google;
+          updateWorkDetailRow(row, collectedDetails);
+        } else if (data.type === "platform") {
+          const platformKey = data.platform;
+          collectedDetails[platformKey] = data.data;
+
+          const prefixMap = {
+            open_library: "ol",
+            google_books: "gb",
+            google: "gb",
+            goodreads: "gr",
+            douban: "db",
+            amazon: "am"
+          };
+          const prefix = prefixMap[platformKey] || platformKey;
+          const maxRate = prefix === "db" ? 10 : 5;
+          renderPlatformCell(row, prefix, data.data, maxRate);
+        } else if (data.type === "done") {
+          eventSource.close();
+          setCachedData(cacheKey, collectedDetails);
+          step3Status.textContent = "";
+        }
+      } catch (err) {
+        console.error("Stream parse error:", err);
+      }
+    };
+
+    eventSource.onerror = (err) => {
+      console.error("EventSource failed:", err);
+      eventSource.close();
+      step3Status.textContent = "";
+    };
   } catch (error) {
     console.error(error);
     step3Status.classList.add("error");
     step3Status.textContent = "取得作品詳細評分失敗，請確認網路連線後再試一次。";
-    const row = resultBody.querySelector(".work-row");
-    if (row) {
-      row.querySelectorAll(".ol-rate, .gb-rate, .gr-rate, .db-rate").forEach(el => {
-        el.textContent = "暫無評分";
-      });
-      row.querySelectorAll(".ol-count, .gb-count, .gr-count, .db-count").forEach(el => {
-        el.textContent = "讀取失敗";
-      });
-    }
   }
 }
 
