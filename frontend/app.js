@@ -537,7 +537,7 @@ async function searchWorks(query, page, engine = "open_library") {
   tableWrap.hidden = true;
   resultBody.replaceChildren();
   step2Status.classList.remove("error");
-  step2Status.textContent = `正在使用 ${engineNameMap[engine] || "Open Library"} 尋找「${query}」的相關作品 (第 ${page} 頁)…`;
+  step2Status.textContent = "";
 
   if (page === 1) {
     saveHistory(query);
@@ -559,14 +559,14 @@ async function searchWorks(query, page, engine = "open_library") {
       }
     }
     if (!works || !works.length) {
-      step2Status.classList.add("error");
-      step2Status.textContent = page === 1 ? "找不到相符的作品；可嘗試下方其他資料庫或手動搜尋。" : "已無更多作品。";
+      const engineName = engineNameMap[engine] || "資料庫";
+      step2Status.textContent = "";
       if (page === 1) {
         paginationControls.hidden = true;
         candidateList.replaceChildren();
         const noResultsEl = document.createElement("div");
         noResultsEl.className = "no-results";
-        noResultsEl.textContent = `${engineNameMap[engine] || "資料庫"} 找不到書籍「${query}」`;
+        noResultsEl.textContent = `${engineName} 找不到「${query}」`;
         noResultsEl.style.padding = "2rem";
         noResultsEl.style.textAlign = "center";
         noResultsEl.style.color = "#647068";
