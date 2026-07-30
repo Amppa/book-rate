@@ -262,6 +262,12 @@ header {
   box-shadow: var(--shadow-sm);
 }
 
+.no-results {
+  padding: var(--space-6);
+  text-align: center;
+  color: var(--text-muted);
+}
+
 .candidate-card {
   display: flex;
   justify-content: space-between;

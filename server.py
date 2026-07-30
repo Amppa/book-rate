@@ -1,10 +1,10 @@
-from fastapi import FastAPI, Query, HTTPException
+from fastapi import FastAPI, Query
 from fastapi.staticfiles import StaticFiles
 import os
 import uvicorn
 
 from book_rate.aggregator import BookAggregator
-from book_rate.models import Work, Edition, PlatformRating
+from book_rate.models import Work
 from book_rate.providers.google_books import GoogleBooksProvider
 
 app = FastAPI(title="BookRate Aggregator")

@@ -1,5 +1,4 @@
 const OPEN_LIBRARY_BASE_URL = "https://openlibrary.org";
-const GOOGLE_BOOKS_BASE_URL = "https://www.googleapis.com/books/v1";
 const MAX_CANDIDATES = 10;
 const MAX_EDITIONS = 100;
 const HISTORY_KEY = "bookrate:recent-searches";
@@ -576,16 +575,12 @@ async function searchWorks(query, page, engine = "open_library") {
     goodreads: "Goodreads",
     google_books: "Google Books"
   };
-
   const engineName = engineNameMap[engine] || "資料庫";
 
   candidateList.replaceChildren();
   const loadingEl = document.createElement("div");
   loadingEl.className = "no-results loading";
   loadingEl.textContent = `載入中… 正在使用 ${engineName} 尋找「${query}」`;
-  loadingEl.style.padding = "2rem";
-  loadingEl.style.textAlign = "center";
-  loadingEl.style.color = "#647068";
   candidateList.append(loadingEl);
 
   updateManualSearchLinks(query);
@@ -602,11 +597,10 @@ async function searchWorks(query, page, engine = "open_library") {
   }
 
   try {
-    const enginesStr = engine;
-    const cacheKey = `search:${query}:page:${page}:engines:${enginesStr}`;
+    const cacheKey = `search:${query}:page:${page}:engines:${engine}`;
     let works = getCachedData(cacheKey);
     if (!works) {
-      let url = `/api/search?q=${encodeURIComponent(query)}&page=${page}&engines=${encodeURIComponent(enginesStr)}`;
+      let url = `/api/search?q=${encodeURIComponent(query)}&page=${page}&engines=${encodeURIComponent(engine)}`;
       const apiKey = localStorage.getItem("bookrate:google-api-key") || "";
       if (apiKey) {
         url += `&google_key=${encodeURIComponent(apiKey)}`;
@@ -616,8 +610,8 @@ async function searchWorks(query, page, engine = "open_library") {
         setCachedData(cacheKey, works);
       }
     }
+
     if (!works || !works.length) {
-      const engineName = engineNameMap[engine] || "資料庫";
       step2Status.textContent = "";
       if (page === 1) {
         paginationControls.hidden = true;
@@ -625,9 +619,6 @@ async function searchWorks(query, page, engine = "open_library") {
         const noResultsEl = document.createElement("div");
         noResultsEl.className = "no-results";
         noResultsEl.textContent = `${engineName} 找不到「${query}」`;
-        noResultsEl.style.padding = "2rem";
-        noResultsEl.style.textAlign = "center";
-        noResultsEl.style.color = "#647068";
         candidateList.append(noResultsEl);
       } else {
         paginationControls.hidden = false;
