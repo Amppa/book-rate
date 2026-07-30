@@ -514,6 +514,24 @@ function openEditionsModal(title, editions) {
   setTimeout(() => editionsModal.classList.add("open"), 10);
 }
 
+function updateManualSearchLinks(query) {
+  const isbndbLink = document.querySelector("#manual-isbndb-link");
+  const isbnsearchLink = document.querySelector("#manual-isbnsearch-link");
+  const amazonLink = document.querySelector("#manual-amazon-link");
+
+  const q = (query || "").trim();
+  if (q) {
+    const encoded = encodeURIComponent(q);
+    if (isbndbLink) isbndbLink.href = `https://isbndb.com/search/books/${encoded}`;
+    if (isbnsearchLink) isbnsearchLink.href = `https://isbnsearch.org/search?s=${encoded}`;
+    if (amazonLink) amazonLink.href = `https://www.amazon.com/s?k=${encoded}&i=stripbooks`;
+  } else {
+    if (isbndbLink) isbndbLink.href = "https://isbndb.com/";
+    if (isbnsearchLink) isbnsearchLink.href = "https://isbnsearch.org/";
+    if (amazonLink) amazonLink.href = "https://www.amazon.com/s?i=stripbooks";
+  }
+}
+
 async function searchWorks(query, page, engine = "open_library") {
   currentEngine = engine;
   candidateList.replaceChildren();
@@ -529,8 +547,9 @@ async function searchWorks(query, page, engine = "open_library") {
 
   const resultsTitleEl = document.querySelector("#engine-results-title");
   if (resultsTitleEl) {
-    resultsTitleEl.textContent = `第一區：${engineNameMap[engine] || "Open Library"} 資料庫搜尋結果`;
+    resultsTitleEl.textContent = `${engineNameMap[engine] || "Open Library"} 資料庫搜尋結果`;
   }
+  updateManualSearchLinks(query);
 
   paginationControls.hidden = true;
   detailsHeading.hidden = true;

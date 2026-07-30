@@ -101,7 +101,7 @@
           <section id="candidate-section" hidden aria-live="polite">
             <!-- 第一區：線上資料庫搜尋結果 -->
             <div class="step2-block">
-              <h3 id="engine-results-title" class="step2-block-title">第一區：Open Library 資料庫搜尋結果</h3>
+              <h3 id="engine-results-title" class="step2-block-title">Open Library 資料庫搜尋結果</h3>
               <div id="candidate-list" class="candidate-list"></div>
               <div id="pagination-controls" class="pagination-controls" hidden>
                 <button type="button" id="prev-page-btn" class="btn-secondary">上一頁</button>
@@ -112,7 +112,7 @@
 
             <!-- 第二區：其他資料庫搜尋結果 -->
             <div class="step2-block" id="section-other-engines">
-              <h3 class="step2-block-title">第二區：其他資料庫搜尋結果</h3>
+              <h3 class="step2-block-title">其他資料庫搜尋</h3>
               <div class="other-engines-buttons">
                 <button type="button" id="search-gr-btn" class="btn-secondary">使用 Goodreads 搜尋</button>
                 <button type="button" id="search-gb-btn" class="btn-secondary">使用 Google Books 搜尋（需要 API Key）</button>
@@ -121,12 +121,12 @@
 
             <!-- 第三區：手動搜尋 ISBN -->
             <div class="step2-block search-engine-note" id="section-manual-search">
-              <h3 class="step2-block-title">第三區：手動搜尋 ISBN</h3>
+              <h3 class="step2-block-title">手動搜尋 ISBN</h3>
               <p>
-                以下書籍資料庫不允許爬蟲機器人 / API 存取，需由使用者手動搜尋：
-                <a href="https://www.worldcat.org/" target="_blank" rel="noopener noreferrer">WorldCat</a>、
-                <a href="https://isbndb.com/" target="_blank" rel="noopener noreferrer">ISBNdb</a>、
-                <a href="https://isbnsearch.org/" target="_blank" rel="noopener noreferrer">ISBNsearch</a>
+                以下書籍資料庫，需由使用者手動搜尋：
+                <a id="manual-isbndb-link" href="https://isbndb.com/" target="_blank" rel="noopener noreferrer">ISBNdb</a>、
+                <a id="manual-isbnsearch-link" href="https://isbnsearch.org/" target="_blank" rel="noopener noreferrer">ISBNsearch</a>、
+                <a id="manual-amazon-link" href="https://www.amazon.com/s?i=stripbooks" target="_blank" rel="noopener noreferrer">Amazon Books</a>
               </p>
             </div>
           </section>
