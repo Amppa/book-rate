@@ -138,8 +138,17 @@ class DoubanProvider(BaseProvider):
             if isbn:
                 try:
                     db_works = self.search_works(isbn, limit=1)
-                    if db_works and self.name in db_works[0].ratings:
-                        return db_works[0].ratings[self.name]
+                    if db_works:
+                        rating = db_works[0].ratings.get(self.name)
+                        if rating and rating.url:
+                            return rating
+                        sub_id = db_works[0].work_id.replace("db:", "")
+                        subject_url = f"https://book.douban.com/subject/{sub_id}/" if sub_id else None
+                        return PlatformRating(
+                            platform_name=self.name,
+                            url=subject_url,
+                            title=db_works[0].title
+                        )
                 except Exception as e:
                     logger.debug(f"Douban rating query failed for ISBN {isbn}: {e}")
 
@@ -150,9 +159,18 @@ class DoubanProvider(BaseProvider):
                 query += f" {work.author}"
             try:
                 db_works = self.search_works(query, limit=1)
-                if db_works and self.name in db_works[0].ratings:
-                    return db_works[0].ratings[self.name]
+                if db_works:
+                    rating = db_works[0].ratings.get(self.name)
+                    if rating and rating.url:
+                        return rating
+                    sub_id = db_works[0].work_id.replace("db:", "")
+                    subject_url = f"https://book.douban.com/subject/{sub_id}/" if sub_id else None
+                    return PlatformRating(
+                        platform_name=self.name,
+                        url=subject_url,
+                        title=db_works[0].title
+                    )
             except Exception as e:
                 logger.debug(f"Douban rating query failed for title '{query}': {e}")
 
-        return PlatformRating(platform_name=self.name)
+        return PlatformRating(platform_name=self.name, url=None)

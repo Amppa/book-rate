@@ -71,6 +71,11 @@ button:disabled:hover {
   display: none !important;
 }
 
+.hide-am-score th.col-am,
+.hide-am-score td.col-am {
+  display: none !important;
+}
+
 /* ==========================================================================
    Responsive Breakpoints
    ========================================================================== */

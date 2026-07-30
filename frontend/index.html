@@ -140,6 +140,10 @@
                 <input type="checkbox" id="score-db" />
                 <span>豆瓣</span>
               </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="score-am" />
+                <span>Amazon</span>
+              </label>
             </div>
             <div class="table-wrap" hidden>
               <table>
@@ -151,6 +155,7 @@
                     <th class="col-gb">Google Books</th>
                     <th class="col-gr">Goodreads</th>
                     <th class="col-db">豆瓣</th>
+                    <th class="col-am">Amazon</th>
                   </tr>
                 </thead>
                 <tbody id="result-body"></tbody>
@@ -185,6 +190,7 @@
       <td class="col-gb"><strong class="gb-rate"></strong><small class="gb-count"></small></td>
       <td class="col-gr"><strong class="gr-rate"></strong><small class="gr-count"></small></td>
       <td class="col-db"><strong class="db-rate"></strong><small class="db-count"></small></td>
+      <td class="col-am"><strong class="am-rate"></strong><small class="am-count"></small></td>
     </tr>
   </template>
   <template id="candidate-template">

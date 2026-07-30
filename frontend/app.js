@@ -10,12 +10,14 @@ const scoreOlCheckbox = document.querySelector("#score-ol");
 const scoreGbCheckbox = document.querySelector("#score-gb");
 const scoreGrCheckbox = document.querySelector("#score-gr");
 const scoreDbCheckbox = document.querySelector("#score-db");
+const scoreAmCheckbox = document.querySelector("#score-am");
 const ratingTable = document.querySelector("table");
 
 const SCORE_OL_KEY = "bookrate:score:ol";
 const SCORE_GB_KEY = "bookrate:score:gb";
 const SCORE_GR_KEY = "bookrate:score:gr";
 const SCORE_DB_KEY = "bookrate:score:db";
+const SCORE_AM_KEY = "bookrate:score:am";
 
 function getCachedData(key) {
   try {
@@ -313,10 +315,34 @@ function renderInitialWorkRow(work) {
   row.querySelector(".db-rate").innerHTML = '<span class="fetching-tag">Fetching...</span>';
   row.querySelector(".db-count").textContent = "讀取中...";
 
+  row.querySelector(".am-rate").innerHTML = '<span class="fetching-tag">Fetching...</span>';
+  row.querySelector(".am-count").textContent = "讀取中...";
+
   return fragment;
 }
 
-function updateWorkDetailRow(row, { work, ratings, editions, google, goodreads, douban }) {
+function renderPlatformCell(row, prefix, data, maxRate = 5) {
+  const rateEl = row.querySelector(`.${prefix}-rate`);
+  const countEl = row.querySelector(`.${prefix}-count`);
+
+  if (!rateEl || !countEl) return;
+
+  const hasScore = data && typeof data.average === "number" && data.average > 0;
+  const hasUrl = data && Boolean(data.url);
+
+  if (hasScore) {
+    rateEl.textContent = displayRate(data.average, data.count, maxRate);
+    renderCountCell(countEl, data.count, data.url);
+  } else if (hasUrl) {
+    rateEl.textContent = "暫無評分";
+    countEl.innerHTML = `<a href="${data.url}" target="_blank" rel="noreferrer">連結 ↗</a>`;
+  } else {
+    rateEl.textContent = "無此書籍";
+    countEl.textContent = "-";
+  }
+}
+
+function updateWorkDetailRow(row, { work, ratings, editions, google, goodreads, douban, amazon }) {
   if (!row) return;
 
   row.querySelector(".work-title").textContent = work.title;
@@ -336,41 +362,19 @@ function updateWorkDetailRow(row, { work, ratings, editions, google, goodreads, 
   }
   row.querySelector(".info-isbn").textContent = reprIsbn;
 
-  row.querySelector(".ol-rate").textContent = displayRate(ratings?.average, ratings?.count, 5);
   const olUrl = (work.key && work.key.startsWith("/works/")) ? `${OPEN_LIBRARY_BASE_URL}${work.key}` : null;
-  renderCountCell(row.querySelector(".ol-count"), ratings?.count, olUrl);
+  renderPlatformCell(row, "ol", { average: ratings?.average, count: ratings?.count, url: olUrl }, 5);
 
   if (google?.quota_exceeded) {
     row.querySelector(".gb-rate").innerHTML = '<span class="error">額度超限 (429) ⚠️</span>';
     row.querySelector(".gb-count").textContent = "請在上方設定個人 API Key，或設定環境變數。";
   } else {
-    row.querySelector(".gb-rate").textContent = displayRate(google?.average, google?.count, 5);
-    renderCountCell(row.querySelector(".gb-count"), google?.count, google?.url);
+    renderPlatformCell(row, "gb", google, 5);
   }
 
-  if (goodreads) {
-    const grRateEl = row.querySelector(".gr-rate");
-    const grCountEl = row.querySelector(".gr-count");
-    if (grRateEl) grRateEl.textContent = displayRate(goodreads.average, goodreads.count, 5);
-    if (grCountEl) {
-      renderCountCell(grCountEl, goodreads.count, goodreads.url);
-    }
-  } else {
-    row.querySelector(".gr-rate").textContent = "暫無評分";
-    row.querySelector(".gr-count").textContent = "尚無評價人數";
-  }
-
-  if (douban) {
-    const dbRateEl = row.querySelector(".db-rate");
-    const dbCountEl = row.querySelector(".db-count");
-    if (dbRateEl) dbRateEl.textContent = displayRate(douban.average, douban.count, 10);
-    if (dbCountEl) {
-      renderCountCell(dbCountEl, douban.count, douban.url);
-    }
-  } else {
-    row.querySelector(".db-rate").textContent = "暫無評分";
-    row.querySelector(".db-count").textContent = "尚無評價人數";
-  }
+  renderPlatformCell(row, "gr", goodreads, 5);
+  renderPlatformCell(row, "db", douban, 10);
+  renderPlatformCell(row, "am", amazon, 5);
 
   const size = work.edition_count || editions?.size || editions?.entries?.length || 0;
   row.querySelector(".edition-count").textContent = `${size.toLocaleString()}個版本`;
@@ -742,6 +746,7 @@ function initSettings() {
   if (scoreGbCheckbox) scoreGbCheckbox.checked = localStorage.getItem(SCORE_GB_KEY) !== "false";
   if (scoreGrCheckbox) scoreGrCheckbox.checked = localStorage.getItem(SCORE_GR_KEY) !== "false";
   if (scoreDbCheckbox) scoreDbCheckbox.checked = localStorage.getItem(SCORE_DB_KEY) !== "false";
+  if (scoreAmCheckbox) scoreAmCheckbox.checked = localStorage.getItem(SCORE_AM_KEY) !== "false";
 
   updateTableVisibility();
 }
@@ -752,6 +757,7 @@ function updateTableVisibility() {
     if (scoreGbCheckbox) ratingTable.classList.toggle("hide-gb-score", !scoreGbCheckbox.checked);
     if (scoreGrCheckbox) ratingTable.classList.toggle("hide-gr-score", !scoreGrCheckbox.checked);
     if (scoreDbCheckbox) ratingTable.classList.toggle("hide-db-score", !scoreDbCheckbox.checked);
+    if (scoreAmCheckbox) ratingTable.classList.toggle("hide-am-score", !scoreAmCheckbox.checked);
   }
 }
 
@@ -779,6 +785,13 @@ if (scoreGrCheckbox) {
 if (scoreDbCheckbox) {
   scoreDbCheckbox.addEventListener("change", () => {
     localStorage.setItem(SCORE_DB_KEY, scoreDbCheckbox.checked);
+    updateTableVisibility();
+  });
+}
+
+if (scoreAmCheckbox) {
+  scoreAmCheckbox.addEventListener("change", () => {
+    localStorage.setItem(SCORE_AM_KEY, scoreAmCheckbox.checked);
     updateTableVisibility();
   });
 }

@@ -5,6 +5,7 @@ from book_rate.providers.open_library import OpenLibraryProvider
 from book_rate.providers.google_books import GoogleBooksProvider
 from book_rate.providers.goodreads import GoodreadsProvider
 from book_rate.providers.douban import DoubanProvider
+from book_rate.providers.amazon import AmazonProvider
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,7 @@ class BookAggregator:
         self.google_books = GoogleBooksProvider(api_key=google_api_key)
         self.goodreads = GoodreadsProvider()
         self.douban = DoubanProvider()
+        self.amazon = AmazonProvider()
 
     def aggregate_by_title(self, title_query: str, limit: int = 5) -> List[Work]:
         """

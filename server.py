@@ -16,6 +16,7 @@ open_library = aggregator.open_library
 google_books = aggregator.google_books
 goodreads = aggregator.goodreads
 douban = aggregator.douban
+amazon = aggregator.amazon
 
 def _format_editions(editions_list) -> dict:
     entries = []
@@ -199,11 +200,13 @@ def api_work_details(
             editions=ol_editions or (gb_work.editions if gb_work else [])
         )
         
-        with ThreadPoolExecutor(max_workers=2) as executor:
+        with ThreadPoolExecutor(max_workers=3) as executor:
             fut_gr = executor.submit(goodreads.fetch_ratings, target_work)
             fut_db = executor.submit(douban.fetch_ratings, target_work)
+            fut_am = executor.submit(amazon.fetch_ratings, target_work)
             gr_rating = fut_gr.result()
             db_rating = fut_db.result()
+            am_rating = fut_am.result()
 
         goodreads_dict = {
             "average": gr_rating.rate if gr_rating and gr_rating.rate is not None else 0,
@@ -218,29 +221,37 @@ def api_work_details(
             "title": db_rating.title or target_work.title,
             "url": db_rating.url
         }
-        
+
+        amazon_dict = {
+            "average": am_rating.rate if am_rating and am_rating.rate is not None else 0,
+            "count": am_rating.rating_count if am_rating and am_rating.rating_count is not None else 0,
+            "title": (am_rating.title if am_rating else None) or target_work.title,
+            "url": am_rating.url if am_rating else None
+        }
+
         return {
             "ratings": ratings_dict,
             "editions": editions_dict,
             "google": google_dict,
             "goodreads": goodreads_dict,
-            "douban": douban_dict
+            "douban": douban_dict,
+            "amazon": amazon_dict
         }
-        
+
     else:
         # Ensure work_id starts with /works/
         full_work_id = work_id if work_id.startswith("/works/") else f"/works/{work_id}"
-        
+
         # 1. Fetch Open Library Ratings & Editions
         ol_rating = open_library.fetch_ratings(Work(work_id=full_work_id, title="", author=""))
         ratings_dict = {
             "average": ol_rating.rate if ol_rating.rate is not None else 0,
             "count": ol_rating.rating_count if ol_rating.rating_count is not None else 0
         }
-        
+
         editions = open_library.fetch_editions(full_work_id, limit=100)
         editions_dict = _format_editions(editions)
-        
+
         dummy_work = Work(
             work_id=full_work_id,
             title=title or "",
@@ -248,14 +259,16 @@ def api_work_details(
             editions=editions
         )
 
-        with ThreadPoolExecutor(max_workers=3) as executor:
+        with ThreadPoolExecutor(max_workers=4) as executor:
             fut_gb = executor.submit(gb_provider.fetch_ratings, dummy_work)
             fut_gr = executor.submit(goodreads.fetch_ratings, dummy_work)
             fut_db = executor.submit(douban.fetch_ratings, dummy_work)
+            fut_am = executor.submit(amazon.fetch_ratings, dummy_work)
             gb_rating = fut_gb.result()
             gr_rating = fut_gr.result()
             db_rating = fut_db.result()
-        
+            am_rating = fut_am.result()
+
         google_dict = {
             "average": gb_rating.rate if gb_rating and gb_rating.rate is not None else 0,
             "count": gb_rating.rating_count if gb_rating and gb_rating.rating_count is not None else 0,
@@ -277,13 +290,21 @@ def api_work_details(
             "title": (db_rating.title if db_rating else None) or dummy_work.title,
             "url": db_rating.url if db_rating else None
         }
-        
+
+        amazon_dict = {
+            "average": am_rating.rate if am_rating and am_rating.rate is not None else 0,
+            "count": am_rating.rating_count if am_rating and am_rating.rating_count is not None else 0,
+            "title": (am_rating.title if am_rating else None) or dummy_work.title,
+            "url": am_rating.url if am_rating else None
+        }
+
         return {
             "ratings": ratings_dict,
             "editions": editions_dict,
             "google": google_dict,
             "goodreads": goodreads_dict,
-            "douban": douban_dict
+            "douban": douban_dict,
+            "amazon": amazon_dict
         }
 
 # Serve the frontend prototype files
