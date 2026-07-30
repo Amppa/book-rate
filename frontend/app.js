@@ -160,6 +160,15 @@ function renderHistory() {
   });
 }
 
+function getWorkExternalUrl(key) {
+  if (!key) return null;
+  if (key.startsWith("/works/")) return `${OPEN_LIBRARY_BASE_URL}${key}`;
+  if (key.startsWith("gb:")) return `https://books.google.com/books?id=${key.slice(3)}`;
+  if (key.startsWith("gr:")) return `https://www.goodreads.com/book/show/${key.slice(3)}`;
+  if (key.startsWith("db:")) return `https://book.douban.com/subject/${key.slice(3)}/`;
+  return null;
+}
+
 function renderCandidates(works) {
   candidateList.replaceChildren();
   works.forEach((work) => {
@@ -178,11 +187,22 @@ function renderCandidates(works) {
       ? `${work.edition_count.toLocaleString()} 個版本`
       : "";
 
-    fragment.querySelector(".candidate-meta").textContent = [
+    const metaText = [
       authorText,
       publishText,
       editionText
-    ].filter(Boolean).join(" · ");
+    ].filter(Boolean).join(" · ") + " ↗";
+
+    const metaLink = fragment.querySelector(".candidate-meta");
+    const extUrl = getWorkExternalUrl(work.key);
+    if (metaLink) {
+      metaLink.textContent = metaText;
+      if (extUrl) {
+        metaLink.href = extUrl;
+      } else {
+        metaLink.removeAttribute("href");
+      }
+    }
 
     fragment.querySelector(".select-work").addEventListener("click", () => selectWork(work));
     candidateList.append(fragment);

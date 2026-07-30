@@ -285,9 +285,17 @@ header {
 }
 
 .candidate-meta {
+  display: inline-block;
   margin-top: var(--space-1);
   color: var(--text-green-gray);
   font-size: var(--fs-sm);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+a.candidate-meta:hover {
+  color: var(--link);
+  text-decoration: underline;
 }
 
 /* Rating Table */
