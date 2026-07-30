@@ -32,20 +32,12 @@
     "isbn": "9787544244190"
   },
   {
-    "title": "海辺のカフカ",
-    "isbn": "9784101001548"
-  },
-  {
-    "title": "Kafka on the Shore",
-    "isbn": "9781400079278"
-  },
-  {
-    "title": "海邊的卡夫卡",
-    "isbn": "9789571338408"
-  },
-  {
     "title": "Harry Potter and the philosopher's stone",
-    "isbn": "9781408855652"
+    "isbn": "9780747532699"
+  },
+  {
+    "title": "Harry Potter and the Sorcerer's Stone",
+    "isbn": "9781338878929"
   },
   {
     "title": "哈利波特：神秘的魔法石",
@@ -54,5 +46,9 @@
   {
     "title": "哈利·波特与魔法石",
     "isbn": "9787020033430"
+  },
+  {
+    "title": "ハリー・ポッターと賢者の石",
+    "isbn": "9784915512377"
   }
 ]
