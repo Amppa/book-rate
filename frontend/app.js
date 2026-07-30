@@ -211,6 +211,16 @@ function renderCandidates(works) {
   candidateSection.hidden = false;
 }
 
+function getActiveScoreEngines() {
+  const engines = [];
+  if (scoreOlCheckbox && scoreOlCheckbox.checked) engines.push("open_library");
+  if (scoreGbCheckbox && scoreGbCheckbox.checked) engines.push("google_books");
+  if (scoreGrCheckbox && scoreGrCheckbox.checked) engines.push("goodreads");
+  if (scoreDbCheckbox && scoreDbCheckbox.checked) engines.push("douban");
+  if (scoreAmCheckbox && scoreAmCheckbox.checked) engines.push("amazon");
+  return engines.length > 0 ? engines.join(",") : "none";
+}
+
 async function selectWork(work) {
   candidateList.querySelectorAll(".candidate-card").forEach((card) => {
     card.classList.remove("selected");
@@ -244,7 +254,8 @@ async function selectWork(work) {
 
   try {
     const apiKey = localStorage.getItem("bookrate:google-api-key") || "";
-    const cacheKey = `work:${work.key}`;
+    const activeEngines = getActiveScoreEngines();
+    const cacheKey = `work:${work.key}:${activeEngines}`;
     let details = getCachedData(cacheKey);
 
     if (details && details.google?.quota_exceeded && apiKey) {
@@ -252,7 +263,7 @@ async function selectWork(work) {
     }
 
     if (!details) {
-      let url = `/api/work-details?work_id=${encodeURIComponent(work.key)}&title=${encodeURIComponent(work.title)}&author=${encodeURIComponent((work.author_name || []).join(","))}`;
+      let url = `/api/work-details?work_id=${encodeURIComponent(work.key)}&title=${encodeURIComponent(work.title)}&author=${encodeURIComponent((work.author_name || []).join(","))}&engines=${encodeURIComponent(activeEngines)}`;
       if (apiKey) {
         url += `&google_key=${encodeURIComponent(apiKey)}`;
       }
