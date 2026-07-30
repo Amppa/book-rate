@@ -94,7 +94,8 @@ class GoogleBooksProvider(BaseProvider):
                 title=title,
                 author=author_str,
                 first_publish_year=pub_year,
-                edition_count=1
+                edition_count=1,
+                isbn=isbn_13 or isbn_10
             )
 
             # Store platform rating

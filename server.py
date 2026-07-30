@@ -80,7 +80,8 @@ def api_search(
             "title": w.title,
             "author_name": [a.strip() for a in w.author.split(",")] if w.author and w.author not in ["Unknown Author", "Unknown"] else ["Unknown"],
             "first_publish_year": w.first_publish_year,
-            "edition_count": w.edition_count
+            "edition_count": w.edition_count,
+            "isbn": w.isbn
         })
         
     existing_keys = {
@@ -98,7 +99,8 @@ def api_search(
                     "title": w.title,
                     "author_name": author_list,
                     "first_publish_year": w.first_publish_year,
-                    "edition_count": w.edition_count
+                    "edition_count": w.edition_count,
+                    "isbn": w.isbn
                 })
                 existing_keys.add(key_tuple)
             

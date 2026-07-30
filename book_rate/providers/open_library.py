@@ -68,12 +68,16 @@ class OpenLibraryProvider(BaseProvider):
             authors = doc.get("author_name", [])
             author_str = ", ".join(authors) if authors else "Unknown Author"
 
+            isbns = doc.get("isbn", [])
+            primary_isbn = isbns[0] if isinstance(isbns, list) and isbns else None
+
             work = Work(
                 work_id=work_key,
                 title=title,
                 author=author_str,
                 first_publish_year=doc.get("first_publish_year"),
-                edition_count=doc.get("edition_count")
+                edition_count=doc.get("edition_count"),
+                isbn=primary_isbn
             )
 
             # Rating from search document if available

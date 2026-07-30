@@ -300,8 +300,17 @@ function renderInitialWorkRow(work) {
   const publishText = `首版：${work.first_publish_year || "Unknown"}`;
   row.querySelector(".info-publish").textContent = publishText;
 
-  row.querySelector(".info-isbn").textContent = "ISBN：讀取中...";
-  row.querySelector(".edition-count").textContent = "載入中...";
+  if (work.isbn) {
+    row.querySelector(".info-isbn").textContent = `ISBN：${work.isbn}`;
+  } else {
+    row.querySelector(".info-isbn").textContent = "ISBN：讀取中...";
+  }
+
+  if (work.edition_count) {
+    row.querySelector(".edition-count").textContent = `${work.edition_count.toLocaleString()}個版本`;
+  } else {
+    row.querySelector(".edition-count").textContent = "載入中...";
+  }
 
   row.querySelector(".ol-rate").innerHTML = '<span class="fetching-tag">Fetching...</span>';
   row.querySelector(".ol-count").textContent = "讀取中...";
