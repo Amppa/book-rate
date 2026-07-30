@@ -124,21 +124,16 @@ function displayRate(average, count, maxScore = 5) {
 }
 
 function formatCompact(n) {
-  if (n >= 1e6) {
-    const val = n / 1e6;
-    return (val % 1 === 0 ? val : val.toFixed(1)) + "m";
-  }
-  if (n >= 1e3) {
-    const val = n / 1e3;
-    return (val % 1 === 0 ? val : val.toFixed(1)) + "k";
-  }
-  return n.toString();
+  return new Intl.NumberFormat("en", {
+    notation: "compact",
+    maximumFractionDigits: 1
+  }).format(n);
 }
 
 function displayCount(count) {
   return Number(count) > 0
     ? `${formatCompact(Number(count))} 人評價`
-    : "尚無評價人數";
+    : "NULL";
 }
 
 function getHistory() {
