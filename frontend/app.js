@@ -227,7 +227,7 @@ async function selectWork(work) {
   detailsHeading.hidden = false;
   goToStep(3);
   resultBody.replaceChildren();
-  
+
   // Render initial placeholder row showing "Fetching..." while loading
   const initialFragment = renderInitialWorkRow(work);
   resultBody.append(initialFragment);
@@ -301,7 +301,7 @@ function renderInitialWorkRow(work) {
   row.querySelector(".db-count").textContent = "讀取中...";
 
   row.querySelector(".edition-count").textContent = "載入中...";
-  
+
   return fragment;
 }
 
@@ -777,7 +777,7 @@ let cachedPresets = null;
 async function loadPresets() {
   if (cachedPresets) return cachedPresets;
   try {
-    const res = await fetch("./presets.json");
+    const res = await fetch("./presets.json?t=" + new Date().getTime());
     if (!res.ok) throw new Error("Failed to load presets");
     cachedPresets = await res.json();
     return cachedPresets;
