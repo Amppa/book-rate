@@ -281,7 +281,15 @@ function renderInitialWorkRow(work) {
   const row = fragment.querySelector(".work-row");
 
   row.querySelector(".work-title").textContent = work.title;
-  row.querySelector(".author").textContent = (work.author_name || ["資料未提供"]).join("、");
+
+  const authorText = (work.author_name || []).length ? `作者：${work.author_name.join("、")}` : "作者：資料未提供";
+  row.querySelector(".info-author").textContent = authorText;
+
+  const publishText = work.first_publish_year ? `首版：${work.first_publish_year}` : "首版：資料未提供";
+  row.querySelector(".info-publish").textContent = publishText;
+
+  row.querySelector(".info-isbn").textContent = "ISBN：讀取中...";
+  row.querySelector(".edition-count").textContent = "載入中...";
 
   row.querySelector(".ol-rate").innerHTML = '<span class="fetching-tag">Fetching...</span>';
   row.querySelector(".ol-count").textContent = "讀取中...";
@@ -295,8 +303,6 @@ function renderInitialWorkRow(work) {
   row.querySelector(".db-rate").innerHTML = '<span class="fetching-tag">Fetching...</span>';
   row.querySelector(".db-count").textContent = "讀取中...";
 
-  row.querySelector(".edition-count").textContent = "載入中...";
-
   return fragment;
 }
 
@@ -304,7 +310,21 @@ function updateWorkDetailRow(row, { work, ratings, editions, google, goodreads, 
   if (!row) return;
 
   row.querySelector(".work-title").textContent = work.title;
-  row.querySelector(".author").textContent = (work.author_name || ["資料未提供"]).join("、");
+
+  const authorText = (work.author_name || []).length ? `作者：${work.author_name.join("、")}` : "作者：資料未提供";
+  row.querySelector(".info-author").textContent = authorText;
+
+  const publishText = work.first_publish_year ? `首版：${work.first_publish_year}` : "首版：資料未提供";
+  row.querySelector(".info-publish").textContent = publishText;
+
+  let reprIsbn = "ISBN：資料未提供";
+  if (editions?.entries) {
+    const editionWithIsbn = editions.entries.find(ed => ed.isbn_13 || ed.isbn_10);
+    if (editionWithIsbn) {
+      reprIsbn = `ISBN：${editionWithIsbn.isbn_13 || editionWithIsbn.isbn_10}`;
+    }
+  }
+  row.querySelector(".info-isbn").textContent = reprIsbn;
 
   row.querySelector(".ol-rate").textContent = displayRate(ratings?.average, ratings?.count, 5);
   const olUrl = (work.key && work.key.startsWith("/works/")) ? `${OPEN_LIBRARY_BASE_URL}${work.key}` : null;

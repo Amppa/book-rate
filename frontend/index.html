@@ -155,7 +155,7 @@
                 <thead>
                   <tr>
                     <th>書名</th>
-                    <th>原作者</th>
+                    <th>資訊</th>
                     <th class="col-ol">Open Library 評價</th>
                     <th class="col-gb">Google Books 評價</th>
                     <th class="col-gr">Goodreads 評價</th>
@@ -179,17 +179,17 @@
   </main>
   <template id="result-template">
     <tr class="work-row">
-      <td>
-        <div class="work-title-container">
-          <span class="work-title"></span>
-          <div class="work-version-row">
-            <button type="button" class="btn-link show-editions-btn">
-              <span class="edition-count"></span>
-            </button>
-          </div>
+      <td class="work-title"></td>
+      <td class="work-info-cell">
+        <div class="info-author"></div>
+        <div class="info-publish"></div>
+        <div class="info-isbn"></div>
+        <div class="info-version-row">
+          <button type="button" class="btn-link show-editions-btn">
+            <span class="edition-count"></span>
+          </button>
         </div>
       </td>
-      <td class="author"></td>
       <td class="col-ol"><strong class="ol-rate"></strong><small class="ol-count"></small></td>
       <td class="col-gb"><strong class="gb-rate"></strong><small class="gb-count"></small></td>
       <td class="col-gr"><strong class="gr-rate"></strong><small class="gr-count"></small></td>
