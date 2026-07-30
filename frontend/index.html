@@ -31,29 +31,6 @@
             </div>
           </div>
         </div>
-
-        <!-- 3. 顯示哪些分數 -->
-        <div class="setting-item">
-          <label>3. 分數顯示</label>
-          <div class="checkbox-group">
-            <label class="checkbox-label">
-              <input type="checkbox" id="score-ol" />
-              <span>Open Library</span>
-            </label>
-            <label class="checkbox-label">
-              <input type="checkbox" id="score-gb" />
-              <span>Google Books</span>
-            </label>
-            <label class="checkbox-label">
-              <input type="checkbox" id="score-gr" />
-              <span>Goodreads</span>
-            </label>
-            <label class="checkbox-label">
-              <input type="checkbox" id="score-db" />
-              <span>豆瓣</span>
-            </label>
-          </div>
-        </div>
       </div>
     </details>
 
@@ -140,21 +117,40 @@
           <div class="step-header">
             <button type="button" id="btn-prev-to-2" class="btn-secondary">← 上一步</button>
             <div id="details-heading" class="section-heading" hidden>
-              <h2><small class="step-num">第 3 步</small>版本與評分</h2>
+              <h2><small class="step-num">第 3 步</small>書籍評分</h2>
             </div>
           </div>
           <div id="step-3-status" class="status" aria-live="polite"></div>
           <section id="results" aria-live="polite">
+            <div class="score-display-toggles" id="score-toggle-bar">
+              <span class="toggle-title">資料：</span>
+              <label class="checkbox-label">
+                <input type="checkbox" id="score-ol" />
+                <span>Open Library</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="score-gb" />
+                <span>Google Books</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="score-gr" />
+                <span>Goodreads</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="score-db" />
+                <span>豆瓣</span>
+              </label>
+            </div>
             <div class="table-wrap" hidden>
               <table>
                 <thead>
                   <tr>
                     <th>書名</th>
-                    <th>資訊</th>
-                    <th class="col-ol">Open Library 評價</th>
-                    <th class="col-gb">Google Books 評價</th>
-                    <th class="col-gr">Goodreads 評價</th>
-                    <th class="col-db">豆瓣 評價</th>
+                    <th>Details</th>
+                    <th class="col-ol">Open Library</th>
+                    <th class="col-gb">Google Books</th>
+                    <th class="col-gr">Goodreads</th>
+                    <th class="col-db">豆瓣</th>
                   </tr>
                 </thead>
                 <tbody id="result-body"></tbody>
