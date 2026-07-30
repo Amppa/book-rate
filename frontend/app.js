@@ -90,6 +90,7 @@ const btnPrevTo2 = document.querySelector("#btn-prev-to-2");
 let currentQuery = "";
 let currentPage = 1;
 let currentStep = 1;
+let currentEngine = "open_library";
 
 function goToStep(step) {
   currentStep = step;
@@ -169,9 +170,7 @@ function renderCandidates(works) {
     }
     fragment.querySelector(".candidate-title").textContent = work.title;
 
-    const authorText = (work.author_name || []).length
-      ? `作者：${work.author_name.join("、")}`
-      : "作者：資料未提供";
+    const authorText = `作者：${(work.author_name || ["Unknown"]).join("、")}`;
     const publishText = work.first_publish_year
       ? `首版 ${work.first_publish_year}`
       : "";
@@ -274,10 +273,10 @@ function renderInitialWorkRow(work) {
 
   row.querySelector(".work-title").textContent = work.title;
 
-  const authorText = (work.author_name || []).length ? `作者：${work.author_name.join("、")}` : "作者：資料未提供";
+  const authorText = `作者：${(work.author_name || ["Unknown"]).join("、")}`;
   row.querySelector(".info-author").textContent = authorText;
 
-  const publishText = work.first_publish_year ? `首版：${work.first_publish_year}` : "首版：資料未提供";
+  const publishText = `首版：${work.first_publish_year || "Unknown"}`;
   row.querySelector(".info-publish").textContent = publishText;
 
   row.querySelector(".info-isbn").textContent = "ISBN：讀取中...";
@@ -303,13 +302,13 @@ function updateWorkDetailRow(row, { work, ratings, editions, google, goodreads, 
 
   row.querySelector(".work-title").textContent = work.title;
 
-  const authorText = (work.author_name || []).length ? `作者：${work.author_name.join("、")}` : "作者：資料未提供";
+  const authorText = `作者：${(work.author_name || ["Unknown"]).join("、")}`;
   row.querySelector(".info-author").textContent = authorText;
 
-  const publishText = work.first_publish_year ? `首版：${work.first_publish_year}` : "首版：資料未提供";
+  const publishText = `首版：${work.first_publish_year || "Unknown"}`;
   row.querySelector(".info-publish").textContent = publishText;
 
-  let reprIsbn = "ISBN：資料未提供";
+  let reprIsbn = "ISBN：Unknown";
   if (editions?.entries) {
     const editionWithIsbn = editions.entries.find(ed => ed.isbn_13 || ed.isbn_10);
     if (editionWithIsbn) {
@@ -515,26 +514,37 @@ function openEditionsModal(title, editions) {
   setTimeout(() => editionsModal.classList.add("open"), 10);
 }
 
-async function searchWorks(query, page) {
+async function searchWorks(query, page, engine = "open_library") {
+  currentEngine = engine;
   candidateList.replaceChildren();
   candidateSection.hidden = false;
   candidateHeading.hidden = false;
   goToStep(2);
+
+  const engineNameMap = {
+    open_library: "Open Library",
+    goodreads: "Goodreads",
+    google_books: "Google Books"
+  };
+
+  const resultsTitleEl = document.querySelector("#engine-results-title");
+  if (resultsTitleEl) {
+    resultsTitleEl.textContent = `第一區：${engineNameMap[engine] || "Open Library"} 資料庫搜尋結果`;
+  }
 
   paginationControls.hidden = true;
   detailsHeading.hidden = true;
   tableWrap.hidden = true;
   resultBody.replaceChildren();
   step2Status.classList.remove("error");
-  step2Status.textContent = `正在尋找「${query}」的相關作品 (第 ${page} 頁)…`;
+  step2Status.textContent = `正在使用 ${engineNameMap[engine] || "Open Library"} 尋找「${query}」的相關作品 (第 ${page} 頁)…`;
 
   if (page === 1) {
     saveHistory(query);
   }
 
   try {
-    const enginesStr = "open_library";
-
+    const enginesStr = engine;
     const cacheKey = `search:${query}:page:${page}:engines:${enginesStr}`;
     let works = getCachedData(cacheKey);
     if (!works) {
@@ -550,13 +560,13 @@ async function searchWorks(query, page) {
     }
     if (!works || !works.length) {
       step2Status.classList.add("error");
-      step2Status.textContent = page === 1 ? "找不到相符的作品；可嘗試完整書名、作者或 ISBN。" : "已無更多作品。";
+      step2Status.textContent = page === 1 ? "找不到相符的作品；可嘗試下方其他資料庫或手動搜尋。" : "已無更多作品。";
       if (page === 1) {
         paginationControls.hidden = true;
         candidateList.replaceChildren();
         const noResultsEl = document.createElement("div");
         noResultsEl.className = "no-results";
-        noResultsEl.textContent = "找不到書籍";
+        noResultsEl.textContent = `${engineNameMap[engine] || "資料庫"} 找不到書籍「${query}」`;
         noResultsEl.style.padding = "2rem";
         noResultsEl.style.textAlign = "center";
         noResultsEl.style.color = "#647068";
@@ -588,8 +598,29 @@ searchForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const query = searchInput.value.trim();
   if (!query) return;
-  searchWorks(query, 1);
+  searchWorks(query, 1, "open_library");
 });
+
+const searchGrBtn = document.querySelector("#search-gr-btn");
+const searchGbBtn = document.querySelector("#search-gb-btn");
+
+if (searchGrBtn) {
+  searchGrBtn.addEventListener("click", () => {
+    const q = currentQuery || searchInput.value.trim();
+    if (q) {
+      searchWorks(q, 1, "goodreads");
+    }
+  });
+}
+
+if (searchGbBtn) {
+  searchGbBtn.addEventListener("click", () => {
+    const q = currentQuery || searchInput.value.trim();
+    if (q) {
+      searchWorks(q, 1, "google_books");
+    }
+  });
+}
 
 function updatePagination(itemsCount) {
   if (!currentQuery) {
@@ -608,12 +639,12 @@ function updatePagination(itemsCount) {
 
 prevPageBtn.addEventListener("click", () => {
   if (currentPage > 1) {
-    searchWorks(currentQuery, currentPage - 1);
+    searchWorks(currentQuery, currentPage - 1, currentEngine);
   }
 });
 
 nextPageBtn.addEventListener("click", () => {
-  searchWorks(currentQuery, currentPage + 1);
+  searchWorks(currentQuery, currentPage + 1, currentEngine);
 });
 
 renderHistory();

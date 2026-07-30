@@ -167,7 +167,7 @@ class GoodreadsProvider(BaseProvider):
 
         # 3. Fallback: Try title + author
         for title in titles_to_try:
-            if work.author and work.author not in ["Unknown Author", "資料未提供"]:
+            if work.author and work.author not in ["Unknown Author", "Unknown"]:
                 query = f"{title} {work.author}"
                 try:
                     gr_works = self.search_works(query, limit=5)

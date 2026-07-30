@@ -146,7 +146,7 @@ class DoubanProvider(BaseProvider):
         # 2. Search by title (and author)
         if work.title:
             query = work.title
-            if work.author and work.author not in ["Unknown Author", "資料未提供"]:
+            if work.author and work.author not in ["Unknown Author", "Unknown"]:
                 query += f" {work.author}"
             try:
                 db_works = self.search_works(query, limit=1)

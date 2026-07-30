@@ -77,7 +77,7 @@ def api_search(
         results.append({
             "key": w.work_id,
             "title": w.title,
-            "author_name": [a.strip() for a in w.author.split(",")] if w.author and w.author != "Unknown Author" else ["資料未提供"],
+            "author_name": [a.strip() for a in w.author.split(",")] if w.author and w.author not in ["Unknown Author", "Unknown"] else ["Unknown"],
             "first_publish_year": w.first_publish_year,
             "edition_count": w.edition_count
         })
@@ -89,7 +89,7 @@ def api_search(
     
     for extra_works in [gb_works, gr_works, db_works]:
         for w in extra_works:
-            author_list = [a.strip() for a in w.author.split(",")] if w.author and w.author != "Unknown Author" else ["資料未提供"]
+            author_list = [a.strip() for a in w.author.split(",")] if w.author and w.author not in ["Unknown Author", "Unknown"] else ["Unknown"]
             key_tuple = (w.title.lower().strip(), "".join(author_list).lower().strip())
             if key_tuple not in existing_keys:
                 results.append({
@@ -147,7 +147,7 @@ def api_work_details(
                     
             if eng_author:
                 q_ol += f" {eng_author}"
-            elif gb_work.author and gb_work.author not in ["Unknown Author", "資料未提供"]:
+            elif gb_work.author and gb_work.author not in ["Unknown Author", "Unknown"]:
                 q_ol += f" {gb_work.author}"
                 
             print(f"[Details API] Attempting Open Library mapping with query: '{q_ol}'")
@@ -158,7 +158,7 @@ def api_work_details(
         # Fallback to Chinese title and author
         if not ol_work_mapped and title:
             q_title = title
-            if author and author != "Unknown Author" and author != "資料未提供":
+            if author and author not in ["Unknown Author", "Unknown"]:
                 q_title += f" {author}"
             ol_works_by_title = open_library.search_works(q_title, limit=1)
             if ol_works_by_title:
