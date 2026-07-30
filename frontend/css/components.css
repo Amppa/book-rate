@@ -22,22 +22,32 @@ header {
 /* Wizard */
 .wizard-container {
   width: 100%;
-  overflow: hidden;
   position: relative;
   margin-top: var(--space-2);
 }
 
 .wizard-track {
-  display: flex;
-  width: 300%;
-  transition: transform 0.45s cubic-bezier(0.25, 0.8, 0.25, 1);
-  will-change: transform;
+  position: relative;
+  width: 100%;
 }
 
 .wizard-step {
-  width: 33.3333%;
-  flex-shrink: 0;
+  width: 100%;
   padding: 0 4px;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.wizard-step.active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  position: relative;
 }
 
 .step-header {
@@ -393,3 +403,16 @@ tbody tr:last-child td {
   margin-top: var(--space-7);
   text-align: center;
 }
+
+/* Work title and version column layout */
+.work-title-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.work-version-row {
+  margin-top: var(--space-1);
+}
+
+

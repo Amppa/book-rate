@@ -186,6 +186,7 @@ def api_work_details(
             "average": gb_rating.rate if gb_rating and gb_rating.rate is not None else 0,
             "count": gb_rating.rating_count if gb_rating and gb_rating.rating_count is not None else 0,
             "title": (gb_rating.title if gb_rating else None) or title or (gb_work.title if gb_work else ""),
+            "url": gb_rating.url if gb_rating else None,
             "quota_exceeded": gb_provider.quota_exceeded
         }
 
@@ -259,6 +260,7 @@ def api_work_details(
             "average": gb_rating.rate if gb_rating and gb_rating.rate is not None else 0,
             "count": gb_rating.rating_count if gb_rating and gb_rating.rating_count is not None else 0,
             "title": (gb_rating.title if gb_rating else None) or dummy_work.title,
+            "url": gb_rating.url if gb_rating else None,
             "quota_exceeded": gb_provider.quota_exceeded
         }
 

@@ -101,8 +101,13 @@ let currentStep = 1;
 
 function goToStep(step) {
   currentStep = step;
-  const offset = - (step - 1) * 33.3333;
-  wizardTrack.style.transform = `translateX(${offset}%)`;
+  document.querySelectorAll(".wizard-step").forEach((el, index) => {
+    if (index + 1 === step) {
+      el.classList.add("active");
+    } else {
+      el.classList.remove("active");
+    }
+  });
 }
 
 function fetchJson(url) {
@@ -267,19 +272,21 @@ async function selectWork(work) {
   }
 }
 
+function renderCountCell(countEl, countVal, url) {
+  const countText = displayCount(countVal);
+  if (url) {
+    countEl.innerHTML = `<a href="${url}" target="_blank" rel="noreferrer">${countText} ↗</a>`;
+  } else {
+    countEl.textContent = countText;
+  }
+}
+
 function renderInitialWorkRow(work) {
   const fragment = resultRowTemplate.content.cloneNode(true);
   const row = fragment.querySelector(".work-row");
 
   row.querySelector(".work-title").textContent = work.title;
   row.querySelector(".author").textContent = (work.author_name || ["資料未提供"]).join("、");
-  const linkEl = row.querySelector(".work-link");
-  if (work.key && work.key.startsWith("/works/")) {
-    linkEl.href = `${OPEN_LIBRARY_BASE_URL}${work.key}`;
-  } else {
-    linkEl.textContent = "Work ↗";
-    linkEl.href = "#";
-  }
 
   row.querySelector(".ol-rate").innerHTML = '<span class="fetching-tag">Fetching...</span>';
   row.querySelector(".ol-count").textContent = "讀取中...";
@@ -294,6 +301,7 @@ function renderInitialWorkRow(work) {
   row.querySelector(".db-count").textContent = "讀取中...";
 
   row.querySelector(".edition-count").textContent = "載入中...";
+  
   return fragment;
 }
 
@@ -302,19 +310,17 @@ function updateWorkDetailRow(row, { work, ratings, editions, google, goodreads, 
 
   row.querySelector(".work-title").textContent = work.title;
   row.querySelector(".author").textContent = (work.author_name || ["資料未提供"]).join("、");
-  if (work.key && work.key.startsWith("/works/")) {
-    row.querySelector(".work-link").href = `${OPEN_LIBRARY_BASE_URL}${work.key}`;
-  }
 
   row.querySelector(".ol-rate").textContent = displayRate(ratings?.average, ratings?.count, 5);
-  row.querySelector(".ol-count").textContent = displayCount(ratings?.count);
+  const olUrl = (work.key && work.key.startsWith("/works/")) ? `${OPEN_LIBRARY_BASE_URL}${work.key}` : null;
+  renderCountCell(row.querySelector(".ol-count"), ratings?.count, olUrl);
 
   if (google?.quota_exceeded) {
     row.querySelector(".gb-rate").innerHTML = '<span class="error">額度超限 (429) ⚠️</span>';
     row.querySelector(".gb-count").textContent = "請在上方設定個人 API Key，或設定環境變數。";
   } else {
     row.querySelector(".gb-rate").textContent = displayRate(google?.average, google?.count, 5);
-    row.querySelector(".gb-count").textContent = displayCount(google?.count) + (google?.title ? ` · ${google.title}` : "");
+    renderCountCell(row.querySelector(".gb-count"), google?.count, google?.url);
   }
 
   if (goodreads) {
@@ -322,12 +328,7 @@ function updateWorkDetailRow(row, { work, ratings, editions, google, goodreads, 
     const grCountEl = row.querySelector(".gr-count");
     if (grRateEl) grRateEl.textContent = displayRate(goodreads.average, goodreads.count, 5);
     if (grCountEl) {
-      let countText = displayCount(goodreads.count);
-      if (goodreads.url) {
-        grCountEl.innerHTML = `<a href="${goodreads.url}" target="_blank" rel="noreferrer">${countText} ↗</a>`;
-      } else {
-        grCountEl.textContent = countText;
-      }
+      renderCountCell(grCountEl, goodreads.count, goodreads.url);
     }
   } else {
     row.querySelector(".gr-rate").textContent = "暫無評分";
@@ -339,19 +340,14 @@ function updateWorkDetailRow(row, { work, ratings, editions, google, goodreads, 
     const dbCountEl = row.querySelector(".db-count");
     if (dbRateEl) dbRateEl.textContent = displayRate(douban.average, douban.count, 10);
     if (dbCountEl) {
-      let countText = displayCount(douban.count);
-      if (douban.url) {
-        dbCountEl.innerHTML = `<a href="${douban.url}" target="_blank" rel="noreferrer">${countText} ↗</a>`;
-      } else {
-        dbCountEl.textContent = countText;
-      }
+      renderCountCell(dbCountEl, douban.count, douban.url);
     }
   } else {
     row.querySelector(".db-rate").textContent = "暫無評分";
     row.querySelector(".db-count").textContent = "尚無評價人數";
   }
 
-  const size = editions?.size || editions?.entries?.length || 0;
+  const size = work.edition_count || editions?.size || editions?.entries?.length || 0;
   row.querySelector(".edition-count").textContent = `${size.toLocaleString()}個版本`;
 
   const btn = row.querySelector(".show-editions-btn");

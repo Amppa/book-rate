@@ -91,7 +91,7 @@
       <div class="wizard-track" id="wizard-track">
 
         <!-- 步驟 1 面板 -->
-        <div class="wizard-step" id="step-1">
+        <div class="wizard-step active" id="step-1">
           <div class="section-heading">
             <h2><small class="step-num">第 1 步</small>搜尋書籍</h2>
           </div>
@@ -156,7 +156,6 @@
                   <tr>
                     <th>書名</th>
                     <th>原作者</th>
-                    <th>Work／版本</th>
                     <th class="col-ol">Open Library 評價</th>
                     <th class="col-gb">Google Books 評價</th>
                     <th class="col-gr">Goodreads 評價</th>
@@ -180,16 +179,17 @@
   </main>
   <template id="result-template">
     <tr class="work-row">
-      <td class="work-title"></td>
-      <td class="author"></td>
       <td>
-        <div class="work-info-cell">
-          <a class="work-link" target="_blank" rel="noreferrer">Open Library Work ↗</a>
-          <button type="button" class="btn-link show-editions-btn">
-            <span class="edition-count"></span>
-          </button>
+        <div class="work-title-container">
+          <span class="work-title"></span>
+          <div class="work-version-row">
+            <button type="button" class="btn-link show-editions-btn">
+              <span class="edition-count"></span>
+            </button>
+          </div>
         </div>
       </td>
+      <td class="author"></td>
       <td class="col-ol"><strong class="ol-rate"></strong><small class="ol-count"></small></td>
       <td class="col-gb"><strong class="gb-rate"></strong><small class="gb-count"></small></td>
       <td class="col-gr"><strong class="gr-rate"></strong><small class="gr-count"></small></td>
