@@ -532,12 +532,23 @@ function updateManualSearchLinks(query) {
   }
 }
 
+function updateEngineTabs(engine) {
+  const searchOlBtn = document.querySelector("#search-ol-btn");
+  const searchGrBtn = document.querySelector("#search-gr-btn");
+  const searchGbBtn = document.querySelector("#search-gb-btn");
+
+  if (searchOlBtn) searchOlBtn.classList.toggle("active", engine === "open_library");
+  if (searchGrBtn) searchGrBtn.classList.toggle("active", engine === "goodreads");
+  if (searchGbBtn) searchGbBtn.classList.toggle("active", engine === "google_books");
+}
+
 async function searchWorks(query, page, engine = "open_library") {
   currentEngine = engine;
   candidateList.replaceChildren();
   candidateSection.hidden = false;
   candidateHeading.hidden = false;
   goToStep(2);
+  updateEngineTabs(engine);
 
   const engineNameMap = {
     open_library: "Open Library",
@@ -545,10 +556,6 @@ async function searchWorks(query, page, engine = "open_library") {
     google_books: "Google Books"
   };
 
-  const resultsTitleEl = document.querySelector("#engine-results-title");
-  if (resultsTitleEl) {
-    resultsTitleEl.textContent = `${engineNameMap[engine] || "Open Library"} 資料庫搜尋結果`;
-  }
   updateManualSearchLinks(query);
 
   paginationControls.hidden = true;
@@ -620,13 +627,23 @@ searchForm.addEventListener("submit", (event) => {
   searchWorks(query, 1, "open_library");
 });
 
+const searchOlBtn = document.querySelector("#search-ol-btn");
 const searchGrBtn = document.querySelector("#search-gr-btn");
 const searchGbBtn = document.querySelector("#search-gb-btn");
+
+if (searchOlBtn) {
+  searchOlBtn.addEventListener("click", () => {
+    const q = currentQuery || searchInput.value.trim();
+    if (q && currentEngine !== "open_library") {
+      searchWorks(q, 1, "open_library");
+    }
+  });
+}
 
 if (searchGrBtn) {
   searchGrBtn.addEventListener("click", () => {
     const q = currentQuery || searchInput.value.trim();
-    if (q) {
+    if (q && currentEngine !== "goodreads") {
       searchWorks(q, 1, "goodreads");
     }
   });
@@ -635,7 +652,7 @@ if (searchGrBtn) {
 if (searchGbBtn) {
   searchGbBtn.addEventListener("click", () => {
     const q = currentQuery || searchInput.value.trim();
-    if (q) {
+    if (q && currentEngine !== "google_books") {
       searchWorks(q, 1, "google_books");
     }
   });
