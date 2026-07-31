@@ -11,6 +11,7 @@ const scoreGbCheckbox = document.querySelector("#score-gb");
 const scoreGrCheckbox = document.querySelector("#score-gr");
 const scoreDbCheckbox = document.querySelector("#score-db");
 const scoreAmCheckbox = document.querySelector("#score-am");
+const scoreSgCheckbox = document.querySelector("#score-sg");
 const ratingTable = document.querySelector("table");
 
 const SCORE_OL_KEY = "bookrate:score:ol";
@@ -18,6 +19,7 @@ const SCORE_GB_KEY = "bookrate:score:gb";
 const SCORE_GR_KEY = "bookrate:score:gr";
 const SCORE_DB_KEY = "bookrate:score:db";
 const SCORE_AM_KEY = "bookrate:score:am";
+const SCORE_SG_KEY = "bookrate:score:sg";
 
 function getCachedData(key) {
   try {
@@ -167,6 +169,7 @@ function getWorkExternalUrl(key) {
   if (key.startsWith("gb:")) return `https://books.google.com/books?id=${key.slice(3)}`;
   if (key.startsWith("gr:")) return `https://www.goodreads.com/book/show/${key.slice(3)}`;
   if (key.startsWith("db:")) return `https://book.douban.com/subject/${key.slice(3)}/`;
+  if (key.startsWith("sg:")) return `https://app.thestorygraph.com/books/${key.slice(3)}`;
   return null;
 }
 
@@ -218,6 +221,7 @@ function getActiveScoreEngines() {
   if (scoreGrCheckbox && scoreGrCheckbox.checked) engines.push("goodreads");
   if (scoreDbCheckbox && scoreDbCheckbox.checked) engines.push("douban");
   if (scoreAmCheckbox && scoreAmCheckbox.checked) engines.push("amazon");
+  if (scoreSgCheckbox && scoreSgCheckbox.checked) engines.push("storygraph");
   return engines.length > 0 ? engines.join(",") : "none";
 }
 
@@ -297,7 +301,8 @@ async function selectWork(work) {
             google: "gb",
             goodreads: "gr",
             douban: "db",
-            amazon: "am"
+            amazon: "am",
+            storygraph: "sg"
           };
           const prefix = prefixMap[platformKey] || platformKey;
           const maxRate = prefix === "db" ? 10 : 5;
@@ -372,6 +377,9 @@ function renderInitialWorkRow(work) {
   row.querySelector(".am-rate").innerHTML = '<span class="fetching-tag">Fetching...</span>';
   row.querySelector(".am-count").textContent = "讀取中...";
 
+  row.querySelector(".sg-rate").innerHTML = '<span class="fetching-tag">Fetching...</span>';
+  row.querySelector(".sg-count").textContent = "讀取中...";
+
   return fragment;
 }
 
@@ -396,7 +404,7 @@ function renderPlatformCell(row, prefix, data, maxRate = 5) {
   }
 }
 
-function updateWorkDetailRow(row, { work, ratings, editions, google, goodreads, douban, amazon }) {
+function updateWorkDetailRow(row, { work, ratings, editions, google, goodreads, douban, amazon, storygraph }) {
   if (!row) return;
 
   row.querySelector(".work-title").textContent = work.title;
@@ -429,6 +437,7 @@ function updateWorkDetailRow(row, { work, ratings, editions, google, goodreads, 
   renderPlatformCell(row, "gr", goodreads, 5);
   renderPlatformCell(row, "db", douban, 10);
   renderPlatformCell(row, "am", amazon, 5);
+  renderPlatformCell(row, "sg", storygraph, 5);
 
   const size = work.edition_count || editions?.size || editions?.entries?.length || 0;
   row.querySelector(".edition-count").textContent = `${size.toLocaleString()}個版本`;
@@ -614,11 +623,13 @@ function updateEngineTabs(engine) {
   const searchGrBtn = document.querySelector("#search-gr-btn");
   const searchGbBtn = document.querySelector("#search-gb-btn");
   const searchDbBtn = document.querySelector("#search-db-btn");
+  const searchSgBtn = document.querySelector("#search-sg-btn");
 
   if (searchOlBtn) searchOlBtn.classList.toggle("active", engine === "open_library");
   if (searchGrBtn) searchGrBtn.classList.toggle("active", engine === "goodreads");
   if (searchGbBtn) searchGbBtn.classList.toggle("active", engine === "google_books");
   if (searchDbBtn) searchDbBtn.classList.toggle("active", engine === "douban");
+  if (searchSgBtn) searchSgBtn.classList.toggle("active", engine === "storygraph");
 }
 
 async function searchWorks(query, page, engine = "open_library") {
@@ -634,7 +645,8 @@ async function searchWorks(query, page, engine = "open_library") {
     open_library: "Open Library",
     goodreads: "Goodreads",
     google_books: "Google Books",
-    douban: "豆瓣"
+    douban: "豆瓣",
+    storygraph: "StoryGraph"
   };
   const engineName = engineNameMap[engine] || "資料庫";
 
@@ -749,6 +761,16 @@ if (searchDbBtn) {
   });
 }
 
+const searchSgBtn = document.querySelector("#search-sg-btn");
+if (searchSgBtn) {
+  searchSgBtn.addEventListener("click", () => {
+    const q = searchInput.value.trim() || currentQuery;
+    if (q) {
+      searchWorks(q, 1, "storygraph");
+    }
+  });
+}
+
 function updatePagination(itemsCount) {
   if (!currentQuery) {
     paginationControls.hidden = true;
@@ -814,6 +836,7 @@ function initSettings() {
   if (scoreGrCheckbox) scoreGrCheckbox.checked = localStorage.getItem(SCORE_GR_KEY) !== "false";
   if (scoreDbCheckbox) scoreDbCheckbox.checked = localStorage.getItem(SCORE_DB_KEY) !== "false";
   if (scoreAmCheckbox) scoreAmCheckbox.checked = localStorage.getItem(SCORE_AM_KEY) !== "false";
+  if (scoreSgCheckbox) scoreSgCheckbox.checked = localStorage.getItem(SCORE_SG_KEY) !== "false";
 
   updateTableVisibility();
 }
@@ -825,6 +848,7 @@ function updateTableVisibility() {
     if (scoreGrCheckbox) ratingTable.classList.toggle("hide-gr-score", !scoreGrCheckbox.checked);
     if (scoreDbCheckbox) ratingTable.classList.toggle("hide-db-score", !scoreDbCheckbox.checked);
     if (scoreAmCheckbox) ratingTable.classList.toggle("hide-am-score", !scoreAmCheckbox.checked);
+    if (scoreSgCheckbox) ratingTable.classList.toggle("hide-sg-score", !scoreSgCheckbox.checked);
   }
 }
 
@@ -859,6 +883,13 @@ if (scoreDbCheckbox) {
 if (scoreAmCheckbox) {
   scoreAmCheckbox.addEventListener("change", () => {
     localStorage.setItem(SCORE_AM_KEY, scoreAmCheckbox.checked);
+    updateTableVisibility();
+  });
+}
+
+if (scoreSgCheckbox) {
+  scoreSgCheckbox.addEventListener("change", () => {
+    localStorage.setItem(SCORE_SG_KEY, scoreSgCheckbox.checked);
     updateTableVisibility();
   });
 }

@@ -76,6 +76,11 @@ button:disabled:hover {
   display: none !important;
 }
 
+.hide-sg-score th.col-sg,
+.hide-sg-score td.col-sg {
+  display: none !important;
+}
+
 /* ==========================================================================
    Responsive Breakpoints
    ========================================================================== */

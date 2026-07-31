@@ -6,6 +6,7 @@ from book_rate.providers.google_books import GoogleBooksProvider
 from book_rate.providers.goodreads import GoodreadsProvider
 from book_rate.providers.douban import DoubanProvider
 from book_rate.providers.amazon import AmazonProvider
+from book_rate.providers.storygraph import StoryGraphProvider
 
 logger = logging.getLogger(__name__)
 
@@ -19,11 +20,12 @@ class BookAggregator:
         self.goodreads = GoodreadsProvider()
         self.douban = DoubanProvider()
         self.amazon = AmazonProvider()
+        self.storygraph = StoryGraphProvider()
 
     def aggregate_by_title(self, title_query: str, limit: int = 5) -> List[Work]:
         """
         Search for a book by title, resolve corresponding Works and Editions,
-        and fetch rating metrics across all providers (Open Library, Google Books, Goodreads, Douban).
+        and fetch rating metrics across all providers.
         """
         clean_query = title_query.strip()
         if not clean_query:
@@ -59,6 +61,11 @@ class BookAggregator:
             if self.douban.name not in work.ratings:
                 db_rating = self.douban.fetch_ratings(work)
                 work.ratings[self.douban.name] = db_rating or PlatformRating(platform_name=self.douban.name)
+
+            # Enrich with StoryGraph rating
+            if self.storygraph.name not in work.ratings:
+                sg_rating = self.storygraph.fetch_ratings(work)
+                work.ratings[self.storygraph.name] = sg_rating or PlatformRating(platform_name=self.storygraph.name)
 
             aggregated_works.append(work)
 

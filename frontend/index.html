@@ -84,6 +84,7 @@
                 <button type="button" id="search-gr-btn" class="engine-tab-btn">Goodreads</button>
                 <button type="button" id="search-gb-btn" class="engine-tab-btn">Google Books</button>
                 <button type="button" id="search-db-btn" class="engine-tab-btn">豆瓣</button>
+                <button type="button" id="search-sg-btn" class="engine-tab-btn">StoryGraph</button>
               </div>
             </div>
 
@@ -145,6 +146,10 @@
                 <input type="checkbox" id="score-am" />
                 <span>Amazon</span>
               </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="score-sg" />
+                <span>StoryGraph</span>
+              </label>
             </div>
             <div class="table-wrap" hidden>
               <table>
@@ -157,6 +162,7 @@
                     <th class="col-gr">Goodreads</th>
                     <th class="col-db">豆瓣</th>
                     <th class="col-am">Amazon</th>
+                    <th class="col-sg">StoryGraph</th>
                   </tr>
                 </thead>
                 <tbody id="result-body"></tbody>
@@ -192,6 +198,7 @@
       <td class="col-gr"><strong class="gr-rate"></strong><small class="gr-count"></small></td>
       <td class="col-db"><strong class="db-rate"></strong><small class="db-count"></small></td>
       <td class="col-am"><strong class="am-rate"></strong><small class="am-count"></small></td>
+      <td class="col-sg"><strong class="sg-rate"></strong><small class="sg-count"></small></td>
     </tr>
   </template>
   <template id="candidate-template">
@@ -239,7 +246,7 @@
     </div>
   </div>
 
-  <script src="./app.js?v=1.0.1"></script>
+  <script src="./app.js?v=1.0.2"></script>
 </body>
 
 </html>
