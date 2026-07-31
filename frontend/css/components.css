@@ -341,14 +341,14 @@ a.candidate-meta:hover {
 
 table {
   width: 100%;
-  min-width: 820px;
+  min-width: 1080px;
   border-collapse: collapse;
   text-align: left;
 }
 
 th,
 td {
-  padding: var(--space-4);
+  padding: var(--space-3) var(--space-4);
   vertical-align: top;
   border-bottom: 1px solid var(--border-light);
 }
@@ -358,6 +358,15 @@ th {
   font-size: var(--fs-xs);
   color: var(--text-green-gray);
   letter-spacing: .04em;
+  white-space: nowrap;
+}
+
+td strong {
+  display: block;
+  font-size: var(--fs-md);
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.3;
 }
 
 tbody tr:last-child td {

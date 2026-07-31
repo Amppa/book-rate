@@ -6,6 +6,7 @@ from book_rate.providers.google_books import GoogleBooksProvider
 from book_rate.providers.goodreads import GoodreadsProvider
 from book_rate.providers.douban import DoubanProvider
 from book_rate.providers.amazon import AmazonProvider
+from book_rate.providers.amazon_jp import AmazonJPProvider
 from book_rate.providers.storygraph import StoryGraphProvider
 
 logger = logging.getLogger(__name__)
@@ -20,6 +21,7 @@ class BookAggregator:
         self.goodreads = GoodreadsProvider()
         self.douban = DoubanProvider()
         self.amazon = AmazonProvider()
+        self.amazon_jp = AmazonJPProvider()
         self.storygraph = StoryGraphProvider()
 
     def aggregate_by_title(self, title_query: str, limit: int = 5) -> List[Work]:
@@ -61,6 +63,16 @@ class BookAggregator:
             if self.douban.name not in work.ratings:
                 db_rating = self.douban.fetch_ratings(work)
                 work.ratings[self.douban.name] = db_rating or PlatformRating(platform_name=self.douban.name)
+
+            # Enrich with Amazon rating
+            if self.amazon.name not in work.ratings:
+                am_rating = self.amazon.fetch_ratings(work)
+                work.ratings[self.amazon.name] = am_rating or PlatformRating(platform_name=self.amazon.name)
+
+            # Enrich with Amazon JP rating
+            if self.amazon_jp.name not in work.ratings:
+                amjp_rating = self.amazon_jp.fetch_ratings(work)
+                work.ratings[self.amazon_jp.name] = amjp_rating or PlatformRating(platform_name=self.amazon_jp.name)
 
             # Enrich with StoryGraph rating
             if self.storygraph.name not in work.ratings:

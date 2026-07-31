@@ -21,6 +21,7 @@ google_books = aggregator.google_books
 goodreads = aggregator.goodreads
 douban = aggregator.douban
 amazon = aggregator.amazon
+amazon_jp = aggregator.amazon_jp
 storygraph = aggregator.storygraph
 
 def _format_editions(editions_list) -> dict:
@@ -52,7 +53,7 @@ def api_search(
     q: str = Query(..., description="Search query"),
     page: int = Query(1, description="Page number"),
     google_key: str = Query(None, description="Optional Google Books API Key"),
-    engines: str = Query("open_library,google_books,goodreads,douban,storygraph", description="Comma-separated engines to use")
+    engines: str = Query("open_library,google_books,goodreads,douban,storygraph,amazon_jp", description="Comma-separated engines to use")
 ):
     print(f"\n[Search API] User query: '{q}', page: {page}, engines: '{engines}'")
     active_engines = [e.strip() for e in engines.split(",") if e.strip()]
@@ -80,6 +81,10 @@ def api_search(
     sg_works = []
     if "storygraph" in active_engines and "open_library" not in active_engines and "google_books" not in active_engines and "goodreads" not in active_engines and "douban" not in active_engines:
         sg_works = storygraph.search_works(q, limit=10, page=page)
+
+    amjp_works = []
+    if "amazon_jp" in active_engines and "open_library" not in active_engines and "google_books" not in active_engines and "goodreads" not in active_engines and "douban" not in active_engines and "storygraph" not in active_engines:
+        amjp_works = amazon_jp.search_works(q, limit=10, page=page)
         
     results = []
     # Add Open Library works
@@ -98,7 +103,7 @@ def api_search(
         for r in results
     }
     
-    for extra_works in [gb_works, gr_works, db_works, sg_works]:
+    for extra_works in [gb_works, gr_works, db_works, sg_works, amjp_works]:
         for w in extra_works:
             author_list = [a.strip() for a in w.author.split(",")] if w.author and w.author not in ["Unknown Author", "Unknown"] else ["Unknown"]
             key_tuple = (w.title.lower().strip(), "".join(author_list).lower().strip())
@@ -139,7 +144,7 @@ def _find_ol_work(isbn: Optional[str], title: Optional[str], author: Optional[st
 
 
 def _resolve_work_editions_and_ol_rating(work_id: str, title: str, author: str, active_engines: list) -> tuple[PlatformRating, list]:
-    """Helper to resolve Open Library rating and editions for any work_id (OL, GB, GR, DB, SG)."""
+    """Helper to resolve Open Library rating and editions for any work_id (OL, GB, GR, DB, SG, AMJP)."""
     if work_id.startswith("db:"):
         sub_id = work_id[3:]
         details = douban.fetch_subject_details(sub_id)
@@ -211,6 +216,27 @@ def _resolve_work_editions_and_ol_rating(work_id: str, title: str, author: str, 
             editions = [ed]
         return ol_rating, editions
 
+    elif work_id.startswith("amjp:"):
+        book_id = work_id[5:]
+        ol_work_mapped = _find_ol_work(None, title, author, active_engines)
+        if ol_work_mapped:
+            ol_rating = open_library.fetch_ratings(ol_work_mapped)
+            editions = open_library.fetch_editions(ol_work_mapped.work_id, limit=100)
+        else:
+            ol_rating = PlatformRating("Open Library")
+            editions = []
+
+        if not editions:
+            ed = Edition(
+                edition_id=book_id,
+                title=title or "Unknown",
+                publish_year=None,
+                isbn_13=None,
+                isbn_10=None
+            )
+            editions = [ed]
+        return ol_rating, editions
+
     else:
         full_work_id = work_id if work_id.startswith("/works/") else f"/works/{work_id}"
         if "open_library" in active_engines:
@@ -227,7 +253,7 @@ def api_work_details(
     title: str = Query(None, description="Title of the work"),
     author: str = Query(None, description="Author of the work"),
     google_key: str = Query(None, description="Optional Google Books API Key"),
-    engines: str = Query("open_library,google_books,goodreads,douban,amazon,storygraph", description="Comma-separated score engines to fetch")
+    engines: str = Query("open_library,google_books,goodreads,douban,amazon,amazon_jp,storygraph", description="Comma-separated score engines to fetch")
 ):
     print(f"\n[Details API] User locked work: '{work_id}' (Title: '{title}', Author: '{author}', Engines: '{engines}')")
     active_engines = [e.strip() for e in engines.split(",") if e.strip()]
@@ -315,19 +341,22 @@ def api_work_details(
         )
 
         fut_dict = {}
-        with ThreadPoolExecutor(max_workers=4) as executor:
+        with ThreadPoolExecutor(max_workers=5) as executor:
             if "goodreads" in active_engines:
                 fut_dict["gr"] = executor.submit(goodreads.fetch_ratings, target_work)
             if "douban" in active_engines:
                 fut_dict["db"] = executor.submit(douban.fetch_ratings, target_work)
             if "amazon" in active_engines:
                 fut_dict["am"] = executor.submit(amazon.fetch_ratings, target_work)
+            if "amazon_jp" in active_engines:
+                fut_dict["amjp"] = executor.submit(amazon_jp.fetch_ratings, target_work)
             if "storygraph" in active_engines:
                 fut_dict["sg"] = executor.submit(storygraph.fetch_ratings, target_work)
 
             gr_rating = fut_dict["gr"].result() if "gr" in fut_dict else None
             db_rating = fut_dict["db"].result() if "db" in fut_dict else None
             am_rating = fut_dict["am"].result() if "am" in fut_dict else None
+            amjp_rating = fut_dict["amjp"].result() if "amjp" in fut_dict else None
             sg_rating = fut_dict["sg"].result() if "sg" in fut_dict else None
 
         goodreads_dict = {
@@ -351,6 +380,13 @@ def api_work_details(
             "url": am_rating.url if am_rating else None
         }
 
+        amazon_jp_dict = {
+            "average": amjp_rating.rate if amjp_rating and amjp_rating.rate is not None else 0,
+            "count": amjp_rating.rating_count if amjp_rating and amjp_rating.rating_count is not None else 0,
+            "title": (amjp_rating.title if amjp_rating else None) or target_work.title,
+            "url": amjp_rating.url if amjp_rating else None
+        }
+
         storygraph_dict = {
             "average": sg_rating.rate if sg_rating and sg_rating.rate is not None else 0,
             "count": sg_rating.rating_count if sg_rating and sg_rating.rating_count is not None else 0,
@@ -365,6 +401,7 @@ def api_work_details(
             "goodreads": goodreads_dict,
             "douban": douban_dict,
             "amazon": amazon_dict,
+            "amazon_jp": amazon_jp_dict,
             "storygraph": storygraph_dict
         }
 
@@ -387,7 +424,7 @@ def api_work_details(
         )
 
         fut_dict = {}
-        with ThreadPoolExecutor(max_workers=5) as executor:
+        with ThreadPoolExecutor(max_workers=6) as executor:
             if "google_books" in active_engines:
                 fut_dict["gb"] = executor.submit(gb_provider.fetch_ratings, dummy_work)
             if "goodreads" in active_engines:
@@ -396,6 +433,8 @@ def api_work_details(
                 fut_dict["db"] = executor.submit(douban.fetch_ratings, dummy_work)
             if "amazon" in active_engines:
                 fut_dict["am"] = executor.submit(amazon.fetch_ratings, dummy_work)
+            if "amazon_jp" in active_engines:
+                fut_dict["amjp"] = executor.submit(amazon_jp.fetch_ratings, dummy_work)
             if "storygraph" in active_engines:
                 fut_dict["sg"] = executor.submit(storygraph.fetch_ratings, dummy_work)
 
@@ -403,6 +442,7 @@ def api_work_details(
             gr_rating = fut_dict["gr"].result() if "gr" in fut_dict else None
             db_rating = fut_dict["db"].result() if "db" in fut_dict else None
             am_rating = fut_dict["am"].result() if "am" in fut_dict else None
+            amjp_rating = fut_dict["amjp"].result() if "amjp" in fut_dict else None
             sg_rating = fut_dict["sg"].result() if "sg" in fut_dict else None
 
         google_dict = {
@@ -434,6 +474,13 @@ def api_work_details(
             "url": am_rating.url if am_rating else None
         }
 
+        amazon_jp_dict = {
+            "average": amjp_rating.rate if amjp_rating and amjp_rating.rate is not None else 0,
+            "count": amjp_rating.rating_count if amjp_rating and amjp_rating.rating_count is not None else 0,
+            "title": (amjp_rating.title if amjp_rating else None) or dummy_work.title,
+            "url": amjp_rating.url if amjp_rating else None
+        }
+
         storygraph_dict = {
             "average": sg_rating.rate if sg_rating and sg_rating.rate is not None else 0,
             "count": sg_rating.rating_count if sg_rating and sg_rating.rating_count is not None else 0,
@@ -448,6 +495,7 @@ def api_work_details(
             "goodreads": goodreads_dict,
             "douban": douban_dict,
             "amazon": amazon_dict,
+            "amazon_jp": amazon_jp_dict,
             "storygraph": storygraph_dict
         }
 
@@ -458,7 +506,7 @@ def api_work_details_stream(
     title: str = Query(None, description="Title of the work"),
     author: str = Query(None, description="Author of the work"),
     google_key: str = Query(None, description="Optional Google Books API Key"),
-    engines: str = Query("open_library,google_books,goodreads,douban,amazon,storygraph", description="Comma-separated score engines to fetch")
+    engines: str = Query("open_library,google_books,goodreads,douban,amazon,amazon_jp,storygraph", description="Comma-separated score engines to fetch")
 ):
     print(f"\n[Stream Details API] User locked work: '{work_id}' (Title: '{title}', Author: '{author}', Engines: '{engines}')")
     active_engines = [e.strip() for e in engines.split(",") if e.strip()]
@@ -578,7 +626,7 @@ def api_work_details_stream(
 
         # Submit provider tasks to ThreadPoolExecutor and stream each platform as it finishes!
         fut_map = {}
-        with ThreadPoolExecutor(max_workers=5) as executor:
+        with ThreadPoolExecutor(max_workers=6) as executor:
             if "google_books" in active_engines and not work_id.startswith("gb:"):
                 fut_map[executor.submit(gb_provider.fetch_ratings, target_work)] = "google_books"
             if "goodreads" in active_engines:
@@ -587,6 +635,8 @@ def api_work_details_stream(
                 fut_map[executor.submit(douban.fetch_ratings, target_work)] = "douban"
             if "amazon" in active_engines:
                 fut_map[executor.submit(amazon.fetch_ratings, target_work)] = "amazon"
+            if "amazon_jp" in active_engines:
+                fut_map[executor.submit(amazon_jp.fetch_ratings, target_work)] = "amazon_jp"
             if "storygraph" in active_engines:
                 fut_map[executor.submit(storygraph.fetch_ratings, target_work)] = "storygraph"
 

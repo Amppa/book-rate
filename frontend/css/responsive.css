@@ -76,6 +76,11 @@ button:disabled:hover {
   display: none !important;
 }
 
+.hide-amjp-score th.col-amjp,
+.hide-amjp-score td.col-amjp {
+  display: none !important;
+}
+
 .hide-sg-score th.col-sg,
 .hide-sg-score td.col-sg {
   display: none !important;
