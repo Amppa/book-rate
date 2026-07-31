@@ -565,3 +565,102 @@ tbody tr:last-child td {
   margin-top: var(--space-7);
   text-align: center;
 }
+
+/* Metadata 展開區塊樣式 */
+.candidate-info-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.candidate-header-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.candidate-basic-meta {
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.candidate-details-row {
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  animation: slideDown 0.2s ease-out;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.metadata-table-container {
+  overflow-x: auto;
+}
+
+.metadata-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.metadata-table th,
+.metadata-table td {
+  padding: 6px var(--space-2);
+  border-bottom: 1px solid var(--border-light);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.metadata-table tr:last-child th,
+.metadata-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.metadata-table th {
+  width: 120px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: transparent;
+}
+
+.metadata-table td {
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.candidate-actions {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: var(--space-1);
+}
+
+.btn-xs {
+  padding: 2px var(--space-2);
+  font-size: 0.75rem;
+  border-radius: var(--radius-sm);
+}
+
+.btn-sm {
+  padding: 4px var(--space-3);
+  font-size: 0.8rem;
+  border-radius: var(--radius-sm);
+}
+
+/* 步驟 3 的 metadata 展開區塊樣式 */
+.step3-metadata-details {
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

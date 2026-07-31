@@ -1,70 +1,7 @@
-const OPEN_LIBRARY_BASE_URL = "https://openlibrary.org";
-const MAX_CANDIDATES = 10;
-const MAX_EDITIONS = 100;
-const HISTORY_KEY = "bookrate:recent-searches";
-const CACHE_PREFIX = "bookrate:cache:";
-const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-
-// Settings selectors & storage keys
-const scoreOlCheckbox = document.querySelector("#score-ol");
-const scoreGbCheckbox = document.querySelector("#score-gb");
-const scoreGrCheckbox = document.querySelector("#score-gr");
-const scoreDbCheckbox = document.querySelector("#score-db");
-const scoreAmCheckbox = document.querySelector("#score-am");
-const scoreAmjpCheckbox = document.querySelector("#score-amjp");
-const scoreSgCheckbox = document.querySelector("#score-sg");
-const ratingTable = document.querySelector("table");
-
-const SCORE_OL_KEY = "bookrate:score:ol";
-const SCORE_GB_KEY = "bookrate:score:gb";
-const SCORE_GR_KEY = "bookrate:score:gr";
-const SCORE_DB_KEY = "bookrate:score:db";
-const SCORE_AM_KEY = "bookrate:score:am";
-const SCORE_AMJP_KEY = "bookrate:score:amjp";
-const SCORE_SG_KEY = "bookrate:score:sg";
-
-function getCachedData(key) {
-  try {
-    const cached = localStorage.getItem(CACHE_PREFIX + key);
-    if (!cached) return null;
-    const { data, timestamp } = JSON.parse(cached);
-    if (Date.now() - timestamp > ONE_DAY_MS) {
-      localStorage.removeItem(CACHE_PREFIX + key);
-      return null;
-    }
-    return data;
-  } catch (e) {
-    return null;
-  }
-}
-
-function setCachedData(key, data) {
-  try {
-    const record = { data, timestamp: Date.now() };
-    localStorage.setItem(CACHE_PREFIX + key, JSON.stringify(record));
-  } catch (e) {
-    console.warn("Failed to write to localStorage cache:", e);
-  }
-}
-
-function cleanExpiredCache() {
-  try {
-    const keysToRemove = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith(CACHE_PREFIX)) {
-        const cached = localStorage.getItem(key);
-        if (cached) {
-          const { timestamp } = JSON.parse(cached);
-          if (Date.now() - timestamp > ONE_DAY_MS) {
-            keysToRemove.push(key);
-          }
-        }
-      }
-    }
-    keysToRemove.forEach((key) => localStorage.removeItem(key));
-  } catch (e) { }
-}
+import { OPEN_LIBRARY_BASE_URL, MAX_CANDIDATES, HISTORY_KEY, PROVIDERS, STRATEGIES, PROVIDER_CHECKBOX_SUFFIX } from './js/constants.js';
+import { getCachedData, setCachedData, getRatingCache, setRatingCache, cleanExpiredCache } from './js/cache.js';
+import { fetchJson, displayRate, displayCount, getWorkExternalUrl, getProviderDisplayName } from './js/utils.js';
+import { renderProviderToggles, updateTableVisibility, openEditionsModal } from './js/ui.js';
 
 // Clean expired cache entries on load
 cleanExpiredCache();
@@ -91,11 +28,13 @@ const candidateHeading = document.querySelector("#candidate-heading");
 const wizardTrack = document.querySelector("#wizard-track");
 const btnPrevTo1 = document.querySelector("#btn-prev-to-1");
 const btnPrevTo2 = document.querySelector("#btn-prev-to-2");
+const ratingTable = document.querySelector("table");
 
 let currentQuery = "";
 let currentPage = 1;
 let currentStep = 1;
 let currentEngine = "open_library";
+let currentSelectedWork = null;
 
 function goToStep(step) {
   currentStep = step;
@@ -106,32 +45,6 @@ function goToStep(step) {
       el.classList.remove("active");
     }
   });
-}
-
-function fetchJson(url) {
-  return fetch(url).then(async (response) => {
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return response.json();
-  });
-}
-
-function displayRate(average, count, maxScore = 5) {
-  return Number(count) > 0 && Number(average) > 0
-    ? `${Number(average).toFixed(2)} / ${maxScore}`
-    : "暫無評分";
-}
-
-function formatCompact(n) {
-  return new Intl.NumberFormat("en", {
-    notation: "compact",
-    maximumFractionDigits: 1
-  }).format(n);
-}
-
-function displayCount(count) {
-  return Number(count) > 0
-    ? `${formatCompact(Number(count))} 人評價`
-    : "NULL";
 }
 
 function getHistory() {
@@ -165,17 +78,6 @@ function renderHistory() {
   });
 }
 
-function getWorkExternalUrl(key) {
-  if (!key) return null;
-  if (key.startsWith("/works/")) return `${OPEN_LIBRARY_BASE_URL}${key}`;
-  if (key.startsWith("gb:")) return `https://books.google.com/books?id=${key.slice(3)}`;
-  if (key.startsWith("gr:")) return `https://www.goodreads.com/book/show/${key.slice(3)}`;
-  if (key.startsWith("db:")) return `https://book.douban.com/subject/${key.slice(3)}/`;
-  if (key.startsWith("amjp:")) return `https://www.amazon.co.jp/dp/${key.slice(5)}`;
-  if (key.startsWith("sg:")) return `https://app.thestorygraph.com/books/${key.slice(3)}`;
-  return null;
-}
-
 function renderCandidates(works) {
   candidateList.replaceChildren();
   works.forEach((work) => {
@@ -186,38 +88,63 @@ function renderCandidates(works) {
     }
     fragment.querySelector(".candidate-title").textContent = work.title;
 
-    const authorText = `作者：${(work.author_name || ["Unknown"]).join("、")}`;
-    const publishText = work.first_publish_year
-      ? `首版 ${work.first_publish_year}`
-      : "";
-    const editionText = work.edition_count
-      ? `${work.edition_count.toLocaleString()} 個版本`
-      : "";
+    // 預設顯示：作者和首版日期
+    const authorVal = (work.author_name || ["Unknown"]).join("、");
+    const basicMetaText = `作者：${authorVal}` + (work.first_publish_year ? ` · 首版 ${work.first_publish_year}` : "");
+    fragment.querySelector(".candidate-basic-meta").textContent = basicMetaText;
 
-    const metaText = [
-      authorText,
-      publishText,
-      editionText
-    ].filter(Boolean).join(" · ") + " ↗";
+    // 填充展開的詳細資料
+    fragment.querySelector(".meta-author").textContent = authorVal;
+    fragment.querySelector(".meta-year").textContent = work.first_publish_year || "暫無資料";
+    fragment.querySelector(".meta-editions").textContent = work.edition_count ? `${work.edition_count.toLocaleString()} 個版本` : "暫無資料";
 
-    const metaLink = fragment.querySelector(".candidate-meta");
-    const extUrl = getWorkExternalUrl(work.key);
-    if (metaLink) {
-      metaLink.textContent = metaText;
-      if (extUrl) {
-        metaLink.href = extUrl;
-      } else {
-        metaLink.removeAttribute("href");
+    // 處理 ISBN 與 系列 ISBN
+    let primaryIsbn = "暫無資料";
+    let otherIsbnsText = "無";
+    if (work.isbn) {
+      const isbnList = Array.isArray(work.isbn) ? work.isbn : [work.isbn];
+      if (isbnList.length > 0) {
+        primaryIsbn = isbnList[0];
+        const remaining = isbnList.slice(1, 11); // 最多 10 個
+        if (remaining.length > 0) {
+          otherIsbnsText = remaining.join("、");
+        }
       }
     }
+    fragment.querySelector(".meta-primary-isbn").textContent = primaryIsbn;
+    fragment.querySelector(".meta-other-isbns").textContent = otherIsbnsText;
+
+    // 外部連結
+    const metaLinksEl = fragment.querySelector(".meta-links");
+    const extUrl = getWorkExternalUrl(work.key);
+    if (extUrl) {
+      const a = document.createElement("a");
+      a.href = extUrl;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.className = "candidate-link";
+      a.textContent = `${getProviderDisplayName(work.key.split(":")[0]) || "外部連結"} ↗`;
+      metaLinksEl.appendChild(a);
+    } else {
+      metaLinksEl.textContent = "-";
+    }
+
+    // Toggle 按鈕
+    const toggleBtn = fragment.querySelector(".toggle-metadata-btn");
+    const detailsRow = fragment.querySelector(".candidate-details-row");
+    toggleBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isHidden = detailsRow.hidden;
+      detailsRow.hidden = !isHidden;
+      toggleBtn.textContent = isHidden ? "收起" : "metadata";
+      toggleBtn.classList.toggle("active", isHidden);
+    });
 
     fragment.querySelector(".select-work").addEventListener("click", () => selectWork(work));
     candidateList.append(fragment);
   });
   candidateSection.hidden = false;
 }
-
-let currentSelectedWork = null;
 
 function getSelectedStrategies() {
   const strats = {};
@@ -230,16 +157,16 @@ function getSelectedStrategies() {
   return strats;
 }
 
-function getActiveScoreEngines() {
+function getActiveScoreEnginesList() {
   const engines = [];
-  if (scoreOlCheckbox && scoreOlCheckbox.checked) engines.push("open_library");
-  if (scoreGbCheckbox && scoreGbCheckbox.checked) engines.push("google_books");
-  if (scoreGrCheckbox && scoreGrCheckbox.checked) engines.push("goodreads");
-  if (scoreDbCheckbox && scoreDbCheckbox.checked) engines.push("douban");
-  if (scoreAmCheckbox && scoreAmCheckbox.checked) engines.push("amazon");
-  if (scoreAmjpCheckbox && scoreAmjpCheckbox.checked) engines.push("amazon_jp");
-  if (scoreSgCheckbox && scoreSgCheckbox.checked) engines.push("storygraph");
-  return engines.length > 0 ? engines.join(",") : "none";
+  PROVIDERS.forEach((provider) => {
+    const suffix = PROVIDER_CHECKBOX_SUFFIX[provider.id];
+    const checkbox = document.querySelector(`#score-${suffix}`);
+    if (checkbox && checkbox.checked) {
+      engines.push(provider.id);
+    }
+  });
+  return engines;
 }
 
 async function selectWork(work) {
@@ -275,18 +202,48 @@ async function selectWork(work) {
   step3Status.classList.remove("error");
   step3Status.textContent = "";
 
-  const activeEngines = getActiveScoreEngines();
+  const activeEnginesList = getActiveScoreEnginesList();
   const apiKey = localStorage.getItem("bookrate:google-api-key") || "";
   const strategies = getSelectedStrategies();
-  const strategiesStr = JSON.stringify(strategies);
+
+  // 區分命中快取與未命中快取
+  const cachedEngines = [];
+  const pendingEngines = [];
+
+  activeEnginesList.forEach((provider) => {
+    const strategy = strategies[provider] || "isbn_primary";
+    const cachedData = getRatingCache(work.key, provider, strategy);
+    if (cachedData) {
+      cachedEngines.push({ provider, data: cachedData });
+    } else {
+      pendingEngines.push(provider);
+    }
+  });
+
+  const prefixMap = {
+    open_library: "ol",
+    goodreads: "gr",
+    douban: "db",
+    amazon: "am",
+    amazon_jp: "amjp",
+    storygraph: "sg"
+  };
+
+  // 立即渲染已命中的快取
+  cachedEngines.forEach(({ provider, data }) => {
+    const prefix = prefixMap[provider] || provider;
+    const maxRate = prefix === "db" ? 10 : 5;
+    renderPlatformCell(row, prefix, data, maxRate);
+  });
 
   try {
-    let url = `/api/work-details-stream?work_id=${encodeURIComponent(work.key)}&title=${encodeURIComponent(work.title)}&author=${encodeURIComponent((work.author_name || []).join(","))}&engines=${encodeURIComponent(activeEngines)}&strategies=${encodeURIComponent(strategiesStr)}`;
+    const strategiesStr = JSON.stringify(strategies);
+    let url = `/api/work-details-stream?work_id=${encodeURIComponent(work.key)}&title=${encodeURIComponent(work.title)}&author=${encodeURIComponent((work.author_name || []).join(","))}&engines=${encodeURIComponent(pendingEngines.join(","))}&strategies=${encodeURIComponent(strategiesStr)}`;
     if (apiKey) {
       url += `&google_key=${encodeURIComponent(apiKey)}`;
     }
 
-    const collectedDetails = { work, ratings: {}, editions: {}, google: {}, goodreads: {}, douban: {}, amazon: {}, amazon_jp: {}, storygraph: {} };
+    const collectedDetails = { work, ratings: {}, editions: {}, goodreads: {}, douban: {}, amazon: {}, amazon_jp: {}, storygraph: {} };
     const eventSource = new EventSource(url);
 
     eventSource.onmessage = (event) => {
@@ -295,24 +252,18 @@ async function selectWork(work) {
         if (data.type === "init") {
           collectedDetails.ratings = data.ratings;
           collectedDetails.editions = data.editions;
-          if (data.google) collectedDetails.google = data.google;
           updateWorkDetailRow(row, collectedDetails);
         } else if (data.type === "platform") {
           const platformKey = data.platform;
           collectedDetails[platformKey] = data.data;
 
-          const prefixMap = {
-            open_library: "ol",
-            google_books: "gb",
-            google: "gb",
-            goodreads: "gr",
-            douban: "db",
-            amazon: "am",
-            amazon_jp: "amjp",
-            storygraph: "sg"
-          };
           const prefix = prefixMap[platformKey] || platformKey;
           const maxRate = prefix === "db" ? 10 : 5;
+
+          // 寫入評分快取
+          const strategy = strategies[platformKey] || "isbn_primary";
+          setRatingCache(work.key, platformKey, strategy, data.data);
+
           renderPlatformCell(row, prefix, data.data, maxRate);
         } else if (data.type === "done") {
           eventSource.close();
@@ -341,8 +292,6 @@ function reQuerySingleProvider(work, providerKey) {
 
   const prefixMap = {
     open_library: "ol",
-    google_books: "gb",
-    google: "gb",
     goodreads: "gr",
     douban: "db",
     amazon: "am",
@@ -377,6 +326,11 @@ function reQuerySingleProvider(work, providerKey) {
       const data = JSON.parse(event.data);
       if (data.type === "platform") {
         const maxRate = prefix === "db" ? 10 : 5;
+
+        // 重新查詢寫入評分快取並渲染
+        const strategy = strategies[providerKey] || "isbn_primary";
+        setRatingCache(work.key, providerKey, strategy, data.data);
+
         renderPlatformCell(row, prefix, data.data, maxRate);
       } else if (data.type === "done") {
         eventSource.close();
@@ -403,6 +357,10 @@ if (scoreToggleBarEl) {
       if (currentSelectedWork && providerKey) {
         reQuerySingleProvider(currentSelectedWork, providerKey);
       }
+    } else if (e.target.type === "checkbox") {
+      const id = e.target.id.replace("score-", ""); // 'ol', 'gr' 等
+      localStorage.setItem(`bookrate:score:${id}`, e.target.checked);
+      updateTableVisibility(ratingTable);
     }
   });
 }
@@ -428,38 +386,15 @@ function renderInitialWorkRow(work) {
   const publishText = `首版：${work.first_publish_year || "Unknown"}`;
   row.querySelector(".info-publish").textContent = publishText;
 
-  if (work.isbn) {
-    row.querySelector(".info-isbn").textContent = `ISBN：${work.isbn}`;
-  } else {
-    row.querySelector(".info-isbn").textContent = "ISBN：讀取中...";
-  }
+  row.querySelector(".edition-count").textContent = "載入中...";
 
-  if (work.edition_count) {
-    row.querySelector(".edition-count").textContent = `${work.edition_count.toLocaleString()}個版本`;
-  } else {
-    row.querySelector(".edition-count").textContent = "載入中...";
-  }
-
-  row.querySelector(".ol-rate").innerHTML = '<span class="fetching-tag">Fetching...</span>';
-  row.querySelector(".ol-count").textContent = "讀取中...";
-
-  row.querySelector(".gb-rate").innerHTML = '<span class="fetching-tag">Fetching...</span>';
-  row.querySelector(".gb-count").textContent = "讀取中...";
-
-  row.querySelector(".gr-rate").innerHTML = '<span class="fetching-tag">Fetching...</span>';
-  row.querySelector(".gr-count").textContent = "讀取中...";
-
-  row.querySelector(".db-rate").innerHTML = '<span class="fetching-tag">Fetching...</span>';
-  row.querySelector(".db-count").textContent = "讀取中...";
-
-  row.querySelector(".am-rate").innerHTML = '<span class="fetching-tag">Fetching...</span>';
-  row.querySelector(".am-count").textContent = "讀取中...";
-
-  row.querySelector(".amjp-rate").innerHTML = '<span class="fetching-tag">Fetching...</span>';
-  row.querySelector(".amjp-count").textContent = "讀取中...";
-
-  row.querySelector(".sg-rate").innerHTML = '<span class="fetching-tag">Fetching...</span>';
-  row.querySelector(".sg-count").textContent = "讀取中...";
+  const prefixes = ["ol", "gr", "db", "am", "amjp", "sg"];
+  prefixes.forEach((prefix) => {
+    const rateEl = row.querySelector(`.${prefix}-rate`);
+    const countEl = row.querySelector(`.${prefix}-count`);
+    if (rateEl) rateEl.innerHTML = '<span class="fetching-tag">Fetching...</span>';
+    if (countEl) countEl.textContent = "讀取中...";
+  });
 
   return fragment;
 }
@@ -519,34 +454,14 @@ function renderPlatformCell(row, prefix, data, maxRate = 5) {
     tag.textContent = status;
     tag.dataset.strat = data.strategy || "";
     tag.dataset.query = data.query || "";
-    tag.title = "點擊查看搜尋細節";
+    // 用 native tooltip 取代 debug modal
+    tag.title = `策略: ${data.strategy || "N/A"}, 查詢: ${data.query || "N/A"}`;
 
     cell.appendChild(tag);
   }
 }
 
-function getProviderDisplayName(key) {
-  const names = {
-    open_library: "Open Library",
-    ol: "Open Library",
-    google_books: "Google Books",
-    gb: "Google Books",
-    google: "Google Books",
-    goodreads: "Goodreads",
-    gr: "Goodreads",
-    douban: "豆瓣",
-    db: "豆瓣",
-    amazon: "Amazon",
-    am: "Amazon",
-    amazon_jp: "Amazon JP",
-    amjp: "Amazon JP",
-    storygraph: "StoryGraph",
-    sg: "StoryGraph"
-  };
-  return names[key] || key;
-}
-
-function updateWorkDetailRow(row, { work, ratings, editions, google, goodreads, douban, amazon, amazon_jp, storygraph }) {
+function updateWorkDetailRow(row, { work, ratings, editions }) {
   if (!row) return;
 
   row.querySelector(".work-title").textContent = work.title;
@@ -557,31 +472,7 @@ function updateWorkDetailRow(row, { work, ratings, editions, google, goodreads, 
   const publishText = `首版：${work.first_publish_year || "Unknown"}`;
   row.querySelector(".info-publish").textContent = publishText;
 
-  let reprIsbn = "ISBN：Unknown";
-  if (editions?.entries) {
-    const editionWithIsbn = editions.entries.find(ed => ed.isbn_13 || ed.isbn_10);
-    if (editionWithIsbn) {
-      reprIsbn = `ISBN：${editionWithIsbn.isbn_13 || editionWithIsbn.isbn_10}`;
-    }
-  }
-  row.querySelector(".info-isbn").textContent = reprIsbn;
-
-  const olUrl = ratings?.url || ((work.key && work.key.startsWith("/works/")) ? `${OPEN_LIBRARY_BASE_URL}${work.key}` : null);
-  renderPlatformCell(row, "ol", { average: ratings?.average, count: ratings?.count, url: olUrl, status: (ratings?.average ? "MATCH" : "NO_MATCH") }, 5);
-
-  if (google?.quota_exceeded) {
-    row.querySelector(".gb-rate").innerHTML = '<span class="error">額度超限 (429) ⚠️</span>';
-    row.querySelector(".gb-count").textContent = "請在上方設定個人 API Key，或設定環境變數。";
-  } else {
-    renderPlatformCell(row, "gb", google, 5);
-  }
-
-  renderPlatformCell(row, "gr", goodreads, 5);
-  renderPlatformCell(row, "db", douban, 10);
-  renderPlatformCell(row, "am", amazon, 5);
-  renderPlatformCell(row, "amjp", amazon_jp, 5);
-  renderPlatformCell(row, "sg", storygraph, 5);
-
+  // 1. 版本數量與 editions modal
   const size = work.edition_count || editions?.size || editions?.entries?.length || 0;
   row.querySelector(".edition-count").textContent = `${size.toLocaleString()}個版本`;
 
@@ -591,156 +482,69 @@ function updateWorkDetailRow(row, { work, ratings, editions, google, goodreads, 
       openEditionsModal(work.title, editions);
     };
   }
-}
 
-const LANGUAGE_NAME_MAP = {
-  eng: "English",
-  en: "English",
-  zho: "Chinese",
-  chi: "Chinese",
-  zh: "Chinese",
-  cht: "Traditional Chinese",
-  "zh-hant": "Traditional Chinese",
-  "zh-tw": "Traditional Chinese",
-  chs: "Simplified Chinese",
-  "zh-hans": "Simplified Chinese",
-  "zh-cn": "Simplified Chinese",
-  jpn: "Japanese",
-  ja: "Japanese",
-  fre: "French",
-  fra: "French",
-  fr: "French",
-  ger: "German",
-  deu: "German",
-  de: "German",
-  spa: "Spanish",
-  es: "Spanish",
-  rus: "Russian",
-  ru: "Russian",
-  ita: "Italian",
-  it: "Italian",
-  lat: "Latin",
-  la: "Latin",
-  por: "Portuguese",
-  pt: "Portuguese",
-  kor: "Korean",
-  ko: "Korean",
-  nld: "Dutch",
-  dut: "Dutch",
-  nl: "Dutch",
-  swe: "Swedish",
-  sv: "Swedish",
-  pol: "Polish",
-  pl: "Polish",
-  ara: "Arabic",
-  ar: "Arabic",
-  hin: "Hindi",
-  hi: "Hindi",
-  vie: "Vietnamese",
-  vi: "Vietnamese",
-  tha: "Thai",
-  th: "Thai",
-  ind: "Indonesian",
-  id: "Indonesian"
-};
-
-function formatLanguageFullName(langItem) {
-  if (!langItem) return "";
-  let code = "";
-  if (typeof langItem === "string") {
-    code = langItem;
-  } else if (typeof langItem === "object" && langItem.key) {
-    code = langItem.key.replace("/languages/", "");
-  }
-  code = code.trim().toLowerCase();
-  if (!code) return "";
-  return LANGUAGE_NAME_MAP[code] || (code.length <= 3 ? code.toUpperCase() : code);
-}
-
-function createEditionsTableCell(value, isMonospace = false) {
-  const td = document.createElement("td");
-  const text = value && String(value).trim() && String(value).trim() !== "出版年未提供"
-    ? String(value).trim()
-    : "-";
-  td.textContent = text;
-  if (text === "-") {
-    td.className = "empty-cell";
-  } else if (isMonospace) {
-    td.className = "isbn-cell";
-  }
-  return td;
-}
-
-function openEditionsModal(title, editions) {
-  const editionsModal = document.querySelector("#editions-modal");
-  const modalTitle = document.querySelector("#editions-modal-title");
-  const modalNote = document.querySelector("#editions-modal-note");
-  const modalList = document.querySelector("#editions-modal-list");
-
-  if (!editionsModal || !modalTitle || !modalNote || !modalList) return;
-
-  modalTitle.textContent = `《${title}》的版本列表`;
-
-  const size = editions.size || editions.entries.length;
-  modalNote.textContent = size > MAX_EDITIONS
-    ? `為維持查詢速度，目前列出前 ${MAX_EDITIONS} 個版本。`
-    : "";
-
-  const fragment = document.createDocumentFragment();
-
-  if (!editions.entries?.length) {
-    const emptyMsg = document.createElement("div");
-    emptyMsg.textContent = "此作品尚未取得版本資料。";
-    fragment.appendChild(emptyMsg);
-  } else {
-    const tableWrap = document.createElement("div");
-    tableWrap.className = "editions-table-wrap";
-
-    const table = document.createElement("table");
-    table.className = "editions-table";
-
-    const thead = document.createElement("thead");
-    thead.innerHTML = `
-      <tr>
-        <th>書名</th>
-        <th>出版年份</th>
-        <th>語言</th>
-        <th>ISBN</th>
-      </tr>
-    `;
-    table.appendChild(thead);
-
-    const tbody = document.createElement("tbody");
-
-    (editions.entries || []).forEach((edition) => {
-      const tr = document.createElement("tr");
-
-      const rawLangs = edition.languages || [];
-      const formattedLangs = (Array.isArray(rawLangs) ? rawLangs : [rawLangs])
-        .map(formatLanguageFullName)
-        .filter(Boolean);
-      const langText = formattedLangs.length ? formattedLangs.join("、") : null;
-      const isbnVal = edition.isbn_13 || edition.isbn_10;
-
-      tr.append(
-        createEditionsTableCell(edition.title),
-        createEditionsTableCell(edition.publish_date),
-        createEditionsTableCell(langText),
-        createEditionsTableCell(isbnVal, true)
-      );
-      tbody.appendChild(tr);
+  // 2. 填寫 metadata 展開內容
+  let reprIsbn = "Unknown";
+  let otherIsbnsText = "無";
+  if (editions?.entries) {
+    const isbns = [];
+    editions.entries.forEach(ed => {
+      const isbnVal = ed.isbn_13 || ed.isbn_10;
+      if (isbnVal && !isbns.includes(isbnVal)) {
+        isbns.push(isbnVal);
+      }
     });
+    if (isbns.length > 0) {
+      reprIsbn = isbns[0];
+      const remaining = isbns.slice(1, 11);
+      if (remaining.length > 0) {
+        otherIsbnsText = remaining.join("、");
+      }
+    }
+  } else if (work.isbn) {
+    const isbnList = Array.isArray(work.isbn) ? work.isbn : [work.isbn];
+    if (isbnList.length > 0) {
+      reprIsbn = isbnList[0];
+      const remaining = isbnList.slice(1, 11);
+      if (remaining.length > 0) {
+        otherIsbnsText = remaining.join("、");
+      }
+    }
+  }
+  row.querySelector(".step3-primary-isbn").textContent = reprIsbn;
+  row.querySelector(".step3-other-isbns").textContent = otherIsbnsText;
 
-    table.appendChild(tbody);
-    tableWrap.appendChild(table);
-    fragment.appendChild(tableWrap);
+  // 外部連結：
+  const linksContainer = row.querySelector(".step3-links");
+  linksContainer.replaceChildren();
+  const extUrl = getWorkExternalUrl(work.key);
+  if (extUrl) {
+    const a = document.createElement("a");
+    a.href = extUrl;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.textContent = `${getProviderDisplayName(work.key.split(":")[0]) || "外部連結"} ↗`;
+    linksContainer.appendChild(a);
+  } else {
+    linksContainer.textContent = "-";
   }
 
-  modalList.replaceChildren(fragment);
+  // 綁定 metadata 展開按鈕事件
+  const toggleBtn = row.querySelector(".toggle-metadata-btn");
+  const detailsBlock = row.querySelector(".step3-metadata-details");
+  if (toggleBtn && detailsBlock) {
+    toggleBtn.onclick = (e) => {
+      e.stopPropagation();
+      const isHidden = detailsBlock.hidden;
+      detailsBlock.hidden = !isHidden;
+      toggleBtn.textContent = isHidden ? "收起" : "metadata";
+      toggleBtn.classList.toggle("active", isHidden);
+    };
+  }
 
-  // Open the modal
-  editionsModal.hidden = false;
-  setTimeout(() => editionsModal.classList.add("open"), 10);
+  // 3. 渲染 Open Library 評分
+  const olUrl = ratings?.url || ((work.key && work.key.startsWith("/works/")) ? `${OPEN_LIBRARY_BASE_URL}${work.key}` : null);
+  renderPlatformCell(row, "ol", { average: ratings?.average, count: ratings?.count, url: olUrl, status: (ratings?.average ? "MATCH" : "NO_MATCH") }, 5);
 }
 
 function updateManualSearchLinks(query) {
@@ -869,6 +673,9 @@ searchForm.addEventListener("submit", (event) => {
 const searchOlBtn = document.querySelector("#search-ol-btn");
 const searchGrBtn = document.querySelector("#search-gr-btn");
 const searchGbBtn = document.querySelector("#search-gb-btn");
+const searchDbBtn = document.querySelector("#search-db-btn");
+const searchAmjpBtn = document.querySelector("#search-amjp-btn");
+const searchSgBtn = document.querySelector("#search-sg-btn");
 
 if (searchOlBtn) {
   searchOlBtn.addEventListener("click", () => {
@@ -897,7 +704,6 @@ if (searchGbBtn) {
   });
 }
 
-const searchDbBtn = document.querySelector("#search-db-btn");
 if (searchDbBtn) {
   searchDbBtn.addEventListener("click", () => {
     const q = searchInput.value.trim() || currentQuery;
@@ -907,7 +713,6 @@ if (searchDbBtn) {
   });
 }
 
-const searchAmjpBtn = document.querySelector("#search-amjp-btn");
 if (searchAmjpBtn) {
   searchAmjpBtn.addEventListener("click", () => {
     const q = searchInput.value.trim() || currentQuery;
@@ -917,7 +722,6 @@ if (searchAmjpBtn) {
   });
 }
 
-const searchSgBtn = document.querySelector("#search-sg-btn");
 if (searchSgBtn) {
   searchSgBtn.addEventListener("click", () => {
     const q = searchInput.value.trim() || currentQuery;
@@ -995,87 +799,23 @@ if (clearApiKeyBtn) {
 
 // Settings checkboxes logic
 function initSettings() {
-  if (scoreOlCheckbox) scoreOlCheckbox.checked = localStorage.getItem(SCORE_OL_KEY) !== "false";
-  if (scoreGbCheckbox) scoreGbCheckbox.checked = localStorage.getItem(SCORE_GB_KEY) !== "false";
-  if (scoreGrCheckbox) scoreGrCheckbox.checked = localStorage.getItem(SCORE_GR_KEY) !== "false";
-  if (scoreDbCheckbox) scoreDbCheckbox.checked = localStorage.getItem(SCORE_DB_KEY) !== "false";
-  if (scoreAmCheckbox) scoreAmCheckbox.checked = localStorage.getItem(SCORE_AM_KEY) !== "false";
-  if (scoreAmjpCheckbox) scoreAmjpCheckbox.checked = localStorage.getItem(SCORE_AMJP_KEY) !== "false";
-  if (scoreSgCheckbox) scoreSgCheckbox.checked = localStorage.getItem(SCORE_SG_KEY) !== "false";
+  renderProviderToggles(scoreToggleBarEl);
 
-  // Restore saved search strategies
-  document.querySelectorAll(".strategy-select").forEach((sel) => {
-    const provider = sel.dataset.provider;
-    if (provider) {
-      const savedStrategy = localStorage.getItem("bookrate:strategy:" + provider);
-      if (savedStrategy) {
-        sel.value = savedStrategy;
-      }
+  PROVIDERS.forEach((provider) => {
+    const suffix = PROVIDER_CHECKBOX_SUFFIX[provider.id];
+    const checkbox = document.querySelector(`#score-${suffix}`);
+    if (checkbox) {
+      checkbox.checked = localStorage.getItem(`bookrate:score:${suffix}`) !== "false";
+    }
+
+    const select = document.querySelector(`.strategy-select[data-provider="${provider.id}"]`);
+    if (select) {
+      const savedStrategy = localStorage.getItem("bookrate:strategy:" + provider.id);
+      select.value = savedStrategy || provider.defaultStrategy;
     }
   });
 
-  updateTableVisibility();
-}
-
-function updateTableVisibility() {
-  if (ratingTable) {
-    if (scoreOlCheckbox) ratingTable.classList.toggle("hide-ol-score", !scoreOlCheckbox.checked);
-    if (scoreGbCheckbox) ratingTable.classList.toggle("hide-gb-score", !scoreGbCheckbox.checked);
-    if (scoreGrCheckbox) ratingTable.classList.toggle("hide-gr-score", !scoreGrCheckbox.checked);
-    if (scoreDbCheckbox) ratingTable.classList.toggle("hide-db-score", !scoreDbCheckbox.checked);
-    if (scoreAmCheckbox) ratingTable.classList.toggle("hide-am-score", !scoreAmCheckbox.checked);
-    if (scoreAmjpCheckbox) ratingTable.classList.toggle("hide-amjp-score", !scoreAmjpCheckbox.checked);
-    if (scoreSgCheckbox) ratingTable.classList.toggle("hide-sg-score", !scoreSgCheckbox.checked);
-  }
-}
-
-if (scoreOlCheckbox) {
-  scoreOlCheckbox.addEventListener("change", () => {
-    localStorage.setItem(SCORE_OL_KEY, scoreOlCheckbox.checked);
-    updateTableVisibility();
-  });
-}
-
-if (scoreGbCheckbox) {
-  scoreGbCheckbox.addEventListener("change", () => {
-    localStorage.setItem(SCORE_GB_KEY, scoreGbCheckbox.checked);
-    updateTableVisibility();
-  });
-}
-
-if (scoreGrCheckbox) {
-  scoreGrCheckbox.addEventListener("change", () => {
-    localStorage.setItem(SCORE_GR_KEY, scoreGrCheckbox.checked);
-    updateTableVisibility();
-  });
-}
-
-if (scoreDbCheckbox) {
-  scoreDbCheckbox.addEventListener("change", () => {
-    localStorage.setItem(SCORE_DB_KEY, scoreDbCheckbox.checked);
-    updateTableVisibility();
-  });
-}
-
-if (scoreAmCheckbox) {
-  scoreAmCheckbox.addEventListener("change", () => {
-    localStorage.setItem(SCORE_AM_KEY, scoreAmCheckbox.checked);
-    updateTableVisibility();
-  });
-}
-
-if (scoreAmjpCheckbox) {
-  scoreAmjpCheckbox.addEventListener("change", () => {
-    localStorage.setItem(SCORE_AMJP_KEY, scoreAmjpCheckbox.checked);
-    updateTableVisibility();
-  });
-}
-
-if (scoreSgCheckbox) {
-  scoreSgCheckbox.addEventListener("change", () => {
-    localStorage.setItem(SCORE_SG_KEY, scoreSgCheckbox.checked);
-    updateTableVisibility();
-  });
+  updateTableVisibility(ratingTable);
 }
 
 initSettings();
@@ -1113,11 +853,11 @@ btnPrevTo2.addEventListener("click", () => {
 const clearCacheBtn = document.querySelector("#clear-cache-btn");
 if (clearCacheBtn) {
   clearCacheBtn.addEventListener("click", () => {
-    // Clear all localStorage cache keys starting with bookrate:cache:
+    // Clear all localStorage cache keys starting with bookrate:cache: or bookrate:rating:
     const keysToRemove = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && key.startsWith(CACHE_PREFIX)) {
+      if (key && (key.startsWith("bookrate:cache:") || key.startsWith("bookrate:rating:"))) {
         keysToRemove.push(key);
       }
     }
@@ -1274,55 +1014,3 @@ if (openPlatformInfoBtn) {
     }
   });
 }
-
-// Debug Modal logic
-const debugModal = document.querySelector("#debug-modal");
-const closeDebugBtn = document.querySelector("#close-debug-btn");
-
-if (debugModal && closeDebugBtn) {
-  const closeDebug = () => {
-    debugModal.classList.remove("open");
-    setTimeout(() => {
-      if (!debugModal.classList.contains("open")) {
-        debugModal.hidden = true;
-      }
-    }, 300);
-  };
-
-  closeDebugBtn.addEventListener("click", closeDebug);
-  debugModal.addEventListener("click", (e) => {
-    if (e.target === debugModal) {
-      closeDebug();
-    }
-  });
-}
-
-// Event delegation for search status tags
-const ratingTableBody = document.querySelector("#result-body");
-if (ratingTableBody) {
-  ratingTableBody.addEventListener("click", (e) => {
-    const tag = e.target.closest(".search-status-tag");
-    if (tag && debugModal) {
-      // Set strategy label
-      const strategyLabels = {
-        isbn_primary: "ISBN (Primary)",
-        isbn_all: "ISBN (All)",
-        title: "Title",
-        title_author: "Title + Author",
-        title_author_year: "Title + Author + Year",
-        provider_id: "Provider ID"
-      };
-      const strat = tag.dataset.strat;
-      document.querySelector("#debug-strategy").textContent = strategyLabels[strat] || strat || "-";
-
-      // Set query used
-      document.querySelector("#debug-query").textContent = tag.dataset.query || "-";
-
-      // Open debug modal
-      debugModal.hidden = false;
-      setTimeout(() => debugModal.classList.add("open"), 10);
-    }
-  });
-}
-
-

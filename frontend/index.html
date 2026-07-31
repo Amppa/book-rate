@@ -127,103 +127,6 @@
           <section id="results" aria-live="polite">
             <div class="score-display-toggles" id="score-toggle-bar">
               <span class="toggle-title">來源：</span>
-              <div class="provider-toggle-item">
-                <label class="checkbox-label">
-                  <input type="checkbox" id="score-ol" />
-                  <span>Open Library</span>
-                </label>
-                <select class="strategy-select" data-provider="open_library">
-                  <option value="isbn_primary">ISBN (Primary)</option>
-                  <option value="isbn_all">ISBN (All Editions)</option>
-                  <option value="title_author_year">Title + Author + Year</option>
-                  <option value="title_author" selected>Title + Author</option>
-                  <option value="title">Title</option>
-                </select>
-              </div>
-
-              <div class="provider-toggle-item">
-                <label class="checkbox-label">
-                  <input type="checkbox" id="score-gb" />
-                  <span>Google Books</span>
-                </label>
-                <select class="strategy-select" data-provider="google_books">
-                  <option value="isbn_primary" selected>ISBN (Primary)</option>
-                  <option value="isbn_all">ISBN (All Editions)</option>
-                  <option value="title_author_year">Title + Author + Year</option>
-                  <option value="title_author">Title + Author</option>
-                  <option value="title">Title</option>
-                </select>
-              </div>
-
-              <div class="provider-toggle-item">
-                <label class="checkbox-label">
-                  <input type="checkbox" id="score-gr" />
-                  <span>Goodreads</span>
-                </label>
-                <select class="strategy-select" data-provider="goodreads">
-                  <option value="isbn_primary">ISBN (Primary)</option>
-                  <option value="isbn_all">ISBN (All Editions)</option>
-                  <option value="title_author_year">Title + Author + Year</option>
-                  <option value="title_author" selected>Title + Author</option>
-                  <option value="title">Title</option>
-                </select>
-              </div>
-
-              <div class="provider-toggle-item">
-                <label class="checkbox-label">
-                  <input type="checkbox" id="score-db" />
-                  <span>豆瓣</span>
-                </label>
-                <select class="strategy-select" data-provider="douban">
-                  <option value="isbn_primary" selected>ISBN (Primary)</option>
-                  <option value="isbn_all">ISBN (All Editions)</option>
-                  <option value="title_author_year">Title + Author + Year</option>
-                  <option value="title_author">Title + Author</option>
-                  <option value="title">Title</option>
-                </select>
-              </div>
-
-              <div class="provider-toggle-item">
-                <label class="checkbox-label">
-                  <input type="checkbox" id="score-am" />
-                  <span>Amazon</span>
-                </label>
-                <select class="strategy-select" data-provider="amazon">
-                  <option value="isbn_primary" selected>ISBN (Primary)</option>
-                  <option value="isbn_all">ISBN (All Editions)</option>
-                  <option value="title_author_year">Title + Author + Year</option>
-                  <option value="title_author">Title + Author</option>
-                  <option value="title">Title</option>
-                </select>
-              </div>
-
-              <div class="provider-toggle-item">
-                <label class="checkbox-label">
-                  <input type="checkbox" id="score-amjp" />
-                  <span>Amazon JP</span>
-                </label>
-                <select class="strategy-select" data-provider="amazon_jp">
-                  <option value="isbn_primary" selected>ISBN (Primary)</option>
-                  <option value="isbn_all">ISBN (All Editions)</option>
-                  <option value="title_author_year">Title + Author + Year</option>
-                  <option value="title_author">Title + Author</option>
-                  <option value="title">Title</option>
-                </select>
-              </div>
-
-              <div class="provider-toggle-item">
-                <label class="checkbox-label">
-                  <input type="checkbox" id="score-sg" />
-                  <span>StoryGraph</span>
-                </label>
-                <select class="strategy-select" data-provider="storygraph">
-                  <option value="isbn_primary">ISBN (Primary)</option>
-                  <option value="isbn_all">ISBN (All Editions)</option>
-                  <option value="title_author_year">Title + Author + Year</option>
-                  <option value="title_author" selected>Title + Author</option>
-                  <option value="title">Title</option>
-                </select>
-              </div>
             </div>
             <div class="table-wrap" hidden>
               <table>
@@ -232,7 +135,6 @@
                     <th>書名</th>
                     <th>Details</th>
                     <th class="col-ol">Open Library</th>
-                    <th class="col-gb">Google Books</th>
                     <th class="col-gr">Goodreads</th>
                     <th class="col-db">豆瓣</th>
                     <th class="col-am">Amazon</th>
@@ -264,15 +166,19 @@
       <td class="work-info-cell">
         <div class="info-author"></div>
         <div class="info-publish"></div>
-        <div class="info-isbn"></div>
-        <div class="info-version-row">
+        <div class="info-metadata-btn-row" style="display: flex; gap: var(--space-2); align-items: center; margin-top: var(--space-1);">
           <button type="button" class="btn-link show-editions-btn">
             <span class="edition-count"></span>
           </button>
+          <button type="button" class="toggle-metadata-btn btn-secondary btn-xs">metadata</button>
+        </div>
+        <div class="step3-metadata-details" hidden style="margin-top: var(--space-2); padding-top: var(--space-2); border-top: 1px dashed var(--border-light); font-size: 0.8rem; width: 100%; display: flex; flex-direction: column; gap: 4px;">
+          <div><strong>代表 ISBN:</strong> <span class="step3-primary-isbn">-</span></div>
+          <div><strong>系列 ISBN:</strong> <span class="step3-other-isbns">-</span></div>
+          <div><strong>連結:</strong> <span class="step3-links">-</span></div>
         </div>
       </td>
       <td class="col-ol"><strong class="ol-rate"></strong><small class="ol-count"></small></td>
-      <td class="col-gb"><strong class="gb-rate"></strong><small class="gb-count"></small></td>
       <td class="col-gr"><strong class="gr-rate"></strong><small class="gr-count"></small></td>
       <td class="col-db"><strong class="db-rate"></strong><small class="db-count"></small></td>
       <td class="col-am"><strong class="am-rate"></strong><small class="am-count"></small></td>
@@ -281,12 +187,49 @@
     </tr>
   </template>
   <template id="candidate-template">
-    <article class="candidate-card">
-      <div>
-        <h3 class="candidate-title"></h3>
-        <a class="candidate-meta candidate-link" target="_blank" rel="noopener noreferrer"></a>
+    <article class="candidate-card" style="align-items: flex-start;">
+      <div class="candidate-info-wrapper">
+        <div class="candidate-header-row">
+          <h3 class="candidate-title"></h3>
+          <span class="candidate-basic-meta"></span>
+        </div>
+        <div class="candidate-details-row" hidden>
+          <div class="metadata-table-container">
+            <table class="metadata-table">
+              <tbody>
+                <tr>
+                  <th>作者</th>
+                  <td class="meta-author"></td>
+                </tr>
+                <tr>
+                  <th>出版年份</th>
+                  <td class="meta-year"></td>
+                </tr>
+                <tr>
+                  <th>版本數量</th>
+                  <td class="meta-editions"></td>
+                </tr>
+                <tr>
+                  <th>ISBN</th>
+                  <td class="meta-primary-isbn"></td>
+                </tr>
+                <tr>
+                  <th>系列 ISBN</th>
+                  <td class="meta-other-isbns"></td>
+                </tr>
+                <tr>
+                  <th>外部連結</th>
+                  <td class="meta-links"></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="candidate-actions">
+          <button type="button" class="toggle-metadata-btn btn-secondary btn-sm">metadata</button>
+        </div>
       </div>
-      <button type="button" class="select-work">Choose</button>
+      <button type="button" class="select-work" style="margin-top: 6px;">Choose</button>
     </article>
   </template>
 
@@ -325,29 +268,7 @@
     </div>
   </div>
 
-  <!-- 偵錯資訊 Modal -->
-  <div id="debug-modal" class="modal" hidden>
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>搜尋細節</h3>
-        <button type="button" id="close-debug-btn" class="close-btn">&times;</button>
-      </div>
-      <div class="modal-body">
-        <table class="debug-table" style="width: 100%; border-collapse: collapse; margin-top: var(--space-2);">
-          <tr style="border-bottom: 1px solid var(--border-light);">
-            <th style="text-align: left; padding: var(--space-3); width: 20%;">搜尋策略</th>
-            <td id="debug-strategy" style="padding: var(--space-3);">-</td>
-          </tr>
-          <tr style="border-bottom: 1px solid var(--border-light);">
-            <th style="text-align: left; padding: var(--space-3);">查詢關鍵字</th>
-            <td id="debug-query" style="padding: var(--space-3); font-family: monospace; word-break: break-all;">-</td>
-          </tr>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <script src="./app.js?v=1.0.11"></script>
+  <script type="module" src="./app.js?v=1.0.11"></script>
 </body>
 
 </html>

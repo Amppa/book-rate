@@ -56,10 +56,6 @@ button:disabled:hover {
   display: none !important;
 }
 
-.hide-gb-score th.col-gb,
-.hide-gb-score td.col-gb {
-  display: none !important;
-}
 
 .hide-gr-score th.col-gr,
 .hide-gr-score td.col-gr {
