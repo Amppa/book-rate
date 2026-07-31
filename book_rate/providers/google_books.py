@@ -27,6 +27,22 @@ class GoogleBooksProvider(BaseProvider):
     def name(self) -> str:
         return "Google Books"
 
+    @property
+    def default_strategy(self) -> str:
+        return "isbn_primary"
+
+    def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> PlatformRating:
+        """Fetch Google Books rating for a Work using explicit SearchStrategy."""
+        if self.quota_exceeded:
+            return PlatformRating(
+                platform_name=self.name,
+                strategy=strategy or self.default_strategy,
+                status="QUOTA_EXCEEDED"
+            )
+
+        return self._fetch_ratings(work, strategy=strategy)
+
+
     def search_works(self, query: str, limit: int = 5, include_details: bool = True, page: int = 1) -> List[Work]:
         """Search Google Books volumes for query."""
         clean_query = query.strip()
@@ -89,13 +105,21 @@ class GoogleBooksProvider(BaseProvider):
                 if year_match:
                     pub_year = int(year_match.group(0))
 
+            orig_title = None
+            desc = vol_info.get("description", "")
+            if desc:
+                orig_match = re.search(r'《[^》]+》（([A-Za-z0-9\s:,]+)）', desc) or re.search(r'\((?:英文版|原文書名|Original Title)?\s*([A-Z][a-zA-Z0-9\s:]+)\)', desc)
+                if orig_match:
+                    orig_title = orig_match.group(1).strip()
+
             work = Work(
                 work_id=f"gb:{volume_id}",
                 title=title,
                 author=author_str,
                 first_publish_year=pub_year,
                 edition_count=1,
-                isbn=isbn_13 or isbn_10
+                isbn=isbn_13 or isbn_10,
+                original_title=orig_title
             )
 
             if avg_rating is not None or ratings_count is not None:
@@ -157,13 +181,21 @@ class GoogleBooksProvider(BaseProvider):
                 if year_match:
                     pub_year = int(year_match.group(0))
 
+            orig_title = None
+            desc = vol_info.get("description", "")
+            if desc:
+                orig_match = re.search(r'《[^》]+》（([A-Za-z0-9\s:,]+)）', desc) or re.search(r'\((?:英文版|原文書名|Original Title)?\s*([A-Z][a-zA-Z0-9\s:]+)\)', desc)
+                if orig_match:
+                    orig_title = orig_match.group(1).strip()
+
             work = Work(
                 work_id=f"gb:{volume_id}",
                 title=title,
                 author=author_str,
                 first_publish_year=pub_year,
                 edition_count=1,
-                isbn=isbn_13 or isbn_10
+                isbn=isbn_13 or isbn_10,
+                original_title=orig_title
             )
 
             if avg_rating is not None or ratings_count is not None:
@@ -190,34 +222,4 @@ class GoogleBooksProvider(BaseProvider):
             logger.warning(f"Failed to fetch Google Books volume ID {volume_id}: {e}")
             return None
 
-    def fetch_ratings(self, work: Work) -> PlatformRating:
-        """Fetch rating info by ISBN or title/author."""
-        if self.quota_exceeded:
-            return PlatformRating(platform_name=self.name)
 
-        if self.name in work.ratings:
-            return work.ratings[self.name]
-
-        # Use clean ISBN search
-        isbns = extract_isbns_from_work(work)
-        for isbn in isbns:
-            try:
-                gb_works = self.search_works(f"isbn:{isbn}", limit=1)
-                if gb_works and self.name in gb_works[0].ratings:
-                    return gb_works[0].ratings[self.name]
-            except Exception as e:
-                logger.debug(f"Failed to query Google Books rating for ISBN {isbn}: {e}")
-
-        # Title fallback
-        if work.title:
-            query = f"intitle:{work.title}"
-            if work.author and work.author not in ["Unknown Author", "Unknown"]:
-                query += f" inauthor:{work.author.split(',')[0].strip()}"
-            try:
-                gb_works = self.search_works(query, limit=1)
-                if gb_works and self.name in gb_works[0].ratings:
-                    return gb_works[0].ratings[self.name]
-            except Exception as e:
-                logger.debug(f"Failed to query Google Books rating for title '{work.title}': {e}")
-
-        return PlatformRating(platform_name=self.name)

@@ -120,18 +120,10 @@ class StoryGraphProvider(BaseProvider):
 
         return works
 
-    def fetch_ratings(self, work: Work) -> PlatformRating:
-        """Fetch StoryGraph rating for a Work."""
-        if work.work_id and work.work_id.startswith("sg:"):
-            b_id = work.work_id[3:]
-            rate, votes = self._fetch_book_rating(b_id)
-            subject_url = f"{self.BASE_URL}/books/{b_id}"
-            return PlatformRating(
-                platform_name=self.name,
-                rate=rate,
-                rating_count=votes,
-                url=subject_url,
-                title=work.title
-            )
+    @property
+    def default_strategy(self) -> str:
+        return "title_author"
 
-        return self._fetch_ratings_with_fallback(work)
+    def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> PlatformRating:
+        """Fetch StoryGraph rating for a Work using explicit SearchStrategy."""
+        return self._fetch_ratings(work, strategy=strategy)

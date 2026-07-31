@@ -7,6 +7,15 @@ from book_rate.utils.isbn import clean_isbn, extract_isbns_from_work
 logger = logging.getLogger(__name__)
 
 
+class SearchStrategy:
+    ISBN_PRIMARY = "isbn_primary"
+    ISBN_ALL = "isbn_all"
+    TITLE = "title"
+    TITLE_AUTHOR = "title_author"
+    TITLE_AUTHOR_YEAR = "title_author_year"
+    PROVIDER_ID = "provider_id"
+
+
 class BaseProvider:
     """Base abstract class for all book rating providers."""
 
@@ -25,13 +34,18 @@ class BaseProvider:
         """Name of the platform provider (e.g. 'Open Library')."""
         raise NotImplementedError
 
+    @property
+    def default_strategy(self) -> str:
+        """Default search strategy for this provider."""
+        return SearchStrategy.TITLE_AUTHOR
+
     def search_works(self, query: str, limit: int = 5, page: int = 1) -> List[Work]:
         """Search for works matching query string."""
         raise NotImplementedError
 
-    def fetch_ratings(self, work: Work) -> PlatformRating:
-        """Fetch rating metrics for a given Work object."""
-        raise NotImplementedError
+    def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> PlatformRating:
+        """Fetch rating metrics for a given Work object with explicit strategy."""
+        return self._fetch_ratings(work, strategy=strategy)
 
     def _select_best_rating(self, works: List[Work], target_title: Optional[str] = None) -> Optional[PlatformRating]:
         """Helper to select the work rating with highest rating count that is relevant to target_title."""
@@ -67,64 +81,129 @@ class BaseProvider:
         )
         return best_work.ratings.get(self.name)
 
-    def _fetch_ratings_with_fallback(
+    def _fetch_ratings(
         self,
         work: Work,
+        strategy: Optional[str] = None,
         custom_search: Optional[Callable[[str], List[Work]]] = None
     ) -> PlatformRating:
         """
-        Unified 4-phase rating resolution fallback strategy:
-          Phase 1: Existing platform rating in work.ratings
-          Phase 2: Primary ISBN & Title/Author search
-          Phase 3: Fallback Edition ISBNs if no candidates found
+        Execute explicit SearchStrategy for the given Work object.
+        No silent fallback.
         """
-        # Phase 1: Existing rating check
-        if self.name in work.ratings and work.ratings[self.name].rate is not None:
-            return work.ratings[self.name]
-
+        strat = strategy or self.default_strategy
         search = custom_search or (lambda q: self.search_works(q, limit=5))
-
         target_title = work.original_title or work.title
+
         candidate_works: List[Work] = []
+        query_used = ""
 
-        # 1. Primary work ISBN search (if work has a direct primary ISBN)
-        if hasattr(work, "isbn") and work.isbn:
-            clean_primary = clean_isbn(work.isbn)
-            if clean_primary:
+        primary_isbn = getattr(work, "isbn", None)
+        if not primary_isbn and work.editions:
+            for ed in work.editions:
+                if ed.isbn_13 or ed.isbn_10:
+                    primary_isbn = ed.isbn_13 or ed.isbn_10
+                    break
+        cleaned = clean_isbn(primary_isbn) if primary_isbn else None
+
+        if strat == SearchStrategy.ISBN_PRIMARY and not cleaned and strategy is None:
+            strat = SearchStrategy.TITLE_AUTHOR
+
+        if strat == SearchStrategy.ISBN_PRIMARY:
+            if cleaned:
+                query_used = cleaned
                 try:
-                    candidate_works.extend(search(clean_primary))
+                    candidate_works.extend(search(cleaned))
                 except Exception as e:
-                    logger.debug(f"[{self.name}] Rating query failed for primary ISBN {clean_primary}: {e}")
+                    logger.debug(f"[{self.name}] Query failed for primary ISBN {cleaned}: {e}")
 
-        # 2. Title search (original_title / title)
-        titles_to_try = [t for t in [work.original_title, work.title] if t]
-        for title in titles_to_try:
-            try:
-                candidate_works.extend(search(title))
-            except Exception as e:
-                logger.debug(f"[{self.name}] Rating query failed for title '{title}': {e}")
-
-        # 3. Title + Author search
-        if work.author and work.author not in ["Unknown Author", "Unknown"]:
-            clean_author = work.author.split(",")[0].strip()
-            for title in titles_to_try:
-                query = f"{title} {clean_author}".strip()
-                try:
-                    candidate_works.extend(search(query))
-                except Exception as e:
-                    logger.debug(f"[{self.name}] Rating query failed for query '{query}': {e}")
-
-        # 4. Fallback to edition ISBNs if no candidates were found
-        if not candidate_works:
+        elif strat == SearchStrategy.ISBN_ALL:
             isbns = extract_isbns_from_work(work)
-            for isbn in isbns[:5]:
+            if isbns:
+                query_used = ", ".join(isbns[:5])
+                for isbn in isbns[:5]:
+                    try:
+                        candidate_works.extend(search(isbn))
+                    except Exception as e:
+                        logger.debug(f"[{self.name}] Query failed for edition ISBN {isbn}: {e}")
+
+        elif strat == SearchStrategy.TITLE:
+            query_used = target_title or ""
+            if query_used:
                 try:
-                    candidate_works.extend(search(isbn))
+                    candidate_works.extend(search(query_used))
                 except Exception as e:
-                    logger.debug(f"[{self.name}] Rating query failed for edition ISBN {isbn}: {e}")
+                    logger.debug(f"[{self.name}] Query failed for title '{query_used}': {e}")
+
+        elif strat == SearchStrategy.TITLE_AUTHOR:
+            clean_author = ""
+            if work.author and work.author not in ["Unknown Author", "Unknown"]:
+                clean_author = work.author.split(",")[0].strip()
+            query_used = f"{target_title} {clean_author}".strip()
+            if query_used:
+                try:
+                    candidate_works.extend(search(query_used))
+                except Exception as e:
+                    logger.debug(f"[{self.name}] Query failed for query '{query_used}': {e}")
+
+        elif strat == SearchStrategy.TITLE_AUTHOR_YEAR:
+            clean_author = ""
+            if work.author and work.author not in ["Unknown Author", "Unknown"]:
+                clean_author = work.author.split(",")[0].strip()
+            pub_year = work.first_publish_year
+            if not pub_year and work.editions:
+                for ed in work.editions:
+                    if ed.publish_year:
+                        year_match = re.search(r'\b\d{4}\b', str(ed.publish_year))
+                        if year_match:
+                            pub_year = year_match.group(0)
+                            break
+            year_str = str(pub_year) if pub_year else ""
+            query_used = f"{target_title} {clean_author} {year_str}".strip()
+            if query_used:
+                try:
+                    candidate_works.extend(search(query_used))
+                except Exception as e:
+                    logger.debug(f"[{self.name}] Query failed for query '{query_used}': {e}")
+
+        elif strat == SearchStrategy.PROVIDER_ID:
+            query_used = work.work_id
+            if self.name in work.ratings and work.ratings[self.name].rate is not None:
+                r = work.ratings[self.name]
+                r.strategy = strat
+                r.query = query_used
+                r.status = "MATCH"
+                return r
+
+            # Handle provider ID search if prefix matches
+            prefix_map = {
+                "Goodreads": "gr:",
+                "Google Books": "gb:",
+                "豆瓣": "db:",
+                "Amazon JP": "amjp:",
+                "Amazon": "am:",
+                "StoryGraph": "sg:",
+                "Open Library": "/works/"
+            }
+            p_prefix = prefix_map.get(self.name, "")
+            if p_prefix and (work.work_id.startswith(p_prefix) or (p_prefix == "/works/" and "OL" in work.work_id)):
+                try:
+                    candidate_works.extend(search(work.work_id))
+                except Exception as e:
+                    logger.debug(f"[{self.name}] Query failed for provider ID '{work.work_id}': {e}")
 
         best_rating = self._select_best_rating(candidate_works, target_title=target_title)
-        if best_rating and (best_rating.rate is not None or best_rating.rating_count is not None):
+        if best_rating and (best_rating.rate is not None or best_rating.rating_count is not None or best_rating.url):
+            best_rating.strategy = strat
+            best_rating.query = query_used
+            best_rating.status = "MATCH" if (best_rating.rate is not None or best_rating.rating_count is not None) else "NO_MATCH"
             return best_rating
 
-        return PlatformRating(platform_name=self.name, url=None)
+        return PlatformRating(
+            platform_name=self.name,
+            url=None,
+            strategy=strat,
+            query=query_used,
+            status="NO_MATCH"
+        )
+

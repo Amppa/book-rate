@@ -217,6 +217,19 @@ function renderCandidates(works) {
   candidateSection.hidden = false;
 }
 
+let currentSelectedWork = null;
+
+function getSelectedStrategies() {
+  const strats = {};
+  document.querySelectorAll(".strategy-select").forEach((sel) => {
+    const provider = sel.dataset.provider;
+    if (provider) {
+      strats[provider] = sel.value;
+    }
+  });
+  return strats;
+}
+
 function getActiveScoreEngines() {
   const engines = [];
   if (scoreOlCheckbox && scoreOlCheckbox.checked) engines.push("open_library");
@@ -230,6 +243,7 @@ function getActiveScoreEngines() {
 }
 
 async function selectWork(work) {
+  currentSelectedWork = work;
   candidateList.querySelectorAll(".candidate-card").forEach((card) => {
     card.classList.remove("selected");
     const btn = card.querySelector(".select-work");
@@ -263,24 +277,16 @@ async function selectWork(work) {
 
   const activeEngines = getActiveScoreEngines();
   const apiKey = localStorage.getItem("bookrate:google-api-key") || "";
-  const cacheKey = `details:${work.key}:engines:${activeEngines}`;
+  const strategies = getSelectedStrategies();
+  const strategiesStr = JSON.stringify(strategies);
 
   try {
-    const details = getCachedData(cacheKey);
-
-    if (details) {
-      details.work = work;
-      updateWorkDetailRow(row, details);
-      step3Status.textContent = "";
-      return;
-    }
-
-    let url = `/api/work-details-stream?work_id=${encodeURIComponent(work.key)}&title=${encodeURIComponent(work.title)}&author=${encodeURIComponent((work.author_name || []).join(","))}&engines=${encodeURIComponent(activeEngines)}`;
+    let url = `/api/work-details-stream?work_id=${encodeURIComponent(work.key)}&title=${encodeURIComponent(work.title)}&author=${encodeURIComponent((work.author_name || []).join(","))}&engines=${encodeURIComponent(activeEngines)}&strategies=${encodeURIComponent(strategiesStr)}`;
     if (apiKey) {
       url += `&google_key=${encodeURIComponent(apiKey)}`;
     }
 
-    const collectedDetails = { work, ratings: {}, editions: {}, google: {}, goodreads: {}, douban: {}, amazon: {}, amazon_jp: {} };
+    const collectedDetails = { work, ratings: {}, editions: {}, google: {}, goodreads: {}, douban: {}, amazon: {}, amazon_jp: {}, storygraph: {} };
     const eventSource = new EventSource(url);
 
     eventSource.onmessage = (event) => {
@@ -310,7 +316,6 @@ async function selectWork(work) {
           renderPlatformCell(row, prefix, data.data, maxRate);
         } else if (data.type === "done") {
           eventSource.close();
-          setCachedData(cacheKey, collectedDetails);
           step3Status.textContent = "";
         }
       } catch (err) {
@@ -328,6 +333,75 @@ async function selectWork(work) {
     step3Status.classList.add("error");
     step3Status.textContent = "取得作品詳細評分失敗，請確認網路連線後再試一次。";
   }
+}
+
+function reQuerySingleProvider(work, providerKey) {
+  const row = resultBody.querySelector(".work-row");
+  if (!row) return;
+
+  const prefixMap = {
+    open_library: "ol",
+    google_books: "gb",
+    google: "gb",
+    goodreads: "gr",
+    douban: "db",
+    amazon: "am",
+    amazon_jp: "amjp",
+    storygraph: "sg"
+  };
+  const prefix = prefixMap[providerKey] || providerKey;
+  const rateEl = row.querySelector(`.${prefix}-rate`);
+  const countEl = row.querySelector(`.${prefix}-count`);
+  if (rateEl && countEl) {
+    rateEl.innerHTML = '<span class="fetching-tag">Fetching...</span>';
+    countEl.textContent = "讀取中...";
+    const cell = rateEl.closest("td");
+    if (cell) {
+      const metaBox = cell.querySelector(".search-meta-box");
+      if (metaBox) metaBox.remove();
+    }
+  }
+
+  const apiKey = localStorage.getItem("bookrate:google-api-key") || "";
+  const strategies = getSelectedStrategies();
+  const strategiesStr = JSON.stringify(strategies);
+
+  let url = `/api/work-details-stream?work_id=${encodeURIComponent(work.key)}&title=${encodeURIComponent(work.title)}&author=${encodeURIComponent((work.author_name || []).join(","))}&engines=${encodeURIComponent(providerKey)}&strategies=${encodeURIComponent(strategiesStr)}`;
+  if (apiKey) {
+    url += `&google_key=${encodeURIComponent(apiKey)}`;
+  }
+
+  const eventSource = new EventSource(url);
+  eventSource.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      if (data.type === "platform") {
+        const maxRate = prefix === "db" ? 10 : 5;
+        renderPlatformCell(row, prefix, data.data, maxRate);
+      } else if (data.type === "done") {
+        eventSource.close();
+      }
+    } catch (err) {
+      console.error("Single provider re-query parse error:", err);
+    }
+  };
+  eventSource.onerror = (err) => {
+    console.error("Single provider EventSource failed:", err);
+    eventSource.close();
+  };
+}
+
+// Bind strategy select change handler via delegation
+const scoreToggleBarEl = document.querySelector("#score-toggle-bar");
+if (scoreToggleBarEl) {
+  scoreToggleBarEl.addEventListener("change", (e) => {
+    if (e.target.classList.contains("strategy-select")) {
+      const providerKey = e.target.dataset.provider;
+      if (currentSelectedWork && providerKey) {
+        reQuerySingleProvider(currentSelectedWork, providerKey);
+      }
+    }
+  });
 }
 
 function renderCountCell(countEl, countVal, url) {
@@ -392,7 +466,13 @@ function renderPlatformCell(row, prefix, data, maxRate = 5) {
   const countEl = row.querySelector(`.${prefix}-count`);
 
   if (!rateEl || !countEl) return;
-  if (!data || Object.keys(data).length === 0) return; // Still pending/fetching; keep loading animation intact!
+  if (!data || Object.keys(data).length === 0) return;
+
+  if (data.quota_exceeded) {
+    rateEl.innerHTML = '<span class="error">額度超限 (429) ⚠️</span>';
+    countEl.textContent = "請在上方設定個人 API Key，或設定環境變數。";
+    return;
+  }
 
   const hasScore = typeof data.average === "number" && data.average > 0;
   const hasUrl = Boolean(data.url);
@@ -406,6 +486,34 @@ function renderPlatformCell(row, prefix, data, maxRate = 5) {
   } else {
     rateEl.textContent = "無此書籍";
     countEl.textContent = "-";
+  }
+
+  // Render search metadata for debugging and comparison
+  const cell = rateEl.closest("td");
+  if (cell) {
+    let metaBox = cell.querySelector(".search-meta-box");
+    if (!metaBox) {
+      metaBox = document.createElement("div");
+      metaBox.className = "search-meta-box";
+      cell.append(metaBox);
+    }
+    const status = data.status || (hasScore ? "MATCH" : "NO_MATCH");
+    const strategyLabels = {
+      isbn_primary: "ISBN (Primary)",
+      isbn_all: "ISBN (All)",
+      title: "Title",
+      title_author: "Title + Author",
+      title_author_year: "Title + Author + Year",
+      provider_id: "Provider ID"
+    };
+    const stratText = strategyLabels[data.strategy] || data.strategy || "";
+    const queryText = data.query || "";
+
+    metaBox.innerHTML = `
+      <div class="search-meta-line"><span class="search-status-tag status-${status.toLowerCase()}">${status}</span></div>
+      ${stratText ? `<div class="search-meta-line" title="Strategy: ${stratText}">Strat: ${stratText}</div>` : ""}
+      ${queryText ? `<div class="search-meta-line" title="Query: ${queryText}">Q: ${queryText}</div>` : ""}
+    `;
   }
 }
 
@@ -430,7 +538,7 @@ function updateWorkDetailRow(row, { work, ratings, editions, google, goodreads, 
   row.querySelector(".info-isbn").textContent = reprIsbn;
 
   const olUrl = ratings?.url || ((work.key && work.key.startsWith("/works/")) ? `${OPEN_LIBRARY_BASE_URL}${work.key}` : null);
-  renderPlatformCell(row, "ol", { average: ratings?.average, count: ratings?.count, url: olUrl }, 5);
+  renderPlatformCell(row, "ol", { average: ratings?.average, count: ratings?.count, url: olUrl, status: (ratings?.average ? "MATCH" : "NO_MATCH") }, 5);
 
   if (google?.quota_exceeded) {
     row.querySelector(".gb-rate").innerHTML = '<span class="error">額度超限 (429) ⚠️</span>';

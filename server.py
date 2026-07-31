@@ -143,99 +143,166 @@ def _find_ol_work(isbn: Optional[str], title: Optional[str], author: Optional[st
     return None
 
 
-def _resolve_work_editions_and_ol_rating(work_id: str, title: str, author: str, active_engines: list) -> tuple[PlatformRating, list]:
-    """Helper to resolve Open Library rating and editions for any work_id (OL, GB, GR, DB, SG, AMJP)."""
-    if work_id.startswith("db:"):
-        sub_id = work_id[3:]
-        details = douban.fetch_subject_details(sub_id)
-        isbn = details.get("isbn")
-        pub_year = details.get("pub_year")
-        
-        ol_work_mapped = _find_ol_work(isbn, title, author, active_engines)
+def _resolve_work_editions_and_ol_rating(
+    work_id: str,
+    title: str,
+    author: str,
+    active_engines: list,
+    gb_provider: Optional[GoogleBooksProvider] = None
+) -> tuple[PlatformRating, list, Work]:
+    """Helper to resolve Open Library rating, editions, and target Work object for any work_id (OL, GB, GR, DB, SG, AMJP)."""
+    ol_rating = PlatformRating("Open Library")
+    editions = []
+    resolved_title = title or ""
+    resolved_author = author or ""
+    resolved_isbn = None
+
+    if work_id.startswith("gb:"):
+        volume_id = work_id[3:]
+        provider = gb_provider or google_books
+        gb_work = provider.fetch_volume_by_id(volume_id)
+        if gb_work:
+            resolved_title = gb_work.title or title or "Unknown"
+            resolved_author = gb_work.author or author or "Unknown"
+            if gb_work.editions:
+                resolved_isbn = gb_work.editions[0].isbn_13 or gb_work.editions[0].isbn_10
+
+        ol_work_mapped = _find_ol_work(resolved_isbn, resolved_title, resolved_author, active_engines)
         if ol_work_mapped:
             ol_rating = open_library.fetch_ratings(ol_work_mapped)
             editions = open_library.fetch_editions(ol_work_mapped.work_id, limit=100)
-        else:
-            ol_rating = PlatformRating("Open Library")
-            editions = []
+
+        if not editions and gb_work and gb_work.editions:
+            editions = gb_work.editions
+
+        if not editions:
+            ed = Edition(
+                edition_id=volume_id,
+                title=resolved_title,
+                publish_year=str(gb_work.first_publish_year) if gb_work and gb_work.first_publish_year else None,
+                isbn_13=resolved_isbn if resolved_isbn and len(resolved_isbn) == 13 else None,
+                isbn_10=resolved_isbn if resolved_isbn and len(resolved_isbn) == 10 else None
+            )
+            editions = [ed]
+
+        target_work = Work(
+            work_id=work_id,
+            title=resolved_title,
+            author=resolved_author,
+            first_publish_year=gb_work.first_publish_year if gb_work else None,
+            edition_count=len(editions),
+            editions=editions,
+            isbn=resolved_isbn
+        )
+        if gb_work and "Google Books" in gb_work.ratings:
+            target_work.ratings["Google Books"] = gb_work.ratings["Google Books"]
+
+        return ol_rating, editions, target_work
+
+    elif work_id.startswith("db:"):
+        sub_id = work_id[3:]
+        details = douban.fetch_subject_details(sub_id)
+        resolved_isbn = details.get("isbn")
+        pub_year = details.get("pub_year")
+        resolved_title = details.get("title") or title or "Unknown"
+
+        ol_work_mapped = _find_ol_work(resolved_isbn, resolved_title, resolved_author, active_engines)
+        if ol_work_mapped:
+            ol_rating = open_library.fetch_ratings(ol_work_mapped)
+            editions = open_library.fetch_editions(ol_work_mapped.work_id, limit=100)
 
         if not editions:
             ed = Edition(
                 edition_id=sub_id,
-                title=details.get("title") or title or "Unknown",
+                title=resolved_title,
                 publish_year=pub_year,
-                isbn_13=isbn if isbn and len(isbn) == 13 else None,
-                isbn_10=isbn if isbn and len(isbn) == 10 else None
+                isbn_13=resolved_isbn if resolved_isbn and len(resolved_isbn) == 13 else None,
+                isbn_10=resolved_isbn if resolved_isbn and len(resolved_isbn) == 10 else None
             )
             editions = [ed]
-        return ol_rating, editions
+
+        target_work = Work(
+            work_id=work_id,
+            title=resolved_title,
+            author=resolved_author,
+            editions=editions,
+            isbn=resolved_isbn
+        )
+        return ol_rating, editions, target_work
 
     elif work_id.startswith("gr:"):
         book_id = work_id[3:]
         details = goodreads.fetch_book_details(book_id)
-        isbn = details.get("isbn")
+        resolved_isbn = details.get("isbn")
         pub_year = details.get("pub_year")
 
-        ol_work_mapped = _find_ol_work(isbn, title, author, active_engines)
+        ol_work_mapped = _find_ol_work(resolved_isbn, resolved_title, resolved_author, active_engines)
         if ol_work_mapped:
             ol_rating = open_library.fetch_ratings(ol_work_mapped)
             editions = open_library.fetch_editions(ol_work_mapped.work_id, limit=100)
-        else:
-            ol_rating = PlatformRating("Open Library")
-            editions = []
 
         if not editions:
             ed = Edition(
                 edition_id=book_id,
-                title=title or "Unknown",
+                title=resolved_title or "Unknown",
                 publish_year=pub_year,
-                isbn_13=isbn if isbn and len(isbn) == 13 else None,
-                isbn_10=isbn if isbn and len(isbn) == 10 else None
+                isbn_13=resolved_isbn if resolved_isbn and len(resolved_isbn) == 13 else None,
+                isbn_10=resolved_isbn if resolved_isbn and len(resolved_isbn) == 10 else None
             )
             editions = [ed]
-        return ol_rating, editions
+
+        target_work = Work(
+            work_id=work_id,
+            title=resolved_title,
+            author=resolved_author,
+            editions=editions,
+            isbn=resolved_isbn
+        )
+        return ol_rating, editions, target_work
 
     elif work_id.startswith("sg:"):
         book_id = work_id[3:]
-        ol_work_mapped = _find_ol_work(None, title, author, active_engines)
+        ol_work_mapped = _find_ol_work(None, resolved_title, resolved_author, active_engines)
         if ol_work_mapped:
             ol_rating = open_library.fetch_ratings(ol_work_mapped)
             editions = open_library.fetch_editions(ol_work_mapped.work_id, limit=100)
-        else:
-            ol_rating = PlatformRating("Open Library")
-            editions = []
 
         if not editions:
             ed = Edition(
                 edition_id=book_id,
-                title=title or "Unknown",
-                publish_year=None,
-                isbn_13=None,
-                isbn_10=None
+                title=resolved_title or "Unknown"
             )
             editions = [ed]
-        return ol_rating, editions
+
+        target_work = Work(
+            work_id=work_id,
+            title=resolved_title,
+            author=resolved_author,
+            editions=editions
+        )
+        return ol_rating, editions, target_work
 
     elif work_id.startswith("amjp:"):
         book_id = work_id[5:]
-        ol_work_mapped = _find_ol_work(None, title, author, active_engines)
+        ol_work_mapped = _find_ol_work(None, resolved_title, resolved_author, active_engines)
         if ol_work_mapped:
             ol_rating = open_library.fetch_ratings(ol_work_mapped)
             editions = open_library.fetch_editions(ol_work_mapped.work_id, limit=100)
-        else:
-            ol_rating = PlatformRating("Open Library")
-            editions = []
 
         if not editions:
             ed = Edition(
                 edition_id=book_id,
-                title=title or "Unknown",
-                publish_year=None,
-                isbn_13=None,
-                isbn_10=None
+                title=resolved_title or "Unknown"
             )
             editions = [ed]
-        return ol_rating, editions
+
+        target_work = Work(
+            work_id=work_id,
+            title=resolved_title,
+            author=resolved_author,
+            editions=editions
+        )
+        return ol_rating, editions, target_work
 
     else:
         full_work_id = work_id if work_id.startswith("/works/") else f"/works/{work_id}"
@@ -244,7 +311,34 @@ def _resolve_work_editions_and_ol_rating(work_id: str, title: str, author: str, 
         else:
             ol_rating = PlatformRating(platform_name="Open Library")
         editions = open_library.fetch_editions(full_work_id, limit=100)
-        return ol_rating, editions
+        if editions:
+            for ed in editions:
+                if ed.isbn_13 or ed.isbn_10:
+                    resolved_isbn = ed.isbn_13 or ed.isbn_10
+                    break
+
+        target_work = Work(
+            work_id=full_work_id,
+            title=resolved_title,
+            author=resolved_author,
+            editions=editions,
+            isbn=resolved_isbn
+        )
+        return ol_rating, editions, target_work
+
+
+def _format_rating_response(provider_key: str, p_rating: PlatformRating, fallback_title: str, quota_exceeded: bool = False) -> dict:
+    return {
+        "average": p_rating.rate if p_rating and p_rating.rate is not None else 0,
+        "count": p_rating.rating_count if p_rating and p_rating.rating_count is not None else 0,
+        "title": (p_rating.title if p_rating else None) or fallback_title,
+        "url": p_rating.url if p_rating else None,
+        "provider": provider_key,
+        "strategy": p_rating.strategy if p_rating else None,
+        "query": p_rating.query if p_rating else "",
+        "status": p_rating.status if p_rating else "NO_MATCH",
+        "quota_exceeded": quota_exceeded
+    }
 
 
 @app.get("/api/work-details")
@@ -253,251 +347,66 @@ def api_work_details(
     title: str = Query(None, description="Title of the work"),
     author: str = Query(None, description="Author of the work"),
     google_key: str = Query(None, description="Optional Google Books API Key"),
-    engines: str = Query("open_library,google_books,goodreads,douban,amazon,amazon_jp,storygraph", description="Comma-separated score engines to fetch")
+    engines: str = Query("open_library,google_books,goodreads,douban,amazon,amazon_jp,storygraph", description="Comma-separated score engines to fetch"),
+    strategies: str = Query(None, description="JSON string of provider search strategies")
 ):
     print(f"\n[Details API] User locked work: '{work_id}' (Title: '{title}', Author: '{author}', Engines: '{engines}')")
     active_engines = [e.strip() for e in engines.split(",") if e.strip()]
     gb_provider = GoogleBooksProvider(api_key=google_key) if google_key else google_books
 
-    if work_id.startswith("gb:"):
-        volume_id = work_id[3:]
-        gb_work = gb_provider.fetch_volume_by_id(volume_id)
+    strat_dict = {}
+    if strategies:
+        try:
+            strat_dict = json.loads(strategies)
+        except Exception:
+            pass
 
-        ol_work_mapped = None
-        isbn = None
-        if gb_work and gb_work.editions:
-            isbn = gb_work.editions[0].isbn_13 or gb_work.editions[0].isbn_10
+    ol_rating, editions, target_work = _resolve_work_editions_and_ol_rating(
+        work_id, title or "", author or "", active_engines, gb_provider=gb_provider
+    )
 
-        if isbn and "open_library" in active_engines:
-            ol_works_by_isbn = open_library.search_works(f"isbn:{isbn}", limit=1)
-            if ol_works_by_isbn:
-                ol_work_mapped = ol_works_by_isbn[0]
+    ratings_dict = {
+        "average": ol_rating.rate if ol_rating and ol_rating.rate is not None else 0,
+        "count": ol_rating.rating_count if ol_rating and ol_rating.rating_count is not None else 0,
+        "url": ol_rating.url if ol_rating else None
+    }
+    editions_dict = _format_editions(editions)
 
-        if not ol_work_mapped and gb_work and gb_work.original_title and "open_library" in active_engines:
-            import re
-            q_ol = gb_work.original_title
+    result_payload = {
+        "ratings": ratings_dict,
+        "editions": editions_dict
+    }
 
-            eng_author = None
-            for a in gb_work.author.split(","):
-                author_matches = re.findall(r'([a-zA-Z\s\-]+)', a)
-                for am in author_matches:
-                    am_clean = am.strip()
-                    if len(am_clean.split()) >= 2:
-                        eng_author = am_clean
-                        break
-                if eng_author:
-                    break
+    fut_dict = {}
+    prov_instances = {
+        "google_books": gb_provider,
+        "goodreads": goodreads,
+        "douban": douban,
+        "amazon": amazon,
+        "amazon_jp": amazon_jp,
+        "storygraph": storygraph
+    }
 
-            if eng_author:
-                q_ol += f" {eng_author}"
-            elif gb_work.author and gb_work.author not in ["Unknown Author", "Unknown"]:
-                q_ol += f" {gb_work.author}"
+    with ThreadPoolExecutor(max_workers=6) as executor:
+        for p_key, p_inst in prov_instances.items():
+            if p_key in active_engines:
+                p_strat = strat_dict.get(p_key)
+                fut_dict[p_key] = executor.submit(p_inst.fetch_ratings, target_work, strategy=p_strat)
 
-            ol_works_by_orig = open_library.search_works(q_ol, limit=1)
-            if ol_works_by_orig:
-                ol_work_mapped = ol_works_by_orig[0]
+        for p_key, fut in fut_dict.items():
+            try:
+                p_rating = fut.result()
+                quota = p_key == "google_books" and gb_provider.quota_exceeded
+                res_key = "google" if p_key == "google_books" else p_key
+                result_payload[res_key] = _format_rating_response(p_key, p_rating, target_work.title, quota_exceeded=quota)
+            except Exception as e:
+                res_key = "google" if p_key == "google_books" else p_key
+                result_payload[res_key] = {
+                    "average": 0, "count": 0, "title": target_work.title, "url": None,
+                    "provider": p_key, "strategy": strat_dict.get(p_key), "query": "", "status": "ERROR"
+                }
 
-        if not ol_work_mapped and title and "open_library" in active_engines:
-            q_title = title
-            if author and author not in ["Unknown Author", "Unknown"]:
-                q_title += f" {author}"
-            ol_works_by_title = open_library.search_works(q_title, limit=1)
-            if ol_works_by_title:
-                ol_work_mapped = ol_works_by_title[0]
-
-        if ol_work_mapped and "open_library" in active_engines:
-            ol_rating = open_library.fetch_ratings(ol_work_mapped)
-            ol_editions = open_library.fetch_editions(ol_work_mapped.work_id, limit=100)
-        else:
-            ol_rating = None
-            ol_editions = []
-
-        if not ol_editions and gb_work and gb_work.editions:
-            ol_editions = gb_work.editions
-
-        ratings_dict = {
-            "average": ol_rating.rate if ol_rating and ol_rating.rate is not None else 0,
-            "count": ol_rating.rating_count if ol_rating and ol_rating.rating_count is not None else 0,
-            "url": ol_rating.url if ol_rating else None
-        }
-
-        editions_dict = _format_editions(ol_editions)
-
-        gb_rating = gb_work.ratings.get("Google Books") if (gb_work and "google_books" in active_engines) else None
-        google_dict = {
-            "average": gb_rating.rate if gb_rating and gb_rating.rate is not None else 0,
-            "count": gb_rating.rating_count if gb_rating and gb_rating.rating_count is not None else 0,
-            "title": (gb_rating.title if gb_rating else None) or title or (gb_work.title if gb_work else ""),
-            "url": gb_rating.url if gb_rating else None,
-            "quota_exceeded": gb_provider.quota_exceeded
-        }
-
-        target_work = Work(
-            work_id=work_id,
-            title=title or (gb_work.title if gb_work else ""),
-            author=author or (gb_work.author if gb_work else ""),
-            original_title=gb_work.original_title if gb_work else None,
-            editions=ol_editions or (gb_work.editions if gb_work else [])
-        )
-
-        fut_dict = {}
-        with ThreadPoolExecutor(max_workers=5) as executor:
-            if "goodreads" in active_engines:
-                fut_dict["gr"] = executor.submit(goodreads.fetch_ratings, target_work)
-            if "douban" in active_engines:
-                fut_dict["db"] = executor.submit(douban.fetch_ratings, target_work)
-            if "amazon" in active_engines:
-                fut_dict["am"] = executor.submit(amazon.fetch_ratings, target_work)
-            if "amazon_jp" in active_engines:
-                fut_dict["amjp"] = executor.submit(amazon_jp.fetch_ratings, target_work)
-            if "storygraph" in active_engines:
-                fut_dict["sg"] = executor.submit(storygraph.fetch_ratings, target_work)
-
-            gr_rating = fut_dict["gr"].result() if "gr" in fut_dict else None
-            db_rating = fut_dict["db"].result() if "db" in fut_dict else None
-            am_rating = fut_dict["am"].result() if "am" in fut_dict else None
-            amjp_rating = fut_dict["amjp"].result() if "amjp" in fut_dict else None
-            sg_rating = fut_dict["sg"].result() if "sg" in fut_dict else None
-
-        goodreads_dict = {
-            "average": gr_rating.rate if gr_rating and gr_rating.rate is not None else 0,
-            "count": gr_rating.rating_count if gr_rating and gr_rating.rating_count is not None else 0,
-            "title": (gr_rating.title if gr_rating else None) or target_work.title,
-            "url": gr_rating.url if gr_rating else None
-        }
-
-        douban_dict = {
-            "average": db_rating.rate if db_rating and db_rating.rate is not None else 0,
-            "count": db_rating.rating_count if db_rating and db_rating.rating_count is not None else 0,
-            "title": (db_rating.title if db_rating else None) or target_work.title,
-            "url": db_rating.url if db_rating else None
-        }
-
-        amazon_dict = {
-            "average": am_rating.rate if am_rating and am_rating.rate is not None else 0,
-            "count": am_rating.rating_count if am_rating and am_rating.rating_count is not None else 0,
-            "title": (am_rating.title if am_rating else None) or target_work.title,
-            "url": am_rating.url if am_rating else None
-        }
-
-        amazon_jp_dict = {
-            "average": amjp_rating.rate if amjp_rating and amjp_rating.rate is not None else 0,
-            "count": amjp_rating.rating_count if amjp_rating and amjp_rating.rating_count is not None else 0,
-            "title": (amjp_rating.title if amjp_rating else None) or target_work.title,
-            "url": amjp_rating.url if amjp_rating else None
-        }
-
-        storygraph_dict = {
-            "average": sg_rating.rate if sg_rating and sg_rating.rate is not None else 0,
-            "count": sg_rating.rating_count if sg_rating and sg_rating.rating_count is not None else 0,
-            "title": (sg_rating.title if sg_rating else None) or target_work.title,
-            "url": sg_rating.url if sg_rating else None
-        }
-
-        return {
-            "ratings": ratings_dict,
-            "editions": editions_dict,
-            "google": google_dict,
-            "goodreads": goodreads_dict,
-            "douban": douban_dict,
-            "amazon": amazon_dict,
-            "amazon_jp": amazon_jp_dict,
-            "storygraph": storygraph_dict
-        }
-
-    else:
-        ol_rating, editions = _resolve_work_editions_and_ol_rating(work_id, title or "", author or "", active_engines)
-
-        ratings_dict = {
-            "average": ol_rating.rate if ol_rating and ol_rating.rate is not None else 0,
-            "count": ol_rating.rating_count if ol_rating and ol_rating.rating_count is not None else 0,
-            "url": ol_rating.url if ol_rating else None
-        }
-
-        editions_dict = _format_editions(editions)
-
-        dummy_work = Work(
-            work_id=work_id,
-            title=title or "",
-            author=author or "",
-            editions=editions
-        )
-
-        fut_dict = {}
-        with ThreadPoolExecutor(max_workers=6) as executor:
-            if "google_books" in active_engines:
-                fut_dict["gb"] = executor.submit(gb_provider.fetch_ratings, dummy_work)
-            if "goodreads" in active_engines:
-                fut_dict["gr"] = executor.submit(goodreads.fetch_ratings, dummy_work)
-            if "douban" in active_engines:
-                fut_dict["db"] = executor.submit(douban.fetch_ratings, dummy_work)
-            if "amazon" in active_engines:
-                fut_dict["am"] = executor.submit(amazon.fetch_ratings, dummy_work)
-            if "amazon_jp" in active_engines:
-                fut_dict["amjp"] = executor.submit(amazon_jp.fetch_ratings, dummy_work)
-            if "storygraph" in active_engines:
-                fut_dict["sg"] = executor.submit(storygraph.fetch_ratings, dummy_work)
-
-            gb_rating = fut_dict["gb"].result() if "gb" in fut_dict else None
-            gr_rating = fut_dict["gr"].result() if "gr" in fut_dict else None
-            db_rating = fut_dict["db"].result() if "db" in fut_dict else None
-            am_rating = fut_dict["am"].result() if "am" in fut_dict else None
-            amjp_rating = fut_dict["amjp"].result() if "amjp" in fut_dict else None
-            sg_rating = fut_dict["sg"].result() if "sg" in fut_dict else None
-
-        google_dict = {
-            "average": gb_rating.rate if gb_rating and gb_rating.rate is not None else 0,
-            "count": gb_rating.rating_count if gb_rating and gb_rating.rating_count is not None else 0,
-            "title": (gb_rating.title if gb_rating else None) or dummy_work.title,
-            "url": gb_rating.url if gb_rating else None,
-            "quota_exceeded": gb_provider.quota_exceeded
-        }
-
-        goodreads_dict = {
-            "average": gr_rating.rate if gr_rating and gr_rating.rate is not None else 0,
-            "count": gr_rating.rating_count if gr_rating and gr_rating.rating_count is not None else 0,
-            "title": (gr_rating.title if gr_rating else None) or dummy_work.title,
-            "url": gr_rating.url if gr_rating else None
-        }
-
-        douban_dict = {
-            "average": db_rating.rate if db_rating and db_rating.rate is not None else 0,
-            "count": db_rating.rating_count if db_rating and db_rating.rating_count is not None else 0,
-            "title": (db_rating.title if db_rating else None) or dummy_work.title,
-            "url": db_rating.url if db_rating else None
-        }
-
-        amazon_dict = {
-            "average": am_rating.rate if am_rating and am_rating.rate is not None else 0,
-            "count": am_rating.rating_count if am_rating and am_rating.rating_count is not None else 0,
-            "title": (am_rating.title if am_rating else None) or dummy_work.title,
-            "url": am_rating.url if am_rating else None
-        }
-
-        amazon_jp_dict = {
-            "average": amjp_rating.rate if amjp_rating and amjp_rating.rate is not None else 0,
-            "count": amjp_rating.rating_count if amjp_rating and amjp_rating.rating_count is not None else 0,
-            "title": (amjp_rating.title if amjp_rating else None) or dummy_work.title,
-            "url": amjp_rating.url if amjp_rating else None
-        }
-
-        storygraph_dict = {
-            "average": sg_rating.rate if sg_rating and sg_rating.rate is not None else 0,
-            "count": sg_rating.rating_count if sg_rating and sg_rating.rating_count is not None else 0,
-            "title": (sg_rating.title if sg_rating else None) or dummy_work.title,
-            "url": sg_rating.url if sg_rating else None
-        }
-
-        return {
-            "ratings": ratings_dict,
-            "editions": editions_dict,
-            "google": google_dict,
-            "goodreads": goodreads_dict,
-            "douban": douban_dict,
-            "amazon": amazon_dict,
-            "amazon_jp": amazon_jp_dict,
-            "storygraph": storygraph_dict
-        }
+    return result_payload
 
 
 @app.get("/api/work-details-stream")
@@ -506,154 +415,67 @@ def api_work_details_stream(
     title: str = Query(None, description="Title of the work"),
     author: str = Query(None, description="Author of the work"),
     google_key: str = Query(None, description="Optional Google Books API Key"),
-    engines: str = Query("open_library,google_books,goodreads,douban,amazon,amazon_jp,storygraph", description="Comma-separated score engines to fetch")
+    engines: str = Query("open_library,google_books,goodreads,douban,amazon,amazon_jp,storygraph", description="Comma-separated score engines to fetch"),
+    strategies: str = Query(None, description="JSON string of provider search strategies")
 ):
     print(f"\n[Stream Details API] User locked work: '{work_id}' (Title: '{title}', Author: '{author}', Engines: '{engines}')")
     active_engines = [e.strip() for e in engines.split(",") if e.strip()]
     gb_provider = GoogleBooksProvider(api_key=google_key) if google_key else google_books
 
+    strat_dict = {}
+    if strategies:
+        try:
+            strat_dict = json.loads(strategies)
+        except Exception:
+            pass
+
     def event_generator():
-        target_work = None
-        if work_id.startswith("gb:"):
-            volume_id = work_id[3:]
-            gb_work = gb_provider.fetch_volume_by_id(volume_id)
+        ol_rating, editions, target_work = _resolve_work_editions_and_ol_rating(
+            work_id, title or "", author or "", active_engines, gb_provider=gb_provider
+        )
 
-            ol_work_mapped = None
-            isbn = None
-            if gb_work and gb_work.editions:
-                isbn = gb_work.editions[0].isbn_13 or gb_work.editions[0].isbn_10
+        ratings_dict = {
+            "average": ol_rating.rate if ol_rating and ol_rating.rate is not None else 0,
+            "count": ol_rating.rating_count if ol_rating and ol_rating.rating_count is not None else 0,
+            "url": ol_rating.url if ol_rating else None
+        }
+        editions_dict = _format_editions(editions)
 
-            if isbn and "open_library" in active_engines:
-                ol_works_by_isbn = open_library.search_works(f"isbn:{isbn}", limit=1)
-                if ol_works_by_isbn:
-                    ol_work_mapped = ol_works_by_isbn[0]
+        init_data = {
+            "type": "init",
+            "ratings": ratings_dict,
+            "editions": editions_dict
+        }
+        yield f"data: {json.dumps(init_data)}\n\n"
 
-            if not ol_work_mapped and gb_work and gb_work.original_title and "open_library" in active_engines:
-                import re
-                q_ol = gb_work.original_title
-                eng_author = None
-                for a in gb_work.author.split(","):
-                    author_matches = re.findall(r'([a-zA-Z\s\-]+)', a)
-                    for am in author_matches:
-                        am_clean = am.strip()
-                        if len(am_clean.split()) >= 2:
-                            eng_author = am_clean
-                            break
-                    if eng_author:
-                        break
-                if eng_author:
-                    q_ol += f" {eng_author}"
-                elif gb_work.author and gb_work.author not in ["Unknown Author", "Unknown"]:
-                    q_ol += f" {gb_work.author}"
-
-                ol_works_by_orig = open_library.search_works(q_ol, limit=1)
-                if ol_works_by_orig:
-                    ol_work_mapped = ol_works_by_orig[0]
-
-            if not ol_work_mapped and title and "open_library" in active_engines:
-                q_title = title
-                if author and author not in ["Unknown Author", "Unknown"]:
-                    q_title += f" {author}"
-                ol_works_by_title = open_library.search_works(q_title, limit=1)
-                if ol_works_by_title:
-                    ol_work_mapped = ol_works_by_title[0]
-
-            if ol_work_mapped and "open_library" in active_engines:
-                ol_rating = open_library.fetch_ratings(ol_work_mapped)
-                ol_editions = open_library.fetch_editions(ol_work_mapped.work_id, limit=100)
-            else:
-                ol_rating = None
-                ol_editions = []
-
-            if not ol_editions and gb_work and gb_work.editions:
-                ol_editions = gb_work.editions
-
-            ratings_dict = {
-                "average": ol_rating.rate if ol_rating and ol_rating.rate is not None else 0,
-                "count": ol_rating.rating_count if ol_rating and ol_rating.rating_count is not None else 0,
-                "url": ol_rating.url if ol_rating else None
-            }
-            editions_dict = _format_editions(ol_editions)
-
-            gb_rating = gb_work.ratings.get("Google Books") if (gb_work and "google_books" in active_engines) else None
-            google_dict = {
-                "average": gb_rating.rate if gb_rating and gb_rating.rate is not None else 0,
-                "count": gb_rating.rating_count if gb_rating and gb_rating.rating_count is not None else 0,
-                "title": (gb_rating.title if gb_rating else None) or title or (gb_work.title if gb_work else ""),
-                "url": gb_rating.url if gb_rating else None,
-                "quota_exceeded": gb_provider.quota_exceeded
-            }
-
-            target_work = Work(
-                work_id=work_id,
-                title=title or (gb_work.title if gb_work else ""),
-                author=author or (gb_work.author if gb_work else ""),
-                original_title=gb_work.original_title if gb_work else None,
-                editions=ol_editions or (gb_work.editions if gb_work else [])
-            )
-
-            init_data = {
-                "type": "init",
-                "ratings": ratings_dict,
-                "editions": editions_dict,
-                "google": google_dict
-            }
-            yield f"data: {json.dumps(init_data)}\n\n"
-        else:
-            ol_rating, editions = _resolve_work_editions_and_ol_rating(work_id, title or "", author or "", active_engines)
-
-            ratings_dict = {
-                "average": ol_rating.rate if ol_rating and ol_rating.rate is not None else 0,
-                "count": ol_rating.rating_count if ol_rating and ol_rating.rating_count is not None else 0,
-                "url": ol_rating.url if ol_rating else None
-            }
-
-            editions_dict = _format_editions(editions)
-
-            target_work = Work(
-                work_id=work_id,
-                title=title or "",
-                author=author or "",
-                editions=editions
-            )
-
-            init_data = {
-                "type": "init",
-                "ratings": ratings_dict,
-                "editions": editions_dict
-            }
-            yield f"data: {json.dumps(init_data)}\n\n"
-
-        # Submit provider tasks to ThreadPoolExecutor and stream each platform as it finishes!
         fut_map = {}
+        prov_instances = {
+            "google_books": gb_provider,
+            "goodreads": goodreads,
+            "douban": douban,
+            "amazon": amazon,
+            "amazon_jp": amazon_jp,
+            "storygraph": storygraph
+        }
+
         with ThreadPoolExecutor(max_workers=6) as executor:
-            if "google_books" in active_engines and not work_id.startswith("gb:"):
-                fut_map[executor.submit(gb_provider.fetch_ratings, target_work)] = "google_books"
-            if "goodreads" in active_engines:
-                fut_map[executor.submit(goodreads.fetch_ratings, target_work)] = "goodreads"
-            if "douban" in active_engines:
-                fut_map[executor.submit(douban.fetch_ratings, target_work)] = "douban"
-            if "amazon" in active_engines:
-                fut_map[executor.submit(amazon.fetch_ratings, target_work)] = "amazon"
-            if "amazon_jp" in active_engines:
-                fut_map[executor.submit(amazon_jp.fetch_ratings, target_work)] = "amazon_jp"
-            if "storygraph" in active_engines:
-                fut_map[executor.submit(storygraph.fetch_ratings, target_work)] = "storygraph"
+            for p_key, p_inst in prov_instances.items():
+                if p_key in active_engines:
+                    p_strat = strat_dict.get(p_key)
+                    fut = executor.submit(p_inst.fetch_ratings, target_work, strategy=p_strat)
+                    fut_map[fut] = p_key
 
             for fut in as_completed(fut_map):
                 p_key = fut_map[fut]
                 try:
                     p_rating = fut.result()
-                    p_dict = {
-                        "average": p_rating.rate if p_rating and p_rating.rate is not None else 0,
-                        "count": p_rating.rating_count if p_rating and p_rating.rating_count is not None else 0,
-                        "title": (p_rating.title if p_rating else None) or target_work.title,
-                        "url": p_rating.url if p_rating else None
-                    }
-                    if p_key == "google_books":
-                        p_dict["quota_exceeded"] = gb_provider.quota_exceeded
+                    quota = p_key == "google_books" and gb_provider.quota_exceeded
+                    p_dict = _format_rating_response(p_key, p_rating, target_work.title, quota_exceeded=quota)
                 except Exception as e:
-                    p_dict = {"average": 0, "count": 0, "title": target_work.title, "url": None}
+                    p_dict = {
+                        "average": 0, "count": 0, "title": target_work.title, "url": None,
+                        "provider": p_key, "strategy": strat_dict.get(p_key), "query": "", "status": "ERROR"
+                    }
 
                 yield f"data: {json.dumps({'type': 'platform', 'platform': p_key, 'data': p_dict})}\n\n"
 

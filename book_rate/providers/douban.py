@@ -150,7 +150,7 @@ class DoubanProvider(BaseProvider):
 
         works: List[Work] = []
         for item in items[:limit]:
-            if not isinstance(item, dict) or item.get("type") != "b":
+            if not isinstance(item, dict) or (item.get("type") and item.get("type") != "b"):
                 continue
 
             sub_id = str(item.get("id", ""))
@@ -170,7 +170,7 @@ class DoubanProvider(BaseProvider):
                 edition_count=1
             )
 
-            if details["rate"] is not None or details["votes"] is not None:
+            if details["rate"] is not None or details["votes"] is not None or subject_url:
                 work.ratings[self.name] = PlatformRating(
                     platform_name=self.name,
                     rate=details["rate"],
@@ -185,19 +185,10 @@ class DoubanProvider(BaseProvider):
 
         return works
 
-    def fetch_ratings(self, work: Work) -> PlatformRating:
-        """Fetch Douban rating for a Work using base fallback strategy."""
-        # 1. Base fallback
-        rating = self._fetch_ratings_with_fallback(work)
-        if rating and (rating.rate is not None or rating.rating_count is not None):
-            return rating
+    @property
+    def default_strategy(self) -> str:
+        return "isbn_primary"
 
-        # 2. Douban ISBN lookup fallback
-        for ed in work.editions:
-            isbn_str = clean_isbn(ed.isbn_13 or ed.isbn_10)
-            if isbn_str:
-                isbn_rating = self._lookup_by_isbn(isbn_str)
-                if isbn_rating:
-                    return isbn_rating
-
-        return PlatformRating(platform_name=self.name, url=None)
+    def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> PlatformRating:
+        """Fetch Douban rating for a Work using explicit SearchStrategy."""
+        return self._fetch_ratings(work, strategy=strategy)

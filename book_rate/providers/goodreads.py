@@ -122,6 +122,10 @@ class GoodreadsProvider(BaseProvider):
 
         return works
 
-    def fetch_ratings(self, work: Work) -> PlatformRating:
-        """Fetch Goodreads rating for a Work using base fallback strategy."""
-        return self._fetch_ratings_with_fallback(work)
+    @property
+    def default_strategy(self) -> str:
+        return "title_author"
+
+    def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> PlatformRating:
+        """Fetch Goodreads rating for a Work using explicit strategy."""
+        return self._fetch_ratings(work, strategy=strategy)

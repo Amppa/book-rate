@@ -127,34 +127,103 @@
           <section id="results" aria-live="polite">
             <div class="score-display-toggles" id="score-toggle-bar">
               <span class="toggle-title">來源：</span>
-              <label class="checkbox-label">
-                <input type="checkbox" id="score-ol" />
-                <span>Open Library</span>
-              </label>
-              <label class="checkbox-label">
-                <input type="checkbox" id="score-gb" />
-                <span>Google Books</span>
-              </label>
-              <label class="checkbox-label">
-                <input type="checkbox" id="score-gr" />
-                <span>Goodreads</span>
-              </label>
-              <label class="checkbox-label">
-                <input type="checkbox" id="score-db" />
-                <span>豆瓣</span>
-              </label>
-              <label class="checkbox-label">
-                <input type="checkbox" id="score-am" />
-                <span>Amazon</span>
-              </label>
-              <label class="checkbox-label">
-                <input type="checkbox" id="score-amjp" />
-                <span>Amazon JP</span>
-              </label>
-              <label class="checkbox-label">
-                <input type="checkbox" id="score-sg" />
-                <span>StoryGraph</span>
-              </label>
+              <div class="provider-toggle-item">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="score-ol" />
+                  <span>Open Library</span>
+                </label>
+                <select class="strategy-select" data-provider="open_library">
+                  <option value="isbn_primary">ISBN (Primary)</option>
+                  <option value="isbn_all">ISBN (All Editions)</option>
+                  <option value="title">Title</option>
+                  <option value="title_author" selected>Title + Author</option>
+                  <option value="title_author_year">Title + Author + Year</option>
+                </select>
+              </div>
+
+              <div class="provider-toggle-item">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="score-gb" />
+                  <span>Google Books</span>
+                </label>
+                <select class="strategy-select" data-provider="google_books">
+                  <option value="isbn_primary" selected>ISBN (Primary)</option>
+                  <option value="isbn_all">ISBN (All Editions)</option>
+                  <option value="title">Title</option>
+                  <option value="title_author">Title + Author</option>
+                  <option value="title_author_year">Title + Author + Year</option>
+                </select>
+              </div>
+
+              <div class="provider-toggle-item">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="score-gr" />
+                  <span>Goodreads</span>
+                </label>
+                <select class="strategy-select" data-provider="goodreads">
+                  <option value="isbn_primary">ISBN (Primary)</option>
+                  <option value="isbn_all">ISBN (All Editions)</option>
+                  <option value="title">Title</option>
+                  <option value="title_author" selected>Title + Author</option>
+                  <option value="title_author_year">Title + Author + Year</option>
+                </select>
+              </div>
+
+              <div class="provider-toggle-item">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="score-db" />
+                  <span>豆瓣</span>
+                </label>
+                <select class="strategy-select" data-provider="douban">
+                  <option value="isbn_primary" selected>ISBN (Primary)</option>
+                  <option value="isbn_all">ISBN (All Editions)</option>
+                  <option value="title">Title</option>
+                  <option value="title_author">Title + Author</option>
+                  <option value="title_author_year">Title + Author + Year</option>
+                </select>
+              </div>
+
+              <div class="provider-toggle-item">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="score-am" />
+                  <span>Amazon</span>
+                </label>
+                <select class="strategy-select" data-provider="amazon">
+                  <option value="isbn_primary" selected>ISBN (Primary)</option>
+                  <option value="isbn_all">ISBN (All Editions)</option>
+                  <option value="title">Title</option>
+                  <option value="title_author">Title + Author</option>
+                  <option value="title_author_year">Title + Author + Year</option>
+                </select>
+              </div>
+
+              <div class="provider-toggle-item">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="score-amjp" />
+                  <span>Amazon JP</span>
+                </label>
+                <select class="strategy-select" data-provider="amazon_jp">
+                  <option value="isbn_primary" selected>ISBN (Primary)</option>
+                  <option value="isbn_all">ISBN (All Editions)</option>
+                  <option value="title">Title</option>
+                  <option value="title_author">Title + Author</option>
+                  <option value="title_author_year">Title + Author + Year</option>
+                </select>
+              </div>
+
+              <div class="provider-toggle-item">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="score-sg" />
+                  <span>StoryGraph</span>
+                </label>
+                <select class="strategy-select" data-provider="storygraph">
+                  <option value="isbn_primary">ISBN (Primary)</option>
+                  <option value="isbn_all">ISBN (All Editions)</option>
+                  <option value="title">Title</option>
+                  <option value="title_author" selected>Title + Author</option>
+                  <option value="title_author_year">Title + Author + Year</option>
+                </select>
+              </div>
             </div>
             <div class="table-wrap" hidden>
               <table>

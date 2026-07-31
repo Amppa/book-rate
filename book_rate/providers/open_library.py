@@ -78,33 +78,37 @@ class OpenLibraryProvider(BaseProvider):
 
         return works
 
-    def fetch_ratings(self, work: Work) -> PlatformRating:
-        """Fetch dedicated rating object from Open Library ratings endpoint."""
+    @property
+    def default_strategy(self) -> str:
+        return "title_author"
+
+    def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> PlatformRating:
+        """Fetch dedicated rating object from Open Library ratings endpoint or via strategy."""
         work_id = work.work_id
-        if not work_id:
-            return PlatformRating(platform_name=self.name)
+        strat = strategy or self.default_strategy
+        if work_id and (work_id.startswith("/works/") or "OL" in work_id):
+            full_id = work_id if work_id.startswith("/works/") else f"/works/{work_id}"
+            try:
+                url = f"{self.BASE_URL}{full_id}/ratings.json"
+                resp = self.session.get(url, timeout=self.timeout)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    summary = data.get("summary", {})
+                    avg = summary.get("average")
+                    count = summary.get("count")
+                    return PlatformRating(
+                        platform_name=self.name,
+                        rate=float(avg) if avg is not None and avg > 0 else None,
+                        rating_count=int(count) if count is not None else 0,
+                        url=f"{self.BASE_URL}{full_id}",
+                        strategy=strat,
+                        query=work_id,
+                        status="MATCH" if (avg or count) else "NO_MATCH"
+                    )
+            except Exception as e:
+                logger.debug(f"Failed to fetch ratings for {full_id}: {e}")
 
-        # Ensure work_id format e.g. /works/OL123W
-        full_id = work_id if work_id.startswith("/works/") else f"/works/{work_id}"
-
-        try:
-            url = f"{self.BASE_URL}{full_id}/ratings.json"
-            resp = self.session.get(url, timeout=self.timeout)
-            if resp.status_code == 200:
-                data = resp.json()
-                summary = data.get("summary", {})
-                avg = summary.get("average")
-                count = summary.get("count")
-                return PlatformRating(
-                    platform_name=self.name,
-                    rate=float(avg) if avg is not None and avg > 0 else None,
-                    rating_count=int(count) if count is not None else 0,
-                    url=f"{self.BASE_URL}{full_id}"
-                )
-        except Exception as e:
-            logger.debug(f"Failed to fetch ratings for {full_id}: {e}")
-
-        return PlatformRating(platform_name=self.name)
+        return self._fetch_ratings(work, strategy=strategy)
 
     def fetch_editions(self, work_id: str, limit: int = 10) -> List[Edition]:
         """Fetch editions associated with a specific Work ID."""

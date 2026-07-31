@@ -88,7 +88,7 @@ class AmazonJPProvider(BaseProvider):
                 author=author_name,
                 edition_count=1
             )
-            if avg_rate is not None or count_val is not None:
+            if avg_rate is not None or count_val is not None or book_url:
                 work.ratings[self.name] = PlatformRating(
                     platform_name=self.name,
                     rate=avg_rate,
@@ -101,6 +101,10 @@ class AmazonJPProvider(BaseProvider):
 
         return works
 
-    def fetch_ratings(self, work: Work) -> PlatformRating:
-        """Fetch Amazon JP rating for a Work using base fallback strategy."""
-        return self._fetch_ratings_with_fallback(work)
+    @property
+    def default_strategy(self) -> str:
+        return "isbn_primary"
+
+    def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> PlatformRating:
+        """Fetch Amazon JP rating for a Work using explicit SearchStrategy."""
+        return self._fetch_ratings(work, strategy=strategy)

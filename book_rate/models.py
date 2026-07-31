@@ -10,6 +10,9 @@ class PlatformRating:
     rating_count: Optional[int] = None
     url: Optional[str] = None
     title: Optional[str] = None
+    strategy: Optional[str] = None
+    query: Optional[str] = None
+    status: str = "NO_MATCH"
 
     def format_rate_count(self) -> str:
         """Format rate and count as string (e.g. '4.25 / 150 ratings' or 'N/A')."""
