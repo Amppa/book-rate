@@ -388,9 +388,10 @@ function renderPlatformCell(row, prefix, data, maxRate = 5) {
   const countEl = row.querySelector(`.${prefix}-count`);
 
   if (!rateEl || !countEl) return;
+  if (!data || Object.keys(data).length === 0) return; // Still pending/fetching; keep loading animation intact!
 
-  const hasScore = data && typeof data.average === "number" && data.average > 0;
-  const hasUrl = data && Boolean(data.url);
+  const hasScore = typeof data.average === "number" && data.average > 0;
+  const hasUrl = Boolean(data.url);
 
   if (hasScore) {
     rateEl.textContent = displayRate(data.average, data.count, maxRate);
