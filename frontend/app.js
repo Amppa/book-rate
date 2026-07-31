@@ -613,10 +613,12 @@ function updateEngineTabs(engine) {
   const searchOlBtn = document.querySelector("#search-ol-btn");
   const searchGrBtn = document.querySelector("#search-gr-btn");
   const searchGbBtn = document.querySelector("#search-gb-btn");
+  const searchDbBtn = document.querySelector("#search-db-btn");
 
   if (searchOlBtn) searchOlBtn.classList.toggle("active", engine === "open_library");
   if (searchGrBtn) searchGrBtn.classList.toggle("active", engine === "goodreads");
   if (searchGbBtn) searchGbBtn.classList.toggle("active", engine === "google_books");
+  if (searchDbBtn) searchDbBtn.classList.toggle("active", engine === "douban");
 }
 
 async function searchWorks(query, page, engine = "open_library") {
@@ -631,7 +633,8 @@ async function searchWorks(query, page, engine = "open_library") {
   const engineNameMap = {
     open_library: "Open Library",
     goodreads: "Goodreads",
-    google_books: "Google Books"
+    google_books: "Google Books",
+    douban: "豆瓣"
   };
   const engineName = engineNameMap[engine] || "資料庫";
 
@@ -712,7 +715,7 @@ const searchGbBtn = document.querySelector("#search-gb-btn");
 if (searchOlBtn) {
   searchOlBtn.addEventListener("click", () => {
     const q = searchInput.value.trim() || currentQuery;
-    if (q && currentEngine !== "open_library") {
+    if (q) {
       searchWorks(q, 1, "open_library");
     }
   });
@@ -721,7 +724,7 @@ if (searchOlBtn) {
 if (searchGrBtn) {
   searchGrBtn.addEventListener("click", () => {
     const q = searchInput.value.trim() || currentQuery;
-    if (q && currentEngine !== "goodreads") {
+    if (q) {
       searchWorks(q, 1, "goodreads");
     }
   });
@@ -730,8 +733,18 @@ if (searchGrBtn) {
 if (searchGbBtn) {
   searchGbBtn.addEventListener("click", () => {
     const q = searchInput.value.trim() || currentQuery;
-    if (q && currentEngine !== "google_books") {
+    if (q) {
       searchWorks(q, 1, "google_books");
+    }
+  });
+}
+
+const searchDbBtn = document.querySelector("#search-db-btn");
+if (searchDbBtn) {
+  searchDbBtn.addEventListener("click", () => {
+    const q = searchInput.value.trim() || currentQuery;
+    if (q) {
+      searchWorks(q, 1, "douban");
     }
   });
 }
