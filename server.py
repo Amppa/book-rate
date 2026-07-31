@@ -1,3 +1,4 @@
+from typing import List, Optional
 from fastapi import FastAPI, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import StreamingResponse
@@ -115,6 +116,28 @@ def api_search(
     return results
 
 
+def _find_ol_work(isbn: Optional[str], title: Optional[str], author: Optional[str], active_engines: list) -> Optional[Work]:
+    """Helper to map any provider book (ISBN/title/author) to Open Library Work."""
+    if "open_library" not in active_engines:
+        return None
+    if isbn:
+        ol_works = open_library.search_works(f"isbn:{isbn}", limit=1)
+        if ol_works:
+            return ol_works[0]
+    clean_author = ""
+    if author and author not in ["Unknown Author", "Unknown"]:
+        clean_author = author.split(",")[0].strip()
+    if title:
+        q = f"{title} {clean_author}".strip()
+        ol_works = open_library.search_works(q, limit=1)
+        if ol_works:
+            return ol_works[0]
+        ol_works_title = open_library.search_works(title, limit=1)
+        if ol_works_title:
+            return ol_works_title[0]
+    return None
+
+
 def _resolve_work_editions_and_ol_rating(work_id: str, title: str, author: str, active_engines: list) -> tuple[PlatformRating, list]:
     """Helper to resolve Open Library rating and editions for any work_id (OL, GB, GR, DB, SG)."""
     if work_id.startswith("db:"):
@@ -123,17 +146,7 @@ def _resolve_work_editions_and_ol_rating(work_id: str, title: str, author: str, 
         isbn = details.get("isbn")
         pub_year = details.get("pub_year")
         
-        ol_work_mapped = None
-        if isbn and "open_library" in active_engines:
-            ol_works = open_library.search_works(f"isbn:{isbn}", limit=1)
-            if ol_works:
-                ol_work_mapped = ol_works[0]
-        if not ol_work_mapped and title and "open_library" in active_engines:
-            q = f"{title} {author or ''}".strip()
-            ol_works = open_library.search_works(q, limit=1)
-            if ol_works:
-                ol_work_mapped = ol_works[0]
-                
+        ol_work_mapped = _find_ol_work(isbn, title, author, active_engines)
         if ol_work_mapped:
             ol_rating = open_library.fetch_ratings(ol_work_mapped)
             editions = open_library.fetch_editions(ol_work_mapped.work_id, limit=100)
@@ -158,17 +171,7 @@ def _resolve_work_editions_and_ol_rating(work_id: str, title: str, author: str, 
         isbn = details.get("isbn")
         pub_year = details.get("pub_year")
 
-        ol_work_mapped = None
-        if isbn and "open_library" in active_engines:
-            ol_works = open_library.search_works(f"isbn:{isbn}", limit=1)
-            if ol_works:
-                ol_work_mapped = ol_works[0]
-        if not ol_work_mapped and title and "open_library" in active_engines:
-            q = f"{title} {author or ''}".strip()
-            ol_works = open_library.search_works(q, limit=1)
-            if ol_works:
-                ol_work_mapped = ol_works[0]
-
+        ol_work_mapped = _find_ol_work(isbn, title, author, active_engines)
         if ol_work_mapped:
             ol_rating = open_library.fetch_ratings(ol_work_mapped)
             editions = open_library.fetch_editions(ol_work_mapped.work_id, limit=100)
@@ -189,13 +192,7 @@ def _resolve_work_editions_and_ol_rating(work_id: str, title: str, author: str, 
 
     elif work_id.startswith("sg:"):
         book_id = work_id[3:]
-        ol_work_mapped = None
-        if title and "open_library" in active_engines:
-            q = f"{title} {author or ''}".strip()
-            ol_works = open_library.search_works(q, limit=1)
-            if ol_works:
-                ol_work_mapped = ol_works[0]
-
+        ol_work_mapped = _find_ol_work(None, title, author, active_engines)
         if ol_work_mapped:
             ol_rating = open_library.fetch_ratings(ol_work_mapped)
             editions = open_library.fetch_editions(ol_work_mapped.work_id, limit=100)
@@ -294,7 +291,8 @@ def api_work_details(
 
         ratings_dict = {
             "average": ol_rating.rate if ol_rating and ol_rating.rate is not None else 0,
-            "count": ol_rating.rating_count if ol_rating and ol_rating.rating_count is not None else 0
+            "count": ol_rating.rating_count if ol_rating and ol_rating.rating_count is not None else 0,
+            "url": ol_rating.url if ol_rating else None
         }
 
         editions_dict = _format_editions(ol_editions)
@@ -375,7 +373,8 @@ def api_work_details(
 
         ratings_dict = {
             "average": ol_rating.rate if ol_rating and ol_rating.rate is not None else 0,
-            "count": ol_rating.rating_count if ol_rating and ol_rating.rating_count is not None else 0
+            "count": ol_rating.rating_count if ol_rating and ol_rating.rating_count is not None else 0,
+            "url": ol_rating.url if ol_rating else None
         }
 
         editions_dict = _format_editions(editions)
@@ -523,7 +522,8 @@ def api_work_details_stream(
 
             ratings_dict = {
                 "average": ol_rating.rate if ol_rating and ol_rating.rate is not None else 0,
-                "count": ol_rating.rating_count if ol_rating and ol_rating.rating_count is not None else 0
+                "count": ol_rating.rating_count if ol_rating and ol_rating.rating_count is not None else 0,
+                "url": ol_rating.url if ol_rating else None
             }
             editions_dict = _format_editions(ol_editions)
 
@@ -556,7 +556,8 @@ def api_work_details_stream(
 
             ratings_dict = {
                 "average": ol_rating.rate if ol_rating and ol_rating.rate is not None else 0,
-                "count": ol_rating.rating_count if ol_rating and ol_rating.rating_count is not None else 0
+                "count": ol_rating.rating_count if ol_rating and ol_rating.rating_count is not None else 0,
+                "url": ol_rating.url if ol_rating else None
             }
 
             editions_dict = _format_editions(editions)

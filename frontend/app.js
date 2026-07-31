@@ -424,7 +424,7 @@ function updateWorkDetailRow(row, { work, ratings, editions, google, goodreads, 
   }
   row.querySelector(".info-isbn").textContent = reprIsbn;
 
-  const olUrl = (work.key && work.key.startsWith("/works/")) ? `${OPEN_LIBRARY_BASE_URL}${work.key}` : null;
+  const olUrl = ratings?.url || ((work.key && work.key.startsWith("/works/")) ? `${OPEN_LIBRARY_BASE_URL}${work.key}` : null);
   renderPlatformCell(row, "ol", { average: ratings?.average, count: ratings?.count, url: olUrl }, 5);
 
   if (google?.quota_exceeded) {
