@@ -167,12 +167,15 @@
         <div class="info-author"></div>
         <div class="info-publish"></div>
         <div class="info-metadata-btn-row" style="display: flex; gap: var(--space-2); align-items: center; margin-top: var(--space-1);">
-          <button type="button" class="btn-link show-editions-btn">
-            <span class="edition-count"></span>
-          </button>
           <button type="button" class="toggle-metadata-btn btn-secondary btn-xs">metadata</button>
         </div>
         <div class="step3-metadata-details" hidden style="margin-top: var(--space-2); padding-top: var(--space-2); border-top: 1px dashed var(--border-light); font-size: 0.8rem; width: 100%; display: flex; flex-direction: column; gap: 4px;">
+          <div>
+            <strong>版本數量:</strong>
+            <button type="button" class="btn-link show-editions-btn" style="padding: 0; border: 0; font-size: inherit; background: transparent; cursor: pointer; text-decoration: underline; color: var(--link);">
+              <span class="edition-count"></span>
+            </button>
+          </div>
           <div><strong>代表 ISBN:</strong> <span class="step3-primary-isbn">-</span></div>
           <div><strong>系列 ISBN:</strong> <span class="step3-other-isbns">-</span></div>
           <div><strong>連結:</strong> <span class="step3-links">-</span></div>

@@ -472,6 +472,9 @@ function updateWorkDetailRow(row, { work, ratings, editions }, strategies) {
       const remaining = isbns.slice(1, 11);
       if (remaining.length > 0) {
         otherIsbnsText = remaining.join("、");
+        if (isbns.length > 11) {
+          otherIsbnsText += " ...";
+        }
       }
     }
   } else if (work.isbn) {
@@ -481,6 +484,9 @@ function updateWorkDetailRow(row, { work, ratings, editions }, strategies) {
       const remaining = isbnList.slice(1, 11);
       if (remaining.length > 0) {
         otherIsbnsText = remaining.join("、");
+        if (isbnList.length > 11) {
+          otherIsbnsText += " ...";
+        }
       }
     }
   }
@@ -510,7 +516,6 @@ function updateWorkDetailRow(row, { work, ratings, editions }, strategies) {
       e.stopPropagation();
       const isHidden = detailsBlock.hidden;
       detailsBlock.hidden = !isHidden;
-      toggleBtn.textContent = isHidden ? "收起" : "metadata";
       toggleBtn.classList.toggle("active", isHidden);
     };
   }
