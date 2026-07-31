@@ -252,21 +252,23 @@ def api_work_details(
         }
 
     else:
-        # Ensure work_id starts with /works/
-        full_work_id = work_id if work_id.startswith("/works/") else f"/works/{work_id}"
-
-        # 1. Fetch Open Library Ratings & Editions
-        if "open_library" in active_engines:
-            ol_rating = open_library.fetch_ratings(Work(work_id=full_work_id, title="", author=""))
-        else:
+        if work_id.startswith("gr:") or work_id.startswith("db:"):
+            full_work_id = work_id
             ol_rating = PlatformRating(platform_name="Open Library")
+            editions = []
+        else:
+            full_work_id = work_id if work_id.startswith("/works/") else f"/works/{work_id}"
+            if "open_library" in active_engines:
+                ol_rating = open_library.fetch_ratings(Work(work_id=full_work_id, title="", author=""))
+            else:
+                ol_rating = PlatformRating(platform_name="Open Library")
+            editions = open_library.fetch_editions(full_work_id, limit=100)
 
         ratings_dict = {
             "average": ol_rating.rate if ol_rating.rate is not None else 0,
             "count": ol_rating.rating_count if ol_rating.rating_count is not None else 0
         }
 
-        editions = open_library.fetch_editions(full_work_id, limit=100)
         editions_dict = _format_editions(editions)
 
         dummy_work = Work(
@@ -430,18 +432,23 @@ def api_work_details_stream(
             }
             yield f"data: {json.dumps(init_data)}\n\n"
         else:
-            full_work_id = work_id if work_id.startswith("/works/") else f"/works/{work_id}"
-            if "open_library" in active_engines:
-                ol_rating = open_library.fetch_ratings(Work(work_id=full_work_id, title="", author=""))
-            else:
+            if work_id.startswith("gr:") or work_id.startswith("db:"):
+                full_work_id = work_id
                 ol_rating = PlatformRating(platform_name="Open Library")
+                editions = []
+            else:
+                full_work_id = work_id if work_id.startswith("/works/") else f"/works/{work_id}"
+                if "open_library" in active_engines:
+                    ol_rating = open_library.fetch_ratings(Work(work_id=full_work_id, title="", author=""))
+                else:
+                    ol_rating = PlatformRating(platform_name="Open Library")
+                editions = open_library.fetch_editions(full_work_id, limit=100)
 
             ratings_dict = {
                 "average": ol_rating.rate if ol_rating.rate is not None else 0,
                 "count": ol_rating.rating_count if ol_rating.rating_count is not None else 0
             }
 
-            editions = open_library.fetch_editions(full_work_id, limit=100)
             editions_dict = _format_editions(editions)
 
             target_work = Work(
