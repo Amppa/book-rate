@@ -6,9 +6,8 @@ import os
 import uvicorn
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from book_rate.models import Work, PlatformRating
+from book_rate.models import Work, Edition, PlatformRating
 from book_rate.aggregator import BookAggregator
-from book_rate.models import Work
 from book_rate.providers.google_books import GoogleBooksProvider
 
 app = FastAPI(title="BookRate Aggregator")
@@ -110,7 +109,88 @@ def api_search(
             
     return results
 
-from concurrent.futures import ThreadPoolExecutor
+
+def _resolve_work_editions_and_ol_rating(work_id: str, title: str, author: str, active_engines: list) -> tuple[PlatformRating, list]:
+    """Helper to resolve Open Library rating and editions for any work_id (OL, GB, GR, DB)."""
+    if work_id.startswith("db:"):
+        sub_id = work_id[3:]
+        details = douban.fetch_subject_details(sub_id)
+        isbn = details.get("isbn")
+        pub_year = details.get("pub_year")
+        
+        ol_work_mapped = None
+        if isbn and "open_library" in active_engines:
+            ol_works = open_library.search_works(f"isbn:{isbn}", limit=1)
+            if ol_works:
+                ol_work_mapped = ol_works[0]
+        if not ol_work_mapped and title and "open_library" in active_engines:
+            q = f"{title} {author or ''}".strip()
+            ol_works = open_library.search_works(q, limit=1)
+            if ol_works:
+                ol_work_mapped = ol_works[0]
+                
+        if ol_work_mapped:
+            ol_rating = open_library.fetch_ratings(ol_work_mapped)
+            editions = open_library.fetch_editions(ol_work_mapped.work_id, limit=100)
+        else:
+            ol_rating = PlatformRating("Open Library")
+            editions = []
+
+        if not editions:
+            ed = Edition(
+                edition_id=sub_id,
+                title=details.get("title") or title or "Unknown",
+                publish_year=pub_year,
+                isbn_13=isbn if isbn and len(isbn) == 13 else None,
+                isbn_10=isbn if isbn and len(isbn) == 10 else None
+            )
+            editions = [ed]
+        return ol_rating, editions
+
+    elif work_id.startswith("gr:"):
+        book_id = work_id[3:]
+        details = goodreads.fetch_book_details(book_id)
+        isbn = details.get("isbn")
+        pub_year = details.get("pub_year")
+
+        ol_work_mapped = None
+        if isbn and "open_library" in active_engines:
+            ol_works = open_library.search_works(f"isbn:{isbn}", limit=1)
+            if ol_works:
+                ol_work_mapped = ol_works[0]
+        if not ol_work_mapped and title and "open_library" in active_engines:
+            q = f"{title} {author or ''}".strip()
+            ol_works = open_library.search_works(q, limit=1)
+            if ol_works:
+                ol_work_mapped = ol_works[0]
+
+        if ol_work_mapped:
+            ol_rating = open_library.fetch_ratings(ol_work_mapped)
+            editions = open_library.fetch_editions(ol_work_mapped.work_id, limit=100)
+        else:
+            ol_rating = PlatformRating("Open Library")
+            editions = []
+
+        if not editions:
+            ed = Edition(
+                edition_id=book_id,
+                title=title or "Unknown",
+                publish_year=pub_year,
+                isbn_13=isbn if isbn and len(isbn) == 13 else None,
+                isbn_10=isbn if isbn and len(isbn) == 10 else None
+            )
+            editions = [ed]
+        return ol_rating, editions
+
+    else:
+        full_work_id = work_id if work_id.startswith("/works/") else f"/works/{work_id}"
+        if "open_library" in active_engines:
+            ol_rating = open_library.fetch_ratings(Work(work_id=full_work_id, title="", author=""))
+        else:
+            ol_rating = PlatformRating(platform_name="Open Library")
+        editions = open_library.fetch_editions(full_work_id, limit=100)
+        return ol_rating, editions
+
 
 @app.get("/api/work-details")
 def api_work_details(
@@ -138,7 +218,6 @@ def api_work_details(
             if ol_works_by_isbn:
                 ol_work_mapped = ol_works_by_isbn[0]
 
-        # Try to map by original English title and English author
         if not ol_work_mapped and gb_work and gb_work.original_title and "open_library" in active_engines:
             import re
             q_ol = gb_work.original_title
@@ -159,12 +238,10 @@ def api_work_details(
             elif gb_work.author and gb_work.author not in ["Unknown Author", "Unknown"]:
                 q_ol += f" {gb_work.author}"
 
-            print(f"[Details API] Attempting Open Library mapping with query: '{q_ol}'")
             ol_works_by_orig = open_library.search_works(q_ol, limit=1)
             if ol_works_by_orig:
                 ol_work_mapped = ol_works_by_orig[0]
 
-        # Fallback to Chinese title and author
         if not ol_work_mapped and title and "open_library" in active_engines:
             q_title = title
             if author and author not in ["Unknown Author", "Unknown"]:
@@ -199,7 +276,6 @@ def api_work_details(
             "quota_exceeded": gb_provider.quota_exceeded
         }
 
-        # Build target Work object for Goodreads, Douban, Amazon
         target_work = Work(
             work_id=work_id,
             title=title or (gb_work.title if gb_work else ""),
@@ -252,27 +328,17 @@ def api_work_details(
         }
 
     else:
-        if work_id.startswith("gr:") or work_id.startswith("db:"):
-            full_work_id = work_id
-            ol_rating = PlatformRating(platform_name="Open Library")
-            editions = []
-        else:
-            full_work_id = work_id if work_id.startswith("/works/") else f"/works/{work_id}"
-            if "open_library" in active_engines:
-                ol_rating = open_library.fetch_ratings(Work(work_id=full_work_id, title="", author=""))
-            else:
-                ol_rating = PlatformRating(platform_name="Open Library")
-            editions = open_library.fetch_editions(full_work_id, limit=100)
+        ol_rating, editions = _resolve_work_editions_and_ol_rating(work_id, title or "", author or "", active_engines)
 
         ratings_dict = {
-            "average": ol_rating.rate if ol_rating.rate is not None else 0,
-            "count": ol_rating.rating_count if ol_rating.rating_count is not None else 0
+            "average": ol_rating.rate if ol_rating and ol_rating.rate is not None else 0,
+            "count": ol_rating.rating_count if ol_rating and ol_rating.rating_count is not None else 0
         }
 
         editions_dict = _format_editions(editions)
 
         dummy_work = Work(
-            work_id=full_work_id,
+            work_id=work_id,
             title=title or "",
             author=author or "",
             editions=editions
@@ -432,27 +498,17 @@ def api_work_details_stream(
             }
             yield f"data: {json.dumps(init_data)}\n\n"
         else:
-            if work_id.startswith("gr:") or work_id.startswith("db:"):
-                full_work_id = work_id
-                ol_rating = PlatformRating(platform_name="Open Library")
-                editions = []
-            else:
-                full_work_id = work_id if work_id.startswith("/works/") else f"/works/{work_id}"
-                if "open_library" in active_engines:
-                    ol_rating = open_library.fetch_ratings(Work(work_id=full_work_id, title="", author=""))
-                else:
-                    ol_rating = PlatformRating(platform_name="Open Library")
-                editions = open_library.fetch_editions(full_work_id, limit=100)
+            ol_rating, editions = _resolve_work_editions_and_ol_rating(work_id, title or "", author or "", active_engines)
 
             ratings_dict = {
-                "average": ol_rating.rate if ol_rating.rate is not None else 0,
-                "count": ol_rating.rating_count if ol_rating.rating_count is not None else 0
+                "average": ol_rating.rate if ol_rating and ol_rating.rate is not None else 0,
+                "count": ol_rating.rating_count if ol_rating and ol_rating.rating_count is not None else 0
             }
 
             editions_dict = _format_editions(editions)
 
             target_work = Work(
-                work_id=full_work_id,
+                work_id=work_id,
                 title=title or "",
                 author=author or "",
                 editions=editions

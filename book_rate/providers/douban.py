@@ -30,38 +30,58 @@ class DoubanProvider(BaseProvider):
     def name(self) -> str:
         return "Douban"
 
-    def _fetch_subject_rating(self, subject_url: str) -> tuple[Optional[float], Optional[int]]:
-        """Fetch subject detail HTML page from Douban and extract rating and votes count."""
+    def fetch_subject_details(self, subject_url_or_id: str) -> dict:
+        """Fetch subject detail HTML page from Douban and extract rating, votes count, ISBN, pub_year, and title."""
+        url = subject_url_or_id if subject_url_or_id.startswith("http") else f"https://book.douban.com/subject/{subject_url_or_id}/"
+        res = {"rate": None, "votes": None, "isbn": None, "pub_year": None, "title": None, "url": url}
         try:
-            resp = self.session.get(subject_url, timeout=self.timeout)
+            resp = self.session.get(url, timeout=self.timeout)
             resp.raise_for_status()
             html = resp.text
 
             rate_match = re.search(r'property="v:average">\s*([\d\.]+)\s*</', html)
             votes_match = re.search(r'property="v:votes">\s*(\d+)\s*</', html)
+            title_match = re.search(r'<span property="v:itemreviewed">(.*?)</span>', html)
+            isbn_match = re.search(r'ISBN:</span>\s*([\d-]+)', html)
+            pub_match = re.search(r'出版年:</span>\s*([^\n<]+)', html)
 
-            rate: Optional[float] = None
             if rate_match:
                 try:
                     r_val = float(rate_match.group(1))
                     if r_val > 0:
-                        rate = r_val
+                        res["rate"] = r_val
                 except ValueError:
                     pass
 
-            votes: Optional[int] = None
             if votes_match:
                 try:
                     v_val = int(votes_match.group(1))
                     if v_val > 0:
-                        votes = v_val
+                        res["votes"] = v_val
                 except ValueError:
                     pass
 
-            return rate, votes
+            if title_match:
+                res["title"] = title_match.group(1).strip()
+
+            if isbn_match:
+                res["isbn"] = re.sub(r"[-\s]", "", isbn_match.group(1))
+
+            if pub_match:
+                py_clean = pub_match.group(1).strip()
+                # Extract 4-digit year if present e.g. '2012-7' -> '2012'
+                ym = re.search(r'\b(19\d\d|20\d\d)\b', py_clean)
+                res["pub_year"] = ym.group(1) if ym else py_clean
+
+            return res
         except Exception as e:
-            logger.warning(f"Failed to fetch Douban subject details from '{subject_url}': {e}")
-            return None, None
+            logger.warning(f"Failed to fetch Douban subject details from '{url}': {e}")
+            return res
+
+    def _fetch_subject_rating(self, subject_url: str) -> tuple[Optional[float], Optional[int]]:
+        """Fetch subject detail HTML page from Douban and extract rating and votes count."""
+        details = self.fetch_subject_details(subject_url)
+        return details["rate"], details["votes"]
 
     def _lookup_by_isbn(self, isbn: str) -> Optional[PlatformRating]:
         """

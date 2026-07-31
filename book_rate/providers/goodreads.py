@@ -29,6 +29,30 @@ class GoodreadsProvider(BaseProvider):
     def name(self) -> str:
         return "Goodreads"
 
+    def fetch_book_details(self, book_url_or_id: str) -> dict:
+        """Fetch book detail HTML page from Goodreads and extract ISBN and pub_year."""
+        url = book_url_or_id if book_url_or_id.startswith("http") else f"https://www.goodreads.com/book/show/{book_url_or_id}"
+        res = {"isbn": None, "pub_year": None, "url": url}
+        try:
+            resp = self.session.get(url, timeout=self.timeout)
+            resp.raise_for_status()
+            html = resp.text
+
+            isbn13_m = re.search(r'"isbn13":"(\d+)"', html) or re.search(r'ISBN13:\s*(\d+)', html) or re.search(r'978\d{10}', html)
+            pub_m = re.search(r'first published\s+([A-Za-z]+\s+\d{1,2},\s*)?(\d{4})', html, re.IGNORECASE) or re.search(r'published\s+([A-Za-z]+\s+\d{1,2},\s*)?(\d{4})', html, re.IGNORECASE)
+
+            if isbn13_m:
+                raw_isbn = isbn13_m.group(1) if isbn13_m.groups() and isbn13_m.group(1) else isbn13_m.group(0)
+                res["isbn"] = re.sub(r'[^\d]', '', raw_isbn)
+
+            if pub_m:
+                res["pub_year"] = pub_m.group(2) if len(pub_m.groups()) >= 2 and pub_m.group(2) else pub_m.group(1)
+
+            return res
+        except Exception as e:
+            logger.warning(f"Failed to fetch Goodreads book details from '{url}': {e}")
+            return res
+
     def search_works(self, query: str, limit: int = 5, page: int = 1) -> List[Work]:
         """Search Goodreads auto_complete endpoint for query."""
         clean_query = query.strip()
