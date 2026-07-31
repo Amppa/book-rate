@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 class AmazonProvider(BaseProvider):
-    """Provider for querying Amazon book ratings and books."""
+    """Provider for querying Amazon US book ratings and books."""
 
     SEARCH_URL = "https://www.amazon.com/s"
 
@@ -47,7 +47,7 @@ class AmazonProvider(BaseProvider):
         item_blocks = re.findall(r'data-component-type="s-search-result".*?(?=data-component-type="s-search-result"|$)', html_str, re.DOTALL)
 
         for block in item_blocks[:limit]:
-            title_match = re.search(r'<h2[^>]*><a[^>]*><span[^>]*>(.*?)</span>', block, re.DOTALL)
+            title_match = re.search(r'<h2[^>]*>(.*?)</h2>', block, re.DOTALL)
             if not title_match:
                 title_match = re.search(r'class="a-size-medium a-color-base a-text-normal"[^>]*>(.*?)</span>', block)
             if not title_match:
@@ -70,14 +70,13 @@ class AmazonProvider(BaseProvider):
                 author_match = re.search(r'<span class="a-size-base"[^>]*>\s*by\s+(.*?)\s*</span>', block, re.IGNORECASE)
             author_name = re.sub(r'<[^>]+>', '', author_match.group(1)).strip() if author_match else "Unknown"
 
-            rate_match = re.search(r'(\d+(?:\.\d+)?)\s*out of 5 stars', block, re.IGNORECASE)
-            if not rate_match:
-                rate_match = re.search(r'(\d+(?:\.\d+)?)\s*顆星', block)
+            rate_match = re.search(r'(\d+(?:\.\d+)?)\s*out of 5 stars', block, re.IGNORECASE) or \
+                         re.search(r'(\d+(?:\.\d+)?)\s*顆星', block)
             avg_rate = float(rate_match.group(1)) if rate_match else None
 
-            count_match = re.search(r'aria-label="([\d,]+)\s*(?:ratings|ratings|條評價|個評分)"', block, re.IGNORECASE)
-            if not count_match:
-                count_match = re.search(r'<span class="a-size-base s-underline-text"[^>]*>([\d,]+)</span>', block)
+            count_match = re.search(r'aria-label="([\d,]+)\s*(?:ratings|ratings|條評價|個評分)"', block, re.IGNORECASE) or \
+                          re.search(r'<span class="a-size-base s-underline-text"[^>]*>([\d,]+)</span>', block) or \
+                          re.search(r'<a[^>]*href="[^"]*#customerReviews"[^>]*>.*?<span[^>]*>([\d,]+)</span>', block, re.DOTALL)
 
             count_val = int(count_match.group(1).replace(",", "")) if count_match else None
 
