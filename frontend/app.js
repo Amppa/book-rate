@@ -397,6 +397,9 @@ if (scoreToggleBarEl) {
   scoreToggleBarEl.addEventListener("change", (e) => {
     if (e.target.classList.contains("strategy-select")) {
       const providerKey = e.target.dataset.provider;
+      if (providerKey) {
+        localStorage.setItem("bookrate:strategy:" + providerKey, e.target.value);
+      }
       if (currentSelectedWork && providerKey) {
         reQuerySingleProvider(currentSelectedWork, providerKey);
       }
@@ -973,6 +976,17 @@ function initSettings() {
   if (scoreAmCheckbox) scoreAmCheckbox.checked = localStorage.getItem(SCORE_AM_KEY) !== "false";
   if (scoreAmjpCheckbox) scoreAmjpCheckbox.checked = localStorage.getItem(SCORE_AMJP_KEY) !== "false";
   if (scoreSgCheckbox) scoreSgCheckbox.checked = localStorage.getItem(SCORE_SG_KEY) !== "false";
+
+  // Restore saved search strategies
+  document.querySelectorAll(".strategy-select").forEach((sel) => {
+    const provider = sel.dataset.provider;
+    if (provider) {
+      const savedStrategy = localStorage.getItem("bookrate:strategy:" + provider);
+      if (savedStrategy) {
+        sel.value = savedStrategy;
+      }
+    }
+  });
 
   updateTableVisibility();
 }
