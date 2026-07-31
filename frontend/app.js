@@ -1078,3 +1078,52 @@ if (editionsModal && closeEditionsBtn) {
     }
   });
 }
+
+// Platform Info Modal logic (dynamic load from platform_info.html)
+const openPlatformInfoBtn = document.querySelector("#open-platform-info-btn");
+
+if (openPlatformInfoBtn) {
+  openPlatformInfoBtn.addEventListener("click", async () => {
+    let platformInfoModal = document.querySelector("#platform-info-modal");
+
+    if (!platformInfoModal) {
+      try {
+        const resp = await fetch("./platform_info.html");
+        if (resp.ok) {
+          const htmlText = await resp.text();
+          const tempDiv = document.createElement("div");
+          tempDiv.innerHTML = htmlText;
+          platformInfoModal = tempDiv.firstElementChild;
+          document.body.appendChild(platformInfoModal);
+
+          const closeBtn = platformInfoModal.querySelector("#close-platform-info-btn");
+          const closeModal = () => {
+            platformInfoModal.classList.remove("open");
+            setTimeout(() => {
+              if (!platformInfoModal.classList.contains("open")) {
+                platformInfoModal.hidden = true;
+              }
+            }, 300);
+          };
+
+          if (closeBtn) {
+            closeBtn.addEventListener("click", closeModal);
+          }
+          platformInfoModal.addEventListener("click", (e) => {
+            if (e.target === platformInfoModal) {
+              closeModal();
+            }
+          });
+        }
+      } catch (err) {
+        console.error("Failed to load platform_info.html:", err);
+      }
+    }
+
+    if (platformInfoModal) {
+      platformInfoModal.hidden = false;
+      setTimeout(() => platformInfoModal.classList.add("open"), 10);
+    }
+  });
+}
+

@@ -1,0 +1,88 @@
+<!-- 評分平台說明 Modal (獨立模組) -->
+<div id="platform-info-modal" class="modal" hidden>
+  <div class="modal-content modal-wide">
+    <div class="modal-header">
+      <h3>評分平台說明</h3>
+      <button type="button" id="close-platform-info-btn" class="close-btn">&times;</button>
+    </div>
+    <div class="modal-body">
+      <table class="platform-info-table">
+        <thead>
+          <tr>
+            <th style="width: 16%;">平台名稱</th>
+            <th style="width: 18%;">書籍數量</th>
+            <th style="width: 22%;">評分量</th>
+            <th style="width: 14%;">評分層級</th>
+            <th style="width: 14%;">API / 來源</th>
+            <th style="width: 30%;">備註</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Open Library</strong></td>
+            <td>千萬級</td>
+            <td><span class="star-rating">★☆☆☆☆</span></td>
+            <td>系列＋版本</td>
+            <td><span class="tag tag-api">官方 API</span></td>
+            <td>最佳書籍辨識來源，提供 Work / Edition / ISBN 對應。</td>
+          </tr>
+
+          <tr>
+            <td><strong>Google Books</strong></td>
+            <td>千萬級</td>
+            <td><span class="star-rating">★★☆☆☆</span></td>
+            <td>分版本</td>
+            <td><span class="tag tag-api">官方 API</span></td>
+            <td>需要API key</td>
+          </tr>
+
+          <tr>
+            <td><strong>Goodreads</strong></td>
+            <td>未知</td>
+            <td><span class="star-rating">★★★★★</span></td>
+            <td>系列</td>
+            <td><span class="tag tag-web">Web 擷取</span></td>
+            <td>全球最大的讀者社群，英文作品評價最具代表性。屬於Amazon集團。
+            </td>
+          </tr>
+
+          <tr>
+            <td><strong>豆瓣讀書</strong></td>
+            <td>百萬級</td>
+            <td><span class="star-rating">★★★★★</span></td>
+            <td>分版本</td>
+            <td><span class="tag tag-web">Web 擷取</span></td>
+            <td>中文世界最重要的讀者社群，通常依出版社與 ISBN 分開。</td>
+          </tr>
+
+          <tr>
+            <td><strong>Amazon (US)</strong></td>
+            <td>千萬級</td>
+            <td><span class="star-rating">★★★★★</span></td>
+            <td>分版本</td>
+            <td><span class="tag tag-web">Web 擷取</span></td>
+            <td>世界最大的書籍銷售平台。商品評價，以版本為單位，不同語言通常不合併。Web改版，爬蟲會失效。</td>
+          </tr>
+
+          <tr>
+            <td><strong>Amazon JP</strong></td>
+            <td>百萬級</td>
+            <td><span class="star-rating">★★★★☆</span> </td>
+            <td>分版本</td>
+            <td><span class="tag tag-web">Web 擷取</span></td>
+            <td>日本 Amazon。</td>
+          </tr>
+
+          <tr>
+            <td><strong>StoryGraph</strong></td>
+            <td>未知</td>
+            <td><span class="star-rating">★★★☆☆</span></td>
+            <td>系列</td>
+            <td><span class="tag tag-web">Web 擷取</span></td>
+            <td>新興讀者社群。</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
