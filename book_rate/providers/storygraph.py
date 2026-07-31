@@ -4,7 +4,6 @@ import re
 import subprocess
 import urllib.parse
 from typing import List, Optional
-import requests
 
 from book_rate.models import Work, Edition, PlatformRating
 from book_rate.providers.base import BaseProvider
@@ -17,16 +16,6 @@ class StoryGraphProvider(BaseProvider):
 
     BASE_URL = "https://app.thestorygraph.com"
     BROWSE_URL = "https://app.thestorygraph.com/browse"
-    USER_AGENT = (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/120.0.0.0 Safari/537.36"
-    )
-
-    def __init__(self, timeout: int = 10):
-        self.timeout = timeout
-        self.session = requests.Session()
-        self.session.headers.update({"User-Agent": self.USER_AGENT})
 
     @property
     def name(self) -> str:
@@ -37,7 +26,7 @@ class StoryGraphProvider(BaseProvider):
         try:
             cmd = [
                 "curl.exe", "-s", "-L",
-                "-A", self.USER_AGENT,
+                "-A", self.DEFAULT_USER_AGENT,
                 url
             ]
             output = subprocess.check_output(cmd, timeout=self.timeout)
@@ -73,7 +62,6 @@ class StoryGraphProvider(BaseProvider):
             except ValueError:
                 pass
 
-        # Fallback regex
         rate_m = re.search(r'average-star-rating[^>]*>\s*([\d\.]+)', r_html)
         votes_m = re.search(r'([\d,]+)\s*reviews', r_html)
         rate = float(rate_m.group(1)) if rate_m else None
@@ -91,7 +79,6 @@ class StoryGraphProvider(BaseProvider):
         if not search_html:
             return []
 
-        # Find book cards: href="/books/UUID">Title</a>
         book_matches = re.findall(r'href="(/books/([a-f0-9\-]{36}))">([^<]+)</a>', search_html)
         author_matches = re.findall(r'href="/authors/[^"]+">([^<]+)</a>', search_html)
 
@@ -127,21 +114,14 @@ class StoryGraphProvider(BaseProvider):
                     title=title
                 )
 
-            edition = Edition(
-                edition_id=b_id,
-                title=title
-            )
+            edition = Edition(edition_id=b_id, title=title)
             work.editions.append(edition)
             works.append(work)
 
         return works
 
     def fetch_ratings(self, work: Work) -> PlatformRating:
-        """Fetch StoryGraph rating for a given Work by ISBN or title/author."""
-        if self.name in work.ratings and work.ratings[self.name].rate is not None:
-            return work.ratings[self.name]
-
-        # 1. If work_id is sg:<book_id>, fetch directly
+        """Fetch StoryGraph rating for a Work."""
         if work.work_id and work.work_id.startswith("sg:"):
             b_id = work.work_id[3:]
             rate, votes = self._fetch_book_rating(b_id)
@@ -154,34 +134,4 @@ class StoryGraphProvider(BaseProvider):
                 title=work.title
             )
 
-        # 2. Check ISBNs from work editions
-        for ed in work.editions:
-            isbn = ed.isbn_13 or ed.isbn_10
-            if isbn:
-                try:
-                    sg_works = self.search_works(isbn, limit=1)
-                    if sg_works:
-                        rating = sg_works[0].ratings.get(self.name)
-                        if rating and (rating.rate is not None or rating.rating_count is not None):
-                            return rating
-                except Exception as e:
-                    logger.debug(f"StoryGraph rating query failed for ISBN {isbn}: {e}")
-
-        # 3. Try title & author search
-        titles_to_try = [t for t in [work.original_title, work.title] if t]
-        for title in titles_to_try:
-            try:
-                sg_works = self.search_works(title, limit=3)
-                if sg_works:
-                    # Select work with highest rating count
-                    best_work = max(
-                        sg_works,
-                        key=lambda w: (w.ratings.get(self.name).rating_count or 0) if self.name in w.ratings else 0
-                    )
-                    rating = best_work.ratings.get(self.name)
-                    if rating and (rating.rate is not None or rating.rating_count is not None):
-                        return rating
-            except Exception as e:
-                logger.debug(f"StoryGraph rating query failed for title '{title}': {e}")
-
-        return PlatformRating(platform_name=self.name)
+        return self._fetch_ratings_with_fallback(work)
