@@ -244,6 +244,17 @@
   white-space: nowrap;
 }
 
+.platform-info-table a {
+  color: var(--link);
+  font-weight: 600;
+  text-decoration: underline;
+  white-space: nowrap;
+}
+
+.platform-info-table a:hover {
+  color: var(--primary);
+}
+
 .tag {
   display: inline-block;
   padding: 2px 8px;
