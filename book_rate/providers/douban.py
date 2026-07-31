@@ -209,6 +209,25 @@ class DoubanProvider(BaseProvider):
 
         return works
 
+    def _try_search_rating(self, query: str) -> Optional[PlatformRating]:
+        """Helper to execute search_works for a query and extract PlatformRating if found."""
+        try:
+            db_works = self.search_works(query, limit=3)
+            if db_works:
+                rating = db_works[0].ratings.get(self.name)
+                if rating and rating.url:
+                    return rating
+                sub_id = db_works[0].work_id.replace("db:", "")
+                subject_url = f"https://book.douban.com/subject/{sub_id}/" if sub_id else None
+                return PlatformRating(
+                    platform_name=self.name,
+                    url=subject_url,
+                    title=db_works[0].title
+                )
+        except Exception as e:
+            logger.debug(f"Douban rating query failed for '{query}': {e}")
+        return None
+
     def fetch_ratings(self, work: Work) -> PlatformRating:
         """
         Fetch Douban rating for a given Work.
@@ -221,44 +240,21 @@ class DoubanProvider(BaseProvider):
         if self.name in work.ratings:
             return work.ratings[self.name]
 
-        # 1. Search by original_title and title (prioritise finding highest-rated Chinese version)
         titles_to_try = [t for t in [work.original_title, work.title] if t]
+
+        # 1. Search by original_title / title
         for title in titles_to_try:
-            try:
-                db_works = self.search_works(title, limit=3)
-                if db_works:
-                    rating = db_works[0].ratings.get(self.name)
-                    if rating and rating.url:
-                        return rating
-                    sub_id = db_works[0].work_id.replace("db:", "")
-                    subject_url = f"https://book.douban.com/subject/{sub_id}/" if sub_id else None
-                    return PlatformRating(
-                        platform_name=self.name,
-                        url=subject_url,
-                        title=db_works[0].title
-                    )
-            except Exception as e:
-                logger.debug(f"Douban rating query failed for title '{title}': {e}")
+            rating = self._try_search_rating(title)
+            if rating:
+                return rating
 
         # 2. Search by title + author
-        for title in titles_to_try:
-            if work.author and work.author not in ["Unknown Author", "Unknown"]:
-                query = f"{title} {work.author}"
-                try:
-                    db_works = self.search_works(query, limit=3)
-                    if db_works:
-                        rating = db_works[0].ratings.get(self.name)
-                        if rating and rating.url:
-                            return rating
-                        sub_id = db_works[0].work_id.replace("db:", "")
-                        subject_url = f"https://book.douban.com/subject/{sub_id}/" if sub_id else None
-                        return PlatformRating(
-                            platform_name=self.name,
-                            url=subject_url,
-                            title=db_works[0].title
-                        )
-                except Exception as e:
-                    logger.debug(f"Douban rating query failed for query '{query}': {e}")
+        if work.author and work.author not in ["Unknown Author", "Unknown"]:
+            clean_author = work.author.split(",")[0].strip()
+            for title in titles_to_try:
+                rating = self._try_search_rating(f"{title} {clean_author}")
+                if rating:
+                    return rating
 
         # 3. ISBN lookup as last fallback
         for ed in work.editions:
