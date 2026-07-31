@@ -367,13 +367,7 @@ a.candidate-meta:hover {
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.03em;
-  cursor: pointer;
   margin-top: 6px;
-  transition: opacity 0.2s ease;
-}
-
-.search-status-tag:hover {
-  opacity: 0.8;
 }
 
 .search-status-tag.status-match {

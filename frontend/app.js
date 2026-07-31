@@ -88,57 +88,30 @@ function renderCandidates(works) {
     }
     fragment.querySelector(".candidate-title").textContent = work.title;
 
-    // 預設顯示：作者和首版日期
-    const authorVal = (work.author_name || ["Unknown"]).join("、");
-    const basicMetaText = `作者：${authorVal}` + (work.first_publish_year ? ` · 首版 ${work.first_publish_year}` : "");
-    fragment.querySelector(".candidate-basic-meta").textContent = basicMetaText;
+    const authorText = `作者：${(work.author_name || ["Unknown"]).join("、")}`;
+    const publishText = work.first_publish_year
+      ? `首版 ${work.first_publish_year}`
+      : "";
+    const editionText = work.edition_count
+      ? `${work.edition_count.toLocaleString()} 個版本`
+      : "";
 
-    // 填充展開的詳細資料
-    fragment.querySelector(".meta-author").textContent = authorVal;
-    fragment.querySelector(".meta-year").textContent = work.first_publish_year || "暫無資料";
-    fragment.querySelector(".meta-editions").textContent = work.edition_count ? `${work.edition_count.toLocaleString()} 個版本` : "暫無資料";
+    const metaText = [
+      authorText,
+      publishText,
+      editionText
+    ].filter(Boolean).join(" · ") + " ↗";
 
-    // 處理 ISBN 與 系列 ISBN
-    let primaryIsbn = "暫無資料";
-    let otherIsbnsText = "無";
-    if (work.isbn) {
-      const isbnList = Array.isArray(work.isbn) ? work.isbn : [work.isbn];
-      if (isbnList.length > 0) {
-        primaryIsbn = isbnList[0];
-        const remaining = isbnList.slice(1, 11); // 最多 10 個
-        if (remaining.length > 0) {
-          otherIsbnsText = remaining.join("、");
-        }
+    const metaLink = fragment.querySelector(".candidate-meta");
+    const extUrl = getWorkExternalUrl(work.key);
+    if (metaLink) {
+      metaLink.textContent = metaText;
+      if (extUrl) {
+        metaLink.href = extUrl;
+      } else {
+        metaLink.removeAttribute("href");
       }
     }
-    fragment.querySelector(".meta-primary-isbn").textContent = primaryIsbn;
-    fragment.querySelector(".meta-other-isbns").textContent = otherIsbnsText;
-
-    // 外部連結
-    const metaLinksEl = fragment.querySelector(".meta-links");
-    const extUrl = getWorkExternalUrl(work.key);
-    if (extUrl) {
-      const a = document.createElement("a");
-      a.href = extUrl;
-      a.target = "_blank";
-      a.rel = "noopener noreferrer";
-      a.className = "candidate-link";
-      a.textContent = `${getProviderDisplayName(work.key.split(":")[0]) || "外部連結"} ↗`;
-      metaLinksEl.appendChild(a);
-    } else {
-      metaLinksEl.textContent = "-";
-    }
-
-    // Toggle 按鈕
-    const toggleBtn = fragment.querySelector(".toggle-metadata-btn");
-    const detailsRow = fragment.querySelector(".candidate-details-row");
-    toggleBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const isHidden = detailsRow.hidden;
-      detailsRow.hidden = !isHidden;
-      toggleBtn.textContent = isHidden ? "收起" : "metadata";
-      toggleBtn.classList.toggle("active", isHidden);
-    });
 
     fragment.querySelector(".select-work").addEventListener("click", () => selectWork(work));
     candidateList.append(fragment);
@@ -252,7 +225,7 @@ async function selectWork(work) {
         if (data.type === "init") {
           collectedDetails.ratings = data.ratings;
           collectedDetails.editions = data.editions;
-          updateWorkDetailRow(row, collectedDetails);
+          updateWorkDetailRow(row, collectedDetails, strategies);
         } else if (data.type === "platform") {
           const platformKey = data.platform;
           collectedDetails[platformKey] = data.data;
@@ -461,7 +434,7 @@ function renderPlatformCell(row, prefix, data, maxRate = 5) {
   }
 }
 
-function updateWorkDetailRow(row, { work, ratings, editions }) {
+function updateWorkDetailRow(row, { work, ratings, editions }, strategies) {
   if (!row) return;
 
   row.querySelector(".work-title").textContent = work.title;
@@ -544,7 +517,14 @@ function updateWorkDetailRow(row, { work, ratings, editions }) {
 
   // 3. 渲染 Open Library 評分
   const olUrl = ratings?.url || ((work.key && work.key.startsWith("/works/")) ? `${OPEN_LIBRARY_BASE_URL}${work.key}` : null);
-  renderPlatformCell(row, "ol", { average: ratings?.average, count: ratings?.count, url: olUrl, status: (ratings?.average ? "MATCH" : "NO_MATCH") }, 5);
+  const olData = { average: ratings?.average, count: ratings?.count, url: olUrl, status: (ratings?.average ? "MATCH" : "NO_MATCH") };
+  renderPlatformCell(row, "ol", olData, 5);
+
+  // 寫入快取
+  if (strategies) {
+    const olStrategy = strategies.open_library || "title_author";
+    setRatingCache(work.key, "open_library", olStrategy, olData);
+  }
 }
 
 function updateManualSearchLinks(query) {

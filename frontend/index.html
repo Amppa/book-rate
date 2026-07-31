@@ -187,49 +187,12 @@
     </tr>
   </template>
   <template id="candidate-template">
-    <article class="candidate-card" style="align-items: flex-start;">
-      <div class="candidate-info-wrapper">
-        <div class="candidate-header-row">
-          <h3 class="candidate-title"></h3>
-          <span class="candidate-basic-meta"></span>
-        </div>
-        <div class="candidate-details-row" hidden>
-          <div class="metadata-table-container">
-            <table class="metadata-table">
-              <tbody>
-                <tr>
-                  <th>作者</th>
-                  <td class="meta-author"></td>
-                </tr>
-                <tr>
-                  <th>出版年份</th>
-                  <td class="meta-year"></td>
-                </tr>
-                <tr>
-                  <th>版本數量</th>
-                  <td class="meta-editions"></td>
-                </tr>
-                <tr>
-                  <th>ISBN</th>
-                  <td class="meta-primary-isbn"></td>
-                </tr>
-                <tr>
-                  <th>系列 ISBN</th>
-                  <td class="meta-other-isbns"></td>
-                </tr>
-                <tr>
-                  <th>外部連結</th>
-                  <td class="meta-links"></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <div class="candidate-actions">
-          <button type="button" class="toggle-metadata-btn btn-secondary btn-sm">metadata</button>
-        </div>
+    <article class="candidate-card">
+      <div>
+        <h3 class="candidate-title"></h3>
+        <a class="candidate-meta candidate-link" target="_blank" rel="noopener noreferrer"></a>
       </div>
-      <button type="button" class="select-work" style="margin-top: 6px;">Choose</button>
+      <button type="button" class="select-work">Choose</button>
     </article>
   </template>
 
