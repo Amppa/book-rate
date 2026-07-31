@@ -471,53 +471,79 @@ function renderPlatformCell(row, prefix, data, maxRate = 5) {
   if (!rateEl || !countEl) return;
   if (!data || Object.keys(data).length === 0) return;
 
-  if (data.quota_exceeded) {
-    rateEl.innerHTML = '<span class="error">額度超限 (429) ⚠️</span>';
-    countEl.textContent = "請在上方設定個人 API Key，或設定環境變數。";
-    return;
-  }
-
   const hasScore = typeof data.average === "number" && data.average > 0;
   const hasUrl = Boolean(data.url);
+  const status = data.status || (hasScore ? "MATCH" : "NO_MATCH");
+  const isNetworkError = status && status !== "MATCH" && status !== "NO_MATCH" && status !== "QUOTA_EXCEEDED" && status !== "ERROR";
 
-  if (hasScore) {
-    rateEl.textContent = displayRate(data.average, data.count, maxRate);
+  // Clear previous elements
+  rateEl.replaceChildren();
+
+  let resultText = "";
+
+  if (data.quota_exceeded || status === "QUOTA_EXCEEDED") {
+    rateEl.innerHTML = '<span class="error">額度超限 (429) ⚠️</span>';
+    countEl.textContent = "請在上方設定個人 API Key，或設定環境變數。";
+    resultText = "額度超限 (429)";
+  } else if (status === "ERROR") {
+    rateEl.innerHTML = '<span class="error">讀取錯誤 ⚠️</span>';
+    countEl.textContent = "請檢查主機連線。";
+    resultText = "讀取錯誤";
+  } else if (isNetworkError) {
+    rateEl.innerHTML = '<span class="error">連線異常 ⚠️</span>';
+    countEl.textContent = status; // Shows HTTP 503 etc.
+    resultText = `連線異常 (${status})`;
+  } else if (hasScore) {
+    const rateText = displayRate(data.average, data.count, maxRate);
+    rateEl.textContent = rateText;
     renderCountCell(countEl, data.count, data.url);
+    resultText = `${rateText} (${displayCount(data.count)} 條評價)`;
   } else if (hasUrl) {
     rateEl.textContent = "暫無評分";
     countEl.innerHTML = `<a href="${data.url}" target="_blank" rel="noreferrer">連結 ↗</a>`;
+    resultText = "暫無評分 (但有網頁連結)";
   } else {
     rateEl.textContent = "無此書籍";
     countEl.textContent = "-";
+    resultText = "無此書籍";
   }
 
-  // Render search metadata for debugging and comparison
+  // Render status tag at the bottom of the td cell
   const cell = rateEl.closest("td");
   if (cell) {
-    let metaBox = cell.querySelector(".search-meta-box");
-    if (!metaBox) {
-      metaBox = document.createElement("div");
-      metaBox.className = "search-meta-box";
-      cell.append(metaBox);
-    }
-    const status = data.status || (hasScore ? "MATCH" : "NO_MATCH");
-    const strategyLabels = {
-      isbn_primary: "ISBN (Primary)",
-      isbn_all: "ISBN (All)",
-      title: "Title",
-      title_author: "Title + Author",
-      title_author_year: "Title + Author + Year",
-      provider_id: "Provider ID"
-    };
-    const stratText = strategyLabels[data.strategy] || data.strategy || "";
-    const queryText = data.query || "";
+    const oldTag = cell.querySelector(".search-status-tag");
+    if (oldTag) oldTag.remove();
 
-    metaBox.innerHTML = `
-      <div class="search-meta-line"><span class="search-status-tag status-${status.toLowerCase()}">${status}</span></div>
-      ${stratText ? `<div class="search-meta-line" title="Strategy: ${stratText}">Strat: ${stratText}</div>` : ""}
-      ${queryText ? `<div class="search-meta-line" title="Query: ${queryText}">Q: ${queryText}</div>` : ""}
-    `;
+    const tag = document.createElement("span");
+    tag.className = `search-status-tag status-${status.toLowerCase().replace(/[^a-z0-9_]/g, "-")}`;
+    tag.textContent = status;
+    tag.dataset.strat = data.strategy || "";
+    tag.dataset.query = data.query || "";
+    tag.title = "點擊查看搜尋細節";
+
+    cell.appendChild(tag);
   }
+}
+
+function getProviderDisplayName(key) {
+  const names = {
+    open_library: "Open Library",
+    ol: "Open Library",
+    google_books: "Google Books",
+    gb: "Google Books",
+    google: "Google Books",
+    goodreads: "Goodreads",
+    gr: "Goodreads",
+    douban: "豆瓣",
+    db: "豆瓣",
+    amazon: "Amazon",
+    am: "Amazon",
+    amazon_jp: "Amazon JP",
+    amjp: "Amazon JP",
+    storygraph: "StoryGraph",
+    sg: "StoryGraph"
+  };
+  return names[key] || key;
 }
 
 function updateWorkDetailRow(row, { work, ratings, editions, google, goodreads, douban, amazon, amazon_jp, storygraph }) {
@@ -1248,4 +1274,55 @@ if (openPlatformInfoBtn) {
     }
   });
 }
+
+// Debug Modal logic
+const debugModal = document.querySelector("#debug-modal");
+const closeDebugBtn = document.querySelector("#close-debug-btn");
+
+if (debugModal && closeDebugBtn) {
+  const closeDebug = () => {
+    debugModal.classList.remove("open");
+    setTimeout(() => {
+      if (!debugModal.classList.contains("open")) {
+        debugModal.hidden = true;
+      }
+    }, 300);
+  };
+
+  closeDebugBtn.addEventListener("click", closeDebug);
+  debugModal.addEventListener("click", (e) => {
+    if (e.target === debugModal) {
+      closeDebug();
+    }
+  });
+}
+
+// Event delegation for search status tags
+const ratingTableBody = document.querySelector("#result-body");
+if (ratingTableBody) {
+  ratingTableBody.addEventListener("click", (e) => {
+    const tag = e.target.closest(".search-status-tag");
+    if (tag && debugModal) {
+      // Set strategy label
+      const strategyLabels = {
+        isbn_primary: "ISBN (Primary)",
+        isbn_all: "ISBN (All)",
+        title: "Title",
+        title_author: "Title + Author",
+        title_author_year: "Title + Author + Year",
+        provider_id: "Provider ID"
+      };
+      const strat = tag.dataset.strat;
+      document.querySelector("#debug-strategy").textContent = strategyLabels[strat] || strat || "-";
+
+      // Set query used
+      document.querySelector("#debug-query").textContent = tag.dataset.query || "-";
+
+      // Open debug modal
+      debugModal.hidden = false;
+      setTimeout(() => debugModal.classList.add("open"), 10);
+    }
+  });
+}
+
 

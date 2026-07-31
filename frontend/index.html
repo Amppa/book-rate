@@ -325,6 +325,28 @@
     </div>
   </div>
 
+  <!-- 偵錯資訊 Modal -->
+  <div id="debug-modal" class="modal" hidden>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>搜尋細節</h3>
+        <button type="button" id="close-debug-btn" class="close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <table class="debug-table" style="width: 100%; border-collapse: collapse; margin-top: var(--space-2);">
+          <tr style="border-bottom: 1px solid var(--border-light);">
+            <th style="text-align: left; padding: var(--space-3); width: 20%;">搜尋策略</th>
+            <td id="debug-strategy" style="padding: var(--space-3);">-</td>
+          </tr>
+          <tr style="border-bottom: 1px solid var(--border-light);">
+            <th style="text-align: left; padding: var(--space-3);">查詢關鍵字</th>
+            <td id="debug-query" style="padding: var(--space-3); font-family: monospace; word-break: break-all;">-</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <script src="./app.js?v=1.0.11"></script>
 </body>
 

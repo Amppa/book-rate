@@ -360,29 +360,20 @@ a.candidate-meta:hover {
   border-color: var(--primary);
 }
 
-.search-meta-box {
-  margin-top: 6px;
-  padding-top: 4px;
-  border-top: 1px dashed var(--border-light);
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  line-height: 1.35;
-}
-
-.search-meta-line {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 140px;
-}
-
 .search-status-tag {
   display: inline-block;
-  padding: 1px 4px;
+  padding: 2px 6px;
   border-radius: 3px;
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.03em;
+  cursor: pointer;
+  margin-top: 6px;
+  transition: opacity 0.2s ease;
+}
+
+.search-status-tag:hover {
+  opacity: 0.8;
 }
 
 .search-status-tag.status-match {
@@ -395,7 +386,10 @@ a.candidate-meta:hover {
   color: #5f6368;
 }
 
-.search-status-tag.status-quota_exceeded {
+.search-status-tag.status-quota_exceeded,
+.search-status-tag.status-error,
+.search-status-tag[class*="status-http-"],
+.search-status-tag[class*="status-error-"] {
   background: #fce8e6;
   color: #c5221f;
 }

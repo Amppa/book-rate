@@ -4,7 +4,7 @@ from typing import List, Optional
 from urllib.parse import quote_plus
 
 from book_rate.models import Work, PlatformRating
-from book_rate.providers.base import BaseProvider
+from book_rate.providers.base import BaseProvider, ProviderNetworkError
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,18 @@ class AmazonJPProvider(BaseProvider):
     def __init__(self, timeout: int = 10):
         super().__init__(timeout=timeout)
         self.session.headers.update({
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
             "Accept-Language": "ja-JP,ja;q=0.9,en-US;q=0.8,en;q=0.7",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Connection": "keep-alive",
+            "Upgrade-Insecure-Requests": "1",
+            "Sec-Ch-Ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+            "Sec-Ch-Ua-Mobile": "?0",
+            "Sec-Ch-Ua-Platform": '"Windows"',
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "none",
+            "Sec-Fetch-User": "?1",
         })
 
     @property
@@ -37,11 +48,13 @@ class AmazonJPProvider(BaseProvider):
                 timeout=self.timeout
             )
             if resp.status_code != 200:
-                return []
+                raise ProviderNetworkError(f"HTTP {resp.status_code}", status_code=resp.status_code)
             html_str = resp.text
         except Exception as e:
+            if isinstance(e, ProviderNetworkError):
+                raise e
             logger.warning(f"Amazon JP search failed for '{query}': {e}")
-            return []
+            raise ProviderNetworkError(f"Network Error: {e}")
 
         works: List[Work] = []
         item_blocks = re.findall(r'data-component-type="s-search-result".*?(?=data-component-type="s-search-result"|$)', html_str, re.DOTALL)

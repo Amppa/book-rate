@@ -16,6 +16,13 @@ class SearchStrategy:
     PROVIDER_ID = "provider_id"
 
 
+class ProviderNetworkError(Exception):
+    def __init__(self, message: str, status_code: Optional[int] = None):
+        super().__init__(message)
+        self.message = message
+        self.status_code = status_code
+
+
 class BaseProvider:
     """Base abstract class for all book rating providers."""
 
@@ -97,6 +104,7 @@ class BaseProvider:
 
         candidate_works: List[Work] = []
         query_used = ""
+        network_error_msg = None
 
         primary_isbn = getattr(work, "isbn", None)
         if not primary_isbn and work.editions:
@@ -114,8 +122,10 @@ class BaseProvider:
                 query_used = cleaned
                 try:
                     candidate_works.extend(search(cleaned))
+                except ProviderNetworkError as ne:
+                    network_error_msg = ne.message
                 except Exception as e:
-                    logger.debug(f"[{self.name}] Query failed for primary ISBN {cleaned}: {e}")
+                    network_error_msg = f"Error: {e}"
 
         elif strat == SearchStrategy.ISBN_ALL:
             isbns = extract_isbns_from_work(work)
@@ -124,16 +134,22 @@ class BaseProvider:
                 for isbn in isbns[:5]:
                     try:
                         candidate_works.extend(search(isbn))
+                    except ProviderNetworkError as ne:
+                        network_error_msg = ne.message
+                        break
                     except Exception as e:
-                        logger.debug(f"[{self.name}] Query failed for edition ISBN {isbn}: {e}")
+                        network_error_msg = f"Error: {e}"
+                        break
 
         elif strat == SearchStrategy.TITLE:
             query_used = target_title or ""
             if query_used:
                 try:
                     candidate_works.extend(search(query_used))
+                except ProviderNetworkError as ne:
+                    network_error_msg = ne.message
                 except Exception as e:
-                    logger.debug(f"[{self.name}] Query failed for title '{query_used}': {e}")
+                    network_error_msg = f"Error: {e}"
 
         elif strat == SearchStrategy.TITLE_AUTHOR:
             clean_author = ""
@@ -143,8 +159,10 @@ class BaseProvider:
             if query_used:
                 try:
                     candidate_works.extend(search(query_used))
+                except ProviderNetworkError as ne:
+                    network_error_msg = ne.message
                 except Exception as e:
-                    logger.debug(f"[{self.name}] Query failed for query '{query_used}': {e}")
+                    network_error_msg = f"Error: {e}"
 
         elif strat == SearchStrategy.TITLE_AUTHOR_YEAR:
             clean_author = ""
@@ -163,8 +181,10 @@ class BaseProvider:
             if query_used:
                 try:
                     candidate_works.extend(search(query_used))
+                except ProviderNetworkError as ne:
+                    network_error_msg = ne.message
                 except Exception as e:
-                    logger.debug(f"[{self.name}] Query failed for query '{query_used}': {e}")
+                    network_error_msg = f"Error: {e}"
 
         elif strat == SearchStrategy.PROVIDER_ID:
             query_used = work.work_id
@@ -189,8 +209,10 @@ class BaseProvider:
             if p_prefix and (work.work_id.startswith(p_prefix) or (p_prefix == "/works/" and "OL" in work.work_id)):
                 try:
                     candidate_works.extend(search(work.work_id))
+                except ProviderNetworkError as ne:
+                    network_error_msg = ne.message
                 except Exception as e:
-                    logger.debug(f"[{self.name}] Query failed for provider ID '{work.work_id}': {e}")
+                    network_error_msg = f"Error: {e}"
 
         best_rating = self._select_best_rating(candidate_works, target_title=target_title)
         if best_rating and (best_rating.rate is not None or best_rating.rating_count is not None or best_rating.url):
@@ -204,6 +226,6 @@ class BaseProvider:
             url=None,
             strategy=strat,
             query=query_used,
-            status="NO_MATCH"
+            status=network_error_msg if network_error_msg else "NO_MATCH"
         )
 
