@@ -6,20 +6,20 @@ export const CACHE_PREFIX = "bookrate:cache:";
 export const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 export const PROVIDERS = [
-  { id: "open_library",  label: "Open Library",  defaultStrategy: "title_author" },
-  { id: "goodreads",     label: "Goodreads",      defaultStrategy: "title_author" },
-  { id: "douban",        label: "豆瓣",            defaultStrategy: "isbn_primary" },
-  { id: "amazon",        label: "Amazon",         defaultStrategy: "isbn_primary" },
-  { id: "amazon_jp",     label: "Amazon JP",      defaultStrategy: "isbn_primary" },
-  { id: "storygraph",    label: "StoryGraph",     defaultStrategy: "title_author" },
+  { id: "open_library", label: "Open Library", defaultStrategy: "title_author" },
+  { id: "goodreads", label: "Goodreads", defaultStrategy: "title_author" },
+  { id: "douban", label: "豆瓣", defaultStrategy: "title" },
+  { id: "amazon", label: "Amazon", defaultStrategy: "title_author" },
+  { id: "amazon_jp", label: "Amazon JP", defaultStrategy: "title_author" },
+  { id: "storygraph", label: "StoryGraph", defaultStrategy: "title_author" },
 ];
 
 export const STRATEGIES = [
-  { value: "isbn_primary",    label: "ISBN (Primary)" },
-  { value: "isbn_all",        label: "ISBN (All Editions)" },
+  { value: "isbn_primary", label: "ISBN (Primary)" },
+  { value: "isbn_all", label: "ISBN (All Editions)" },
   { value: "title_author_year", label: "Title + Author + Year" },
-  { value: "title_author",    label: "Title + Author" },
-  { value: "title",           label: "Title" },
+  { value: "title_author", label: "Title + Author" },
+  { value: "title", label: "Title" },
 ];
 
 export const PROVIDER_CHECKBOX_SUFFIX = {

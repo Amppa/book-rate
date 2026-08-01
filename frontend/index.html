@@ -81,11 +81,10 @@
               <h3 class="step2-block-title">選取書籍資料庫</h3>
               <div class="other-engines-buttons">
                 <button type="button" id="search-ol-btn" class="engine-tab-btn active">Open Library</button>
-                <button type="button" id="search-gr-btn" class="engine-tab-btn">Goodreads</button>
                 <button type="button" id="search-gb-btn" class="engine-tab-btn">Google Books</button>
+                <button type="button" id="search-gr-btn" class="engine-tab-btn">Goodreads</button>
                 <button type="button" id="search-db-btn" class="engine-tab-btn">豆瓣</button>
                 <button type="button" id="search-amjp-btn" class="engine-tab-btn">Amazon JP</button>
-                <button type="button" id="search-sg-btn" class="engine-tab-btn">StoryGraph</button>
               </div>
             </div>
 
@@ -152,7 +151,7 @@
     </div>
     <footer class="app-footer search-engine-note">
       <p>
-        <span id="open-platform-info-btn" class="info-text-link" role="button" tabindex="0">[平台來源比較]</span>
+        <span id="open-platform-info-btn" class="info-text-link" role="button" tabindex="0">[書籍資料庫比較]</span>
       </p>
       <p>
         GitHub：
@@ -166,13 +165,16 @@
       <td class="work-info-cell">
         <div class="info-author"></div>
         <div class="info-publish"></div>
-        <div class="info-metadata-btn-row" style="display: flex; gap: var(--space-2); align-items: center; margin-top: var(--space-1);">
+        <div class="info-metadata-btn-row"
+          style="display: flex; gap: var(--space-2); align-items: center; margin-top: var(--space-1);">
           <button type="button" class="toggle-metadata-btn btn-secondary btn-xs">metadata</button>
         </div>
-        <div class="step3-metadata-details" hidden style="margin-top: var(--space-2); padding-top: var(--space-2); border-top: 1px dashed var(--border-light); font-size: 0.8rem; width: 100%; display: flex; flex-direction: column; gap: 4px;">
+        <div class="step3-metadata-details" hidden
+          style="margin-top: var(--space-2); padding-top: var(--space-2); border-top: 1px dashed var(--border-light); font-size: 0.8rem; width: 100%; display: flex; flex-direction: column; gap: 4px;">
           <div>
             <strong>版本數量:</strong>
-            <button type="button" class="btn-link show-editions-btn" style="padding: 0; border: 0; font-size: inherit; background: transparent; cursor: pointer; text-decoration: underline; color: var(--link);">
+            <button type="button" class="btn-link show-editions-btn"
+              style="padding: 0; border: 0; font-size: inherit; background: transparent; cursor: pointer; text-decoration: underline; color: var(--link);">
               <span class="edition-count"></span>
             </button>
           </div>
