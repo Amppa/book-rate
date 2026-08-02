@@ -5,6 +5,7 @@ export function renderProviderToggles(container) {
   container.innerHTML = '<span class="toggle-title">來源：</span>';
 
   PROVIDERS.forEach((provider) => {
+    const suffix = PROVIDER_CHECKBOX_SUFFIX[provider.id];
     const item = document.createElement("div");
     item.className = "provider-toggle-item";
 
@@ -13,13 +14,29 @@ export function renderProviderToggles(container) {
 
     const input = document.createElement("input");
     input.type = "checkbox";
-    input.id = `score-${PROVIDER_CHECKBOX_SUFFIX[provider.id]}`;
+    input.id = `score-${suffix}`;
 
     const span = document.createElement("span");
     span.textContent = provider.label;
 
     label.appendChild(input);
     label.appendChild(span);
+    item.appendChild(label);
+    container.appendChild(item);
+  });
+}
+
+export function renderStrategySelects(strategyRow) {
+  if (!strategyRow) return;
+  strategyRow.replaceChildren();
+
+  strategyRow.appendChild(document.createElement("th"));
+  strategyRow.appendChild(document.createElement("th"));
+
+  PROVIDERS.forEach((provider) => {
+    const suffix = PROVIDER_CHECKBOX_SUFFIX[provider.id];
+    const th = document.createElement("th");
+    th.className = `col-${suffix}`;
 
     const select = document.createElement("select");
     select.className = "strategy-select";
@@ -32,9 +49,8 @@ export function renderProviderToggles(container) {
       select.appendChild(opt);
     });
 
-    item.appendChild(label);
-    item.appendChild(select);
-    container.appendChild(item);
+    th.appendChild(select);
+    strategyRow.appendChild(th);
   });
 }
 

@@ -1,16 +1,29 @@
-# BookRate Project Guide (claude.md)
+# BookRate Project Guide
 
-This document helps AI assistants (Claude, Gemini, GPT) quickly grasp the codebase architecture, data flows, and specific design patterns of the BookRate project.
+This doc helps AI assistants (Claude, Gemini, GPT) quickly grasp the codebase architecture, data flows, and specific design patterns of the BookRate project.
 
 ---
 
 ## 1. Project Overview & Core Workflow
-BookRate is a multi-platform book rating aggregator. Users search by book title or ISBN, and the system concurrently queries multiple platforms (Open Library, Goodreads, Douban, Amazon, Amazon JP, StoryGraph) to display an aggregated rating table.
+BookRate is a multi-platform book rating aggregator. 
+Users search by book title or ISBN
+The system concurrently queries multiple platforms (Open Library, Goodreads, Douban, Amazon, Amazon JP, StoryGraph) to display an aggregated rating table.
 
 ### Step-by-Step Flow:
-1. **Step 1 (Search)**: Query list of candidate books via `/api/search`.
-2. **Step 2 (Select)**: Display candidate cards. Users can click `[more]` to open a popup modal and select checkboxes to toggle database search tab buttons. Default active buttons are Open Library (OL) and Google Books (GB).
-3. **Step 3 (Compare)**: Display edition details (fetched via Open Library) and stream rating cells concurrently using Server-Sent Events (SSE).
+1. **Step 1 (Search)**: input book title or ISBN. Query list of candidate books via `/api/search`.
+2. **Step 2 (Select)**: Users can toggle database to search. Display candidate list of cards.
+3. **Step 3 (Compare)**: Collecting book metadata from Open Library. 
+Fetching ratings from platforms=providers
+Each platform has different strategy (ISBN or book title)
+
+### Acronym of rating providers
+Open Library: OL
+Google Books: GB
+Goodreads: GR
+Amazon: AM
+Amazon JP: AM_JP
+Douban: DB
+StoryGraph: SG
 
 ---
 
@@ -42,7 +55,7 @@ Located in `frontend/`:
 - Since Open Library ratings are received during the `init` event rather than subsequent `platform` events, its cache is written during the `init` handler in `updateWorkDetailRow()`.
 
 ### Strategy Dropdowns Delegation
-- `strategy-select` dropdowns are rendered inside the table `<thead>` elements (`<th>` tag's second line) rather than settings checkboxes.
+- `strategy-select` dropdowns are rendered inside the table `<thead>` elements
 - A global `change` listener is bound to `document` to handle both settings checkboxes and header select inputs:
   ```javascript
   document.addEventListener("change", (e) => { ... });

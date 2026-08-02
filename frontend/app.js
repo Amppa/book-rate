@@ -1,7 +1,7 @@
 import { OPEN_LIBRARY_BASE_URL, MAX_CANDIDATES, HISTORY_KEY, PROVIDERS, STRATEGIES, PROVIDER_CHECKBOX_SUFFIX } from './js/constants.js';
 import { getCachedData, setCachedData, getRatingCache, setRatingCache, cleanExpiredCache } from './js/cache.js';
 import { fetchJson, displayRate, displayCount, getWorkExternalUrl, getProviderDisplayName } from './js/utils.js';
-import { renderProviderToggles, updateTableVisibility, openEditionsModal } from './js/ui.js';
+import { renderProviderToggles, renderStrategySelects, updateTableVisibility, openEditionsModal } from './js/ui.js';
 
 // Clean expired cache entries on load
 cleanExpiredCache();
@@ -320,8 +320,20 @@ function reQuerySingleProvider(work, providerKey) {
 
 // Bind strategy select change handler via delegation
 const scoreToggleBarEl = document.querySelector("#score-toggle-bar");
+const scoreStrategyRowEl = document.querySelector("#score-strategy-row");
+
 if (scoreToggleBarEl) {
   scoreToggleBarEl.addEventListener("change", (e) => {
+    if (e.target.type === "checkbox") {
+      const id = e.target.id.replace("score-", "");
+      localStorage.setItem(`bookrate:score:${id}`, e.target.checked);
+      updateTableVisibility(ratingTable);
+    }
+  });
+}
+
+if (scoreStrategyRowEl) {
+  scoreStrategyRowEl.addEventListener("change", (e) => {
     if (e.target.classList.contains("strategy-select")) {
       const providerKey = e.target.dataset.provider;
       if (providerKey) {
@@ -330,10 +342,6 @@ if (scoreToggleBarEl) {
       if (currentSelectedWork && providerKey) {
         reQuerySingleProvider(currentSelectedWork, providerKey);
       }
-    } else if (e.target.type === "checkbox") {
-      const id = e.target.id.replace("score-", ""); // 'ol', 'gr' 等
-      localStorage.setItem(`bookrate:score:${id}`, e.target.checked);
-      updateTableVisibility(ratingTable);
     }
   });
 }
@@ -785,6 +793,7 @@ if (clearApiKeyBtn) {
 // Settings checkboxes logic
 function initSettings() {
   renderProviderToggles(scoreToggleBarEl);
+  renderStrategySelects(scoreStrategyRowEl);
 
   PROVIDERS.forEach((provider) => {
     const suffix = PROVIDER_CHECKBOX_SUFFIX[provider.id];
