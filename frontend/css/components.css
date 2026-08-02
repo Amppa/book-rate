@@ -339,7 +339,8 @@ a.candidate-meta:hover {
   gap: var(--space-2);
   font-size: var(--fs-sm);
   color: var(--text-primary);
-  cursor: pointer;
+  cursor: pointer; 
+  margin-bottom: 0;
 }
 
 .thead-strategy-row th {
