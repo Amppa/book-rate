@@ -1,4 +1,4 @@
-import { OPEN_LIBRARY_BASE_URL, MAX_CANDIDATES, HISTORY_KEY, PROVIDERS, STRATEGIES, PROVIDER_CHECKBOX_SUFFIX } from './js/constants.js';
+import { OPEN_LIBRARY_BASE_URL, MAX_CANDIDATES, HISTORY_KEY, PROVIDERS, STRATEGIES, PROVIDER_CHECKBOX_SUFFIX, PROVIDER_PREFIX } from './js/constants.js';
 import { getCachedData, setCachedData, getRatingCache, setRatingCache, cleanExpiredCache } from './js/cache.js';
 import { fetchJson, displayRate, displayCount, getWorkExternalUrl, getProviderDisplayName } from './js/utils.js';
 import { renderProviderToggles, renderStrategySelects, updateTableVisibility, openEditionsModal } from './js/ui.js';
@@ -193,19 +193,9 @@ async function selectWork(work) {
     }
   });
 
-  const prefixMap = {
-    open_library: "ol",
-    goodreads: "gr",
-    douban: "db",
-    amazon: "am",
-    amazon_jp: "amjp",
-    storygraph: "sg",
-    readmoo: "rm"
-  };
-
   // 立即渲染已命中的快取
   cachedEngines.forEach(({ provider, data }) => {
-    const prefix = prefixMap[provider] || provider;
+    const prefix = PROVIDER_PREFIX[provider] || provider;
     const maxRate = prefix === "db" ? 10 : 5;
     renderPlatformCell(row, prefix, data, maxRate);
   });
@@ -231,7 +221,7 @@ async function selectWork(work) {
           const platformKey = data.platform;
           collectedDetails[platformKey] = data.data;
 
-          const prefix = prefixMap[platformKey] || platformKey;
+          const prefix = PROVIDER_PREFIX[platformKey] || platformKey;
           const maxRate = prefix === "db" ? 10 : 5;
 
           // 寫入評分快取
@@ -264,16 +254,7 @@ function reQuerySingleProvider(work, providerKey) {
   const row = resultBody.querySelector(".work-row");
   if (!row) return;
 
-  const prefixMap = {
-    open_library: "ol",
-    goodreads: "gr",
-    douban: "db",
-    amazon: "am",
-    amazon_jp: "amjp",
-    storygraph: "sg",
-    readmoo: "rm"
-  };
-  const prefix = prefixMap[providerKey] || providerKey;
+  const prefix = PROVIDER_PREFIX[providerKey] || providerKey;
   const rateEl = row.querySelector(`.${prefix}-rate`);
   const countEl = row.querySelector(`.${prefix}-count`);
   if (rateEl && countEl) {

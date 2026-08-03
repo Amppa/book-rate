@@ -38,19 +38,6 @@ class ReadmooProvider(BaseProvider):
         m = re.search(r"/book/(\d+)", url or "")
         return m.group(1) if m else None
 
-    def _fetch_book_rating(self, book_id: str) -> Optional[PlatformRating]:
-        """Fetch a Readmoo book page and build a PlatformRating with full rating data."""
-        page = self._fetch_book_page(book_id)
-        if page["rate"] is None and page["count"] is None and page["title"] is None:
-            return None
-        return PlatformRating(
-            platform_name=self.name,
-            rate=page["rate"],
-            rating_count=page["count"],
-            url=page["url"],
-            title=page["title"] or None,
-        )
-
     def _fetch_book_page(self, book_id: str) -> dict:
         """Fetch and parse a Readmoo book page into rating/title/author details."""
         url = f"{self.BASE_URL}/book/{book_id}"
@@ -225,41 +212,58 @@ class ReadmooProvider(BaseProvider):
 
         return works
 
+    def _rating_from_page(self, page: dict, strategy: Optional[str], query: str) -> Optional[PlatformRating]:
+        """Build a PlatformRating from a book page dict when any data exists."""
+        if page["rate"] is None and page["count"] is None and page["title"] is None:
+            return None
+        return PlatformRating(
+            platform_name=self.name,
+            rate=page["rate"],
+            rating_count=page["count"],
+            url=page["url"],
+            title=page["title"] or None,
+            strategy=strategy,
+            query=query,
+            status="MATCH" if (page["rate"] is not None or page["count"] is not None) else "NO_MATCH",
+        )
+
+    def _enrich_with_book_page(self, rating: PlatformRating) -> PlatformRating:
+        """Search-page ratings lack review counts; fill in full data from the book page."""
+        if not (rating and rating.url):
+            return rating
+        book_id = self._extract_book_id_from_url(rating.url)
+        if not book_id:
+            return rating
+
+        page = self._fetch_book_page(book_id)
+        if page["rate"] is None and page["count"] is None:
+            return rating
+
+        if page["rate"] is not None:
+            rating.rate = page["rate"]
+        if page["count"] is not None:
+            rating.rating_count = page["count"]
+        if not rating.title and page["title"]:
+            rating.title = page["title"]
+        rating.status = "MATCH"
+        return rating
+
     def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> PlatformRating:
         """Fetch Readmoo rating for a Work using explicit SearchStrategy."""
         target_id = getattr(work, "work_id", "") or ""
         if target_id.startswith("rm:"):
             # Direct Readmoo book ID: fetch the book page directly.
-            book_id = target_id[3:]
-            page = self._fetch_book_page(book_id)
-            if page["rate"] is not None or page["count"] is not None or page["title"] is not None:
-                rating = PlatformRating(
-                    platform_name=self.name,
-                    rate=page["rate"],
-                    rating_count=page["count"],
-                    url=page["url"],
-                    title=page["title"] or None,
-                    strategy=strategy or "provider_id",
-                    query=target_id,
-                    status="MATCH" if (page["rate"] is not None or page["count"] is not None) else "NO_MATCH",
-                )
+            page = self._fetch_book_page(target_id[3:])
+            rating = self._rating_from_page(page, strategy or "provider_id", target_id)
+            if rating:
                 return rating
+            return PlatformRating(
+                platform_name=self.name,
+                url=None,
+                strategy=strategy or "provider_id",
+                query=target_id,
+                status="NO_MATCH",
+            )
 
         rating = self._fetch_ratings(work, strategy=strategy)
-
-        # 搜尋頁的 avg-rating 沒有評價人數；若命中有書籍頁連結，補抓完整評分資料。
-        if rating and rating.url:
-            book_id = self._extract_book_id_from_url(rating.url)
-            if book_id:
-                page = self._fetch_book_page(book_id)
-                if page["rate"] is not None or page["count"] is not None:
-                    if page["rate"] is not None:
-                        rating.rate = page["rate"]
-                    if page["count"] is not None:
-                        rating.rating_count = page["count"]
-                    if not rating.title and page["title"]:
-                        rating.title = page["title"]
-                    if rating.rate is not None or rating.rating_count is not None:
-                        rating.status = "MATCH"
-
-        return rating
+        return self._enrich_with_book_page(rating)

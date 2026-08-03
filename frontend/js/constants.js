@@ -33,6 +33,17 @@ export const PROVIDER_CHECKBOX_SUFFIX = {
   readmoo: "rm"
 };
 
+// provider id -> result table column prefix (共用於 selectWork / reQuerySingleProvider)
+export const PROVIDER_PREFIX = {
+  open_library: "ol",
+  goodreads: "gr",
+  douban: "db",
+  amazon: "am",
+  amazon_jp: "amjp",
+  storygraph: "sg",
+  readmoo: "rm"
+};
+
 export const LANGUAGE_NAME_MAP = {
   eng: "English",
   en: "English",
