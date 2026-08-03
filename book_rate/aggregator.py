@@ -8,6 +8,7 @@ from book_rate.providers.douban import DoubanProvider
 from book_rate.providers.amazon import AmazonProvider
 from book_rate.providers.amazon_jp import AmazonJPProvider
 from book_rate.providers.storygraph import StoryGraphProvider
+from book_rate.providers.readmoo import ReadmooProvider
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,7 @@ class BookAggregator:
         self.amazon = AmazonProvider()
         self.amazon_jp = AmazonJPProvider()
         self.storygraph = StoryGraphProvider()
+        self.readmoo = ReadmooProvider()
 
     def aggregate_by_title(self, title_query: str, limit: int = 5) -> List[Work]:
         """
@@ -78,6 +80,11 @@ class BookAggregator:
             if self.storygraph.name not in work.ratings:
                 sg_rating = self.storygraph.fetch_ratings(work)
                 work.ratings[self.storygraph.name] = sg_rating or PlatformRating(platform_name=self.storygraph.name)
+
+            # Enrich with Readmoo rating
+            if self.readmoo.name not in work.ratings:
+                rm_rating = self.readmoo.fetch_ratings(work)
+                work.ratings[self.readmoo.name] = rm_rating or PlatformRating(platform_name=self.readmoo.name)
 
             aggregated_works.append(work)
 

@@ -24,6 +24,7 @@ Amazon: AM
 Amazon JP: AM_JP
 Douban: DB
 StoryGraph: SG
+Readmoo: RM
 
 ---
 

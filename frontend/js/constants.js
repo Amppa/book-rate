@@ -12,6 +12,7 @@ export const PROVIDERS = [
   { id: "amazon", label: "Amazon", defaultStrategy: "title_author" },
   { id: "amazon_jp", label: "Amazon JP", defaultStrategy: "title_author" },
   { id: "storygraph", label: "StoryGraph", defaultStrategy: "title_author" },
+  { id: "readmoo", label: "Readmoo", defaultStrategy: "title_author" },
 ];
 
 export const STRATEGIES = [
@@ -28,7 +29,8 @@ export const PROVIDER_CHECKBOX_SUFFIX = {
   douban: "db",
   amazon: "am",
   amazon_jp: "amjp",
-  storygraph: "sg"
+  storygraph: "sg",
+  readmoo: "rm"
 };
 
 export const LANGUAGE_NAME_MAP = {

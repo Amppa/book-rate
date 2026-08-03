@@ -203,6 +203,7 @@ class BaseProvider:
                 "Amazon JP": "amjp:",
                 "Amazon": "am:",
                 "StoryGraph": "sg:",
+                "Readmoo": "rm:",
                 "Open Library": "/works/"
             }
             p_prefix = prefix_map.get(self.name, "")

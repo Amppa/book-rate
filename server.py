@@ -23,6 +23,7 @@ douban = aggregator.douban
 amazon = aggregator.amazon
 amazon_jp = aggregator.amazon_jp
 storygraph = aggregator.storygraph
+readmoo = aggregator.readmoo
 
 def _format_editions(editions_list) -> dict:
     entries = []
@@ -85,7 +86,11 @@ def api_search(
     amjp_works = []
     if "amazon_jp" in active_engines and "open_library" not in active_engines and "google_books" not in active_engines and "goodreads" not in active_engines and "douban" not in active_engines and "storygraph" not in active_engines:
         amjp_works = amazon_jp.search_works(q, limit=10, page=page)
-        
+
+    rm_works = []
+    if "readmoo" in active_engines and "open_library" not in active_engines and "google_books" not in active_engines and "goodreads" not in active_engines and "douban" not in active_engines and "storygraph" not in active_engines and "amazon_jp" not in active_engines:
+        rm_works = readmoo.search_works(q, limit=10, page=page)
+
     results = []
     # Add Open Library works
     for w in works:
@@ -103,7 +108,7 @@ def api_search(
         for r in results
     }
     
-    for extra_works in [gb_works, gr_works, db_works, sg_works, amjp_works]:
+    for extra_works in [gb_works, gr_works, db_works, sg_works, amjp_works, rm_works]:
         for w in extra_works:
             author_list = [a.strip() for a in w.author.split(",")] if w.author and w.author not in ["Unknown Author", "Unknown"] else ["Unknown"]
             key_tuple = (w.title.lower().strip(), "".join(author_list).lower().strip())
@@ -150,7 +155,7 @@ def _resolve_work_editions_and_ol_rating(
     active_engines: list,
     gb_provider: Optional[GoogleBooksProvider] = None
 ) -> tuple[PlatformRating, list, Work]:
-    """Helper to resolve Open Library rating, editions, and target Work object for any work_id (OL, GB, GR, DB, SG, AMJP)."""
+    """Helper to resolve Open Library rating, editions, and target Work object for any work_id (OL, GB, GR, DB, SG, AMJP, RM)."""
     ol_rating = PlatformRating("Open Library")
     editions = []
     resolved_title = title or ""
@@ -304,6 +309,28 @@ def _resolve_work_editions_and_ol_rating(
         )
         return ol_rating, editions, target_work
 
+    elif work_id.startswith("rm:"):
+        book_id = work_id[3:]
+        ol_work_mapped = _find_ol_work(None, resolved_title, resolved_author, active_engines)
+        if ol_work_mapped:
+            ol_rating = open_library.fetch_ratings(ol_work_mapped)
+            editions = open_library.fetch_editions(ol_work_mapped.work_id, limit=100)
+
+        if not editions:
+            ed = Edition(
+                edition_id=book_id,
+                title=resolved_title or "Unknown"
+            )
+            editions = [ed]
+
+        target_work = Work(
+            work_id=work_id,
+            title=resolved_title,
+            author=resolved_author,
+            editions=editions
+        )
+        return ol_rating, editions, target_work
+
     else:
         full_work_id = work_id if work_id.startswith("/works/") else f"/works/{work_id}"
         if "open_library" in active_engines:
@@ -384,10 +411,11 @@ def api_work_details(
         "douban": douban,
         "amazon": amazon,
         "amazon_jp": amazon_jp,
-        "storygraph": storygraph
+        "storygraph": storygraph,
+        "readmoo": readmoo
     }
 
-    with ThreadPoolExecutor(max_workers=6) as executor:
+    with ThreadPoolExecutor(max_workers=7) as executor:
         for p_key, p_inst in prov_instances.items():
             if p_key in active_engines:
                 p_strat = strat_dict.get(p_key)
@@ -455,10 +483,11 @@ def api_work_details_stream(
             "douban": douban,
             "amazon": amazon,
             "amazon_jp": amazon_jp,
-            "storygraph": storygraph
+            "storygraph": storygraph,
+            "readmoo": readmoo
         }
 
-        with ThreadPoolExecutor(max_workers=6) as executor:
+        with ThreadPoolExecutor(max_workers=7) as executor:
             for p_key, p_inst in prov_instances.items():
                 if p_key in active_engines:
                     p_strat = strat_dict.get(p_key)

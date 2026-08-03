@@ -199,7 +199,8 @@ async function selectWork(work) {
     douban: "db",
     amazon: "am",
     amazon_jp: "amjp",
-    storygraph: "sg"
+    storygraph: "sg",
+    readmoo: "rm"
   };
 
   // 立即渲染已命中的快取
@@ -216,7 +217,7 @@ async function selectWork(work) {
       url += `&google_key=${encodeURIComponent(apiKey)}`;
     }
 
-    const collectedDetails = { work, ratings: {}, editions: {}, goodreads: {}, douban: {}, amazon: {}, amazon_jp: {}, storygraph: {} };
+    const collectedDetails = { work, ratings: {}, editions: {}, goodreads: {}, douban: {}, amazon: {}, amazon_jp: {}, storygraph: {}, readmoo: {} };
     const eventSource = new EventSource(url);
 
     eventSource.onmessage = (event) => {
@@ -269,7 +270,8 @@ function reQuerySingleProvider(work, providerKey) {
     douban: "db",
     amazon: "am",
     amazon_jp: "amjp",
-    storygraph: "sg"
+    storygraph: "sg",
+    readmoo: "rm"
   };
   const prefix = prefixMap[providerKey] || providerKey;
   const rateEl = row.querySelector(`.${prefix}-rate`);
@@ -369,7 +371,7 @@ function renderInitialWorkRow(work) {
 
   row.querySelector(".edition-count").textContent = "載入中...";
 
-  const prefixes = ["ol", "gr", "db", "am", "amjp", "sg"];
+  const prefixes = ["ol", "gr", "db", "am", "amjp", "sg", "rm"];
   prefixes.forEach((prefix) => {
     const rateEl = row.querySelector(`.${prefix}-rate`);
     const countEl = row.querySelector(`.${prefix}-count`);
@@ -565,6 +567,7 @@ function updateEngineTabs(engine) {
   const searchDbBtn = document.querySelector("#search-db-btn");
   const searchAmjpBtn = document.querySelector("#search-amjp-btn");
   const searchSgBtn = document.querySelector("#search-sg-btn");
+  const searchRmBtn = document.querySelector("#search-rm-btn");
 
   if (searchOlBtn) searchOlBtn.classList.toggle("active", engine === "open_library");
   if (searchGrBtn) searchGrBtn.classList.toggle("active", engine === "goodreads");
@@ -572,6 +575,7 @@ function updateEngineTabs(engine) {
   if (searchDbBtn) searchDbBtn.classList.toggle("active", engine === "douban");
   if (searchAmjpBtn) searchAmjpBtn.classList.toggle("active", engine === "amazon_jp");
   if (searchSgBtn) searchSgBtn.classList.toggle("active", engine === "storygraph");
+  if (searchRmBtn) searchRmBtn.classList.toggle("active", engine === "readmoo");
 }
 
 async function searchWorks(query, page, engine = "open_library") {
@@ -589,7 +593,8 @@ async function searchWorks(query, page, engine = "open_library") {
     google_books: "Google Books",
     douban: "豆瓣",
     amazon_jp: "Amazon JP",
-    storygraph: "StoryGraph"
+    storygraph: "StoryGraph",
+    readmoo: "Readmoo"
   };
   const engineName = engineNameMap[engine] || "資料庫";
 
@@ -669,6 +674,7 @@ const searchGbBtn = document.querySelector("#search-gb-btn");
 const searchDbBtn = document.querySelector("#search-db-btn");
 const searchAmjpBtn = document.querySelector("#search-amjp-btn");
 const searchSgBtn = document.querySelector("#search-sg-btn");
+const searchRmBtn = document.querySelector("#search-rm-btn");
 
 if (searchOlBtn) {
   searchOlBtn.addEventListener("click", () => {
@@ -720,6 +726,15 @@ if (searchSgBtn) {
     const q = searchInput.value.trim() || currentQuery;
     if (q) {
       searchWorks(q, 1, "storygraph");
+    }
+  });
+}
+
+if (searchRmBtn) {
+  searchRmBtn.addEventListener("click", () => {
+    const q = searchInput.value.trim() || currentQuery;
+    if (q) {
+      searchWorks(q, 1, "readmoo");
     }
   });
 }

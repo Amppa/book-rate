@@ -82,6 +82,11 @@ button:disabled:hover {
   display: none !important;
 }
 
+.hide-rm-score th.col-rm,
+.hide-rm-score td.col-rm {
+  display: none !important;
+}
+
 /* ==========================================================================
    Responsive Breakpoints
    ========================================================================== */

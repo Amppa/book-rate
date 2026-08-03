@@ -45,6 +45,7 @@ def extract_isbns_from_work(work: Work) -> List[str]:
             .replace("gr:", "")
             .replace("db:", "")
             .replace("sg:", "")
+            .replace("rm:", "")
             .replace("/works/", "")
         )
         _add(raw_id)

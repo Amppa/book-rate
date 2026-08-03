@@ -61,7 +61,7 @@ export function cleanExpiredCache() {
         const cached = localStorage.getItem(key);
         if (cached) {
           const { timestamp } = JSON.parse(cached);
-          if (Date.now() - timestamp > ONE_DAY_MS) {
+          if (Date.now() - timestamp > 7 * ONE_DAY_MS) {
             keysToRemove.push(key);
           }
         }
