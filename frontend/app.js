@@ -78,6 +78,37 @@ function renderHistory() {
   });
 }
 
+function getShortStatus(status) {
+  if (!status || status === "Normal") return null;
+
+  const lower = status.toLowerCase();
+
+  // Successful failover
+  if (lower.includes("successfully")) {
+    return { text: "failover", type: "warning" };
+  }
+
+  // HTTP status codes (e.g. HTTP 403)
+  const httpMatch = status.match(/HTTP\s+(\d+)/i) || status.match(/\b(403|404|503|500|429)\b/);
+  if (httpMatch) {
+    const code = httpMatch[1];
+    if (code === "403") {
+      return { text: "403", type: "error" };
+    }
+    return { text: `HTTP ${code}`, type: "error" };
+  }
+
+  if (lower.includes("waf") || lower.includes("challenge")) {
+    return { text: "WAF fail", type: "error" };
+  }
+
+  if (lower.includes("error") || lower.includes("failed")) {
+    return { text: "error", type: "error" };
+  }
+
+  return { text: status, type: "info" };
+}
+
 function renderCandidates(works) {
   candidateList.replaceChildren();
   works.forEach((work) => {
@@ -92,11 +123,22 @@ function renderCandidates(works) {
     const publishText = work.first_publish_year
       ? `首版 ${work.first_publish_year}`
       : "";
+
     let editionText = work.edition_count
       ? `${work.edition_count.toLocaleString()} 個版本`
       : "";
-    if (work.key && work.key.startsWith("gr:") && work.status) {
-      editionText += ` (${work.status})`;
+
+    const statusTag = fragment.querySelector(".candidate-status-tag");
+    if (statusTag && work.key && work.key.startsWith("gr:") && work.status) {
+      const shortInfo = getShortStatus(work.status);
+      if (shortInfo) {
+        statusTag.textContent = shortInfo.text;
+        statusTag.title = work.status; // Full detailed message as tooltip
+        statusTag.hidden = false;
+        statusTag.className = `candidate-status-tag status-tag-${shortInfo.type}`;
+      } else {
+        statusTag.hidden = true;
+      }
     }
 
     const metaText = [

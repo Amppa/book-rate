@@ -35,7 +35,7 @@ class GoodreadsProvider(BaseProvider):
                 ed_url = f"https://www.goodreads.com/book/editions/{book_id}"
                 ed_resp = self.session.get(ed_url, timeout=self.timeout)
                 if ed_resp.status_code == 200:
-                    res["crawler_status"] = "Show page WAF challenged. Failed over to Editions page successfully."
+                    res["crawler_status"] = "Normal"
                     
                     # 1. Extract work_id from final redirected URL
                     work_id_m = re.search(r'/work/editions/(\d+)', ed_resp.url)
@@ -85,8 +85,8 @@ class GoodreadsProvider(BaseProvider):
                 else:
                     res["crawler_status"] = f"HTTP {ed_resp.status_code}"
             except Exception as ed_e:
-                logger.debug(f"Failed to fetch failover editions for book '{book_id}': {ed_e}")
-                res["crawler_status"] = f"Failover error: {ed_e}"
+                logger.debug(f"Failed to fetch editions for book '{book_id}': {ed_e}")
+                res["crawler_status"] = f"Error: {ed_e}"
 
         return res
 

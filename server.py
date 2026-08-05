@@ -40,7 +40,7 @@ def _work_to_dict(work: Work) -> dict:
     if "Goodreads" in work.ratings:
         st = work.ratings["Goodreads"].status
         if st:
-            status = "error" if ("failed" in st.lower() or "error" in st.lower() or "http" in st.lower()) else "pass"
+            status = st
     return {
         "key": work.work_id,
         "title": work.title,

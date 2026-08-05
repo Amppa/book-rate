@@ -764,3 +764,30 @@ tbody tr:last-child td {
     transform: translateY(0);
   }
 }
+
+.candidate-status-tag {
+  font-size: var(--fs-xs);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.status-tag-info {
+  background-color: var(--surface-subtle);
+  color: var(--primary);
+  border: 1px solid var(--border);
+}
+
+.status-tag-warning {
+  background-color: #fef7e0;
+  color: #b06000;
+  border: 1px solid #f0b000;
+}
+
+.status-tag-error {
+  background-color: #fce8e6;
+  color: var(--error);
+  border: 1px solid var(--error);
+}
+
