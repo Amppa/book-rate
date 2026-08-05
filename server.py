@@ -26,7 +26,7 @@ storygraph = aggregator.storygraph
 readmoo = aggregator.readmoo
 
 # 其他資料庫的搜尋優先順序（OL / GB 未啟用時，僅取第一個命中的資料庫）
-EXTRA_SEARCH_ENGINES = ["goodreads", "douban", "storygraph", "amazon_jp", "readmoo"]
+TITLE_PROVIDERS = ["goodreads", "douban", "storygraph", "amazon_jp", "readmoo"]
 
 
 def _author_list(work: Work) -> list:
@@ -78,23 +78,23 @@ def api_search(
     engines: str = Query("open_library,google_books,goodreads,douban,storygraph,amazon_jp", description="Comma-separated engines to use")
 ):
     print(f"\n[Search API] User query: '{q}', page: {page}, engines: '{engines}'")
-    active_engines = [e.strip() for e in engines.split(",") if e.strip()]
+    active_title_providers = [e.strip() for e in engines.split(",") if e.strip()]
 
     works = []
-    if "open_library" in active_engines:
+    if "open_library" in active_title_providers:
         works = open_library.search_works(q, limit=10, page=page, include_details=False)
     
     gb_works = []
-    if "google_books" in active_engines:
+    if "google_books" in active_title_providers:
         gb_provider = GoogleBooksProvider(api_key=google_key) if google_key else google_books
-        if "open_library" not in active_engines:
+        if "open_library" not in active_title_providers:
             gb_works = gb_provider.search_works(q, limit=10, page=page)
         elif page == 1:
             gb_works = gb_provider.search_works(q, limit=10, page=1)
 
     # 其他資料庫：依優先順序僅取第一個命中的資料庫（避免重複的 not-in 條件鏈）
     extra_works = []
-    if "open_library" not in active_engines and "google_books" not in active_engines:
+    if "open_library" not in active_title_providers and "google_books" not in active_title_providers:
         provider_map = {
             "goodreads": goodreads,
             "douban": douban,
@@ -102,9 +102,9 @@ def api_search(
             "amazon_jp": amazon_jp,
             "readmoo": readmoo,
         }
-        for engine in EXTRA_SEARCH_ENGINES:
-            if engine in active_engines:
-                extra_works = provider_map[engine].search_works(q, limit=10, page=page)
+        for provider in TITLE_PROVIDERS:
+            if provider in active_title_providers:
+                extra_works = provider_map[provider].search_works(q, limit=10, page=page)
                 break
 
     results = [_work_to_dict(w) for w in works]
@@ -122,9 +122,9 @@ def api_search(
     return results
 
 
-def _find_ol_work(isbn: Optional[str], title: Optional[str], author: Optional[str], active_engines: list) -> Optional[Work]:
+def _find_ol_work(isbn: Optional[str], title: Optional[str], author: Optional[str], active_title_providers: list) -> Optional[Work]:
     """Helper to map any provider book (ISBN/title/author) to Open Library Work."""
-    if "open_library" not in active_engines:
+    if "open_library" not in active_title_providers:
         return None
     if isbn:
         ol_works = open_library.search_works(f"isbn:{isbn}", limit=1)
@@ -165,10 +165,10 @@ def _apply_ol_mapping(
     isbn: Optional[str],
     title: str,
     author: str,
-    active_engines: list,
+    active_title_providers: list,
 ) -> tuple[PlatformRating, list]:
     """Map a provider book to an Open Library Work; return (ol_rating, editions)."""
-    ol_work_mapped = _find_ol_work(isbn, title, author, active_engines)
+    ol_work_mapped = _find_ol_work(isbn, title, author, active_title_providers)
     if ol_work_mapped:
         ol_rating = open_library.fetch_ratings(ol_work_mapped)
         return ol_rating, open_library.fetch_editions(ol_work_mapped.work_id, limit=100)
@@ -179,7 +179,7 @@ def _resolve_work_editions_and_ol_rating(
     work_id: str,
     title: str,
     author: str,
-    active_engines: list,
+    active_title_providers: list,
     gb_provider: Optional[GoogleBooksProvider] = None
 ) -> tuple[PlatformRating, list, Work]:
     """Resolve Open Library rating, editions, and target Work for any work_id (OL, GB, GR, DB, SG, AMJP, RM)."""
@@ -199,7 +199,7 @@ def _resolve_work_editions_and_ol_rating(
             if gb_work.editions:
                 resolved_isbn = gb_work.editions[0].isbn_13 or gb_work.editions[0].isbn_10
 
-        ol_rating, editions = _apply_ol_mapping(resolved_isbn, resolved_title, resolved_author, active_engines)
+        ol_rating, editions = _apply_ol_mapping(resolved_isbn, resolved_title, resolved_author, active_title_providers)
 
         if not editions and gb_work and gb_work.editions:
             editions = gb_work.editions
@@ -233,7 +233,7 @@ def _resolve_work_editions_and_ol_rating(
         pub_year = details.get("pub_year")
         resolved_title = details.get("title") or title or "Unknown"
 
-        ol_rating, editions = _apply_ol_mapping(resolved_isbn, resolved_title, resolved_author, active_engines)
+        ol_rating, editions = _apply_ol_mapping(resolved_isbn, resolved_title, resolved_author, active_title_providers)
 
         if not editions:
             editions = _fallback_edition_list(sub_id, resolved_title, isbn=resolved_isbn, pub_year=pub_year)
@@ -253,7 +253,7 @@ def _resolve_work_editions_and_ol_rating(
         resolved_isbn = details.get("isbn")
         pub_year = details.get("pub_year")
 
-        ol_rating, editions = _apply_ol_mapping(resolved_isbn, resolved_title, resolved_author, active_engines)
+        ol_rating, editions = _apply_ol_mapping(resolved_isbn, resolved_title, resolved_author, active_title_providers)
 
         if not editions:
             editions = _fallback_edition_list(
@@ -272,7 +272,7 @@ def _resolve_work_editions_and_ol_rating(
     # 純 ID 型 provider（SG / AMJP / RM）：僅靠 title/author 對應 OL，無 ISBN 提取
     if work_id.startswith(("sg:", "amjp:", "rm:")):
         book_id = work_id.split(":", 1)[1]
-        ol_rating, editions = _apply_ol_mapping(None, resolved_title, resolved_author, active_engines)
+        ol_rating, editions = _apply_ol_mapping(None, resolved_title, resolved_author, active_title_providers)
 
         if not editions:
             editions = _fallback_edition_list(book_id, resolved_title or "Unknown")
@@ -287,7 +287,7 @@ def _resolve_work_editions_and_ol_rating(
 
     # Open Library work ID
     full_work_id = work_id if work_id.startswith("/works/") else f"/works/{work_id}"
-    if "open_library" in active_engines:
+    if "open_library" in active_title_providers:
         ol_rating = open_library.fetch_ratings(Work(work_id=full_work_id, title="", author=""))
     else:
         ol_rating = PlatformRating(platform_name="Open Library")
@@ -345,7 +345,7 @@ def api_work_details(
     strategies: str = Query(None, description="JSON string of provider search strategies")
 ):
     print(f"\n[Details API] User locked work: '{work_id}' (Title: '{title}', Author: '{author}', Engines: '{engines}')")
-    active_engines = [e.strip() for e in engines.split(",") if e.strip()]
+    active_rate_providers = [e.strip() for e in engines.split(",") if e.strip()]
     gb_provider = GoogleBooksProvider(api_key=google_key) if google_key else google_books
 
     strat_dict = {}
@@ -356,7 +356,7 @@ def api_work_details(
             pass
 
     ol_rating, editions, target_work = _resolve_work_editions_and_ol_rating(
-        work_id, title or "", author or "", active_engines, gb_provider=gb_provider
+        work_id, title or "", author or "", active_rate_providers, gb_provider=gb_provider
     )
 
     ratings_dict = {
@@ -376,7 +376,7 @@ def api_work_details(
 
     with ThreadPoolExecutor(max_workers=7) as executor:
         for p_key, p_inst in prov_instances.items():
-            if p_key in active_engines:
+            if p_key in active_rate_providers:
                 p_strat = strat_dict.get(p_key)
                 fut_dict[p_key] = executor.submit(p_inst.fetch_ratings, target_work, strategy=p_strat)
 
@@ -406,7 +406,7 @@ def api_work_details_stream(
     strategies: str = Query(None, description="JSON string of provider search strategies")
 ):
     print(f"\n[Stream Details API] User locked work: '{work_id}' (Title: '{title}', Author: '{author}', Engines: '{engines}')")
-    active_engines = [e.strip() for e in engines.split(",") if e.strip()]
+    active_rate_providers = [e.strip() for e in engines.split(",") if e.strip()]
     gb_provider = GoogleBooksProvider(api_key=google_key) if google_key else google_books
 
     strat_dict = {}
@@ -418,7 +418,7 @@ def api_work_details_stream(
 
     def event_generator():
         ol_rating, editions, target_work = _resolve_work_editions_and_ol_rating(
-            work_id, title or "", author or "", active_engines, gb_provider=gb_provider
+            work_id, title or "", author or "", active_rate_providers, gb_provider=gb_provider
         )
 
         ratings_dict = {
@@ -440,7 +440,7 @@ def api_work_details_stream(
 
         with ThreadPoolExecutor(max_workers=7) as executor:
             for p_key, p_inst in prov_instances.items():
-                if p_key in active_engines:
+                if p_key in active_rate_providers:
                     p_strat = strat_dict.get(p_key)
                     fut = executor.submit(p_inst.fetch_ratings, target_work, strategy=p_strat)
                     fut_map[fut] = p_key

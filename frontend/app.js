@@ -33,7 +33,7 @@ const ratingTable = document.querySelector("table");
 let currentQuery = "";
 let currentPage = 1;
 let currentStep = 1;
-let currentEngine = "open_library";
+let currentTitleProvider = "open_library";
 let currentSelectedWork = null;
 
 function goToStep(step) {
@@ -130,16 +130,16 @@ function getSelectedStrategies() {
   return strats;
 }
 
-function getActiveScoreEnginesList() {
-  const engines = [];
+function getActiveRateProvidersList() {
+  const rateProviders = [];
   PROVIDERS.forEach((provider) => {
     const suffix = PROVIDER_CHECKBOX_SUFFIX[provider.id];
     const checkbox = document.querySelector(`#score-${suffix}`);
     if (checkbox && checkbox.checked) {
-      engines.push(provider.id);
+      rateProviders.push(provider.id);
     }
   });
-  return engines;
+  return rateProviders;
 }
 
 async function selectWork(work) {
@@ -175,26 +175,26 @@ async function selectWork(work) {
   step3Status.classList.remove("error");
   step3Status.textContent = "";
 
-  const activeEnginesList = getActiveScoreEnginesList();
+  const activeRateProvidersList = getActiveRateProvidersList();
   const apiKey = localStorage.getItem("bookrate:google-api-key") || "";
   const strategies = getSelectedStrategies();
 
   // 區分命中快取與未命中快取
-  const cachedEngines = [];
-  const pendingEngines = [];
+  const cachedRateProviders = [];
+  const pendingRateProviders = [];
 
-  activeEnginesList.forEach((provider) => {
+  activeRateProvidersList.forEach((provider) => {
     const strategy = strategies[provider] || "isbn_primary";
     const cachedData = getRatingCache(work.key, provider, strategy);
     if (cachedData) {
-      cachedEngines.push({ provider, data: cachedData });
+      cachedRateProviders.push({ provider, data: cachedData });
     } else {
-      pendingEngines.push(provider);
+      pendingRateProviders.push(provider);
     }
   });
 
   // 立即渲染已命中的快取
-  cachedEngines.forEach(({ provider, data }) => {
+  cachedRateProviders.forEach(({ provider, data }) => {
     const prefix = PROVIDER_PREFIX[provider] || provider;
     const maxRate = prefix === "db" ? 10 : 5;
     renderPlatformCell(row, prefix, data, maxRate);
@@ -202,7 +202,7 @@ async function selectWork(work) {
 
   try {
     const strategiesStr = JSON.stringify(strategies);
-    let url = `/api/work-details-stream?work_id=${encodeURIComponent(work.key)}&title=${encodeURIComponent(work.title)}&author=${encodeURIComponent((work.author_name || []).join(","))}&engines=${encodeURIComponent(pendingEngines.join(","))}&strategies=${encodeURIComponent(strategiesStr)}`;
+    let url = `/api/work-details-stream?work_id=${encodeURIComponent(work.key)}&title=${encodeURIComponent(work.title)}&author=${encodeURIComponent((work.author_name || []).join(","))}&engines=${encodeURIComponent(pendingRateProviders.join(","))}&strategies=${encodeURIComponent(strategiesStr)}`;
     if (apiKey) {
       url += `&google_key=${encodeURIComponent(apiKey)}`;
     }
@@ -541,7 +541,7 @@ function updateManualSearchLinks(query) {
   }
 }
 
-function updateEngineTabs(engine) {
+function updateTitleProviderTabs(titleProvider) {
   const searchOlBtn = document.querySelector("#search-ol-btn");
   const searchGrBtn = document.querySelector("#search-gr-btn");
   const searchGbBtn = document.querySelector("#search-gb-btn");
@@ -550,25 +550,25 @@ function updateEngineTabs(engine) {
   const searchSgBtn = document.querySelector("#search-sg-btn");
   const searchRmBtn = document.querySelector("#search-rm-btn");
 
-  if (searchOlBtn) searchOlBtn.classList.toggle("active", engine === "open_library");
-  if (searchGrBtn) searchGrBtn.classList.toggle("active", engine === "goodreads");
-  if (searchGbBtn) searchGbBtn.classList.toggle("active", engine === "google_books");
-  if (searchDbBtn) searchDbBtn.classList.toggle("active", engine === "douban");
-  if (searchAmjpBtn) searchAmjpBtn.classList.toggle("active", engine === "amazon_jp");
-  if (searchSgBtn) searchSgBtn.classList.toggle("active", engine === "storygraph");
-  if (searchRmBtn) searchRmBtn.classList.toggle("active", engine === "readmoo");
+  if (searchOlBtn) searchOlBtn.classList.toggle("active", titleProvider === "open_library");
+  if (searchGrBtn) searchGrBtn.classList.toggle("active", titleProvider === "goodreads");
+  if (searchGbBtn) searchGbBtn.classList.toggle("active", titleProvider === "google_books");
+  if (searchDbBtn) searchDbBtn.classList.toggle("active", titleProvider === "douban");
+  if (searchAmjpBtn) searchAmjpBtn.classList.toggle("active", titleProvider === "amazon_jp");
+  if (searchSgBtn) searchSgBtn.classList.toggle("active", titleProvider === "storygraph");
+  if (searchRmBtn) searchRmBtn.classList.toggle("active", titleProvider === "readmoo");
 }
 
-async function searchWorks(query, page, engine = "open_library") {
+async function searchWorks(query, page, titleProvider = "open_library") {
   currentQuery = query;
   currentPage = page;
-  currentEngine = engine;
+  currentTitleProvider = titleProvider;
   candidateSection.hidden = false;
   candidateHeading.hidden = false;
   goToStep(2);
-  updateEngineTabs(engine);
+  updateTitleProviderTabs(titleProvider);
 
-  const engineNameMap = {
+  const titleProviderNameMap = {
     open_library: "Open Library",
     goodreads: "Goodreads",
     google_books: "Google Books",
@@ -577,12 +577,12 @@ async function searchWorks(query, page, engine = "open_library") {
     storygraph: "StoryGraph",
     readmoo: "Readmoo"
   };
-  const engineName = engineNameMap[engine] || "資料庫";
+  const titleProviderName = titleProviderNameMap[titleProvider] || "資料庫";
 
   candidateList.replaceChildren();
   const loadingEl = document.createElement("div");
   loadingEl.className = "no-results loading";
-  loadingEl.textContent = `載入中… 正在使用 ${engineName} 尋找「${query}」`;
+  loadingEl.textContent = `載入中… 正在使用 ${titleProviderName} 尋找「${query}」`;
   candidateList.append(loadingEl);
 
   updateManualSearchLinks(query);
@@ -599,10 +599,10 @@ async function searchWorks(query, page, engine = "open_library") {
   }
 
   try {
-    const cacheKey = `search:${query}:page:${page}:engines:${engine}`;
+    const cacheKey = `search:${query}:page:${page}:engines:${titleProvider}`;
     let works = getCachedData(cacheKey);
     if (!works) {
-      let url = `/api/search?q=${encodeURIComponent(query)}&page=${page}&engines=${encodeURIComponent(engine)}`;
+      let url = `/api/search?q=${encodeURIComponent(query)}&page=${page}&engines=${encodeURIComponent(titleProvider)}`;
       const apiKey = localStorage.getItem("bookrate:google-api-key") || "";
       if (apiKey) {
         url += `&google_key=${encodeURIComponent(apiKey)}`;
@@ -620,7 +620,7 @@ async function searchWorks(query, page, engine = "open_library") {
         candidateList.replaceChildren();
         const noResultsEl = document.createElement("div");
         noResultsEl.className = "no-results";
-        noResultsEl.textContent = `${engineName} 找不到「${query}」`;
+        noResultsEl.textContent = `${titleProviderName} 找不到「${query}」`;
         candidateList.append(noResultsEl);
       } else {
         paginationControls.hidden = false;
@@ -737,12 +737,12 @@ function updatePagination(itemsCount) {
 
 prevPageBtn.addEventListener("click", () => {
   if (currentPage > 1) {
-    searchWorks(currentQuery, currentPage - 1, currentEngine);
+    searchWorks(currentQuery, currentPage - 1, currentTitleProvider);
   }
 });
 
 nextPageBtn.addEventListener("click", () => {
-  searchWorks(currentQuery, currentPage + 1, currentEngine);
+  searchWorks(currentQuery, currentPage + 1, currentTitleProvider);
 });
 
 renderHistory();

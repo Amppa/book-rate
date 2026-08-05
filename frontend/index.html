@@ -66,7 +66,7 @@
           </form>
         </div>
 
-        <!-- 步驟 2 面板 -->
+            <!-- 步驟 2 面板 -->
         <div class="wizard-step" id="step-2">
           <div class="step-header">
             <button type="button" id="btn-prev-to-1" class="btn-secondary">← 上一步</button>
@@ -77,15 +77,15 @@
           <div id="step-2-status" class="status" aria-live="polite"></div>
           <section id="candidate-section" hidden aria-live="polite">
             <!-- 搜尋資料庫切換按鈕 -->
-            <div class="step2-block" id="section-engine-tabs">
+            <div class="step2-block" id="section-title-provider-tabs">
               <h3 class="step2-block-title">選取書籍資料庫</h3>
-              <div class="other-engines-buttons">
-                <button type="button" id="search-ol-btn" class="engine-tab-btn active">Open Library</button>
-                <button type="button" id="search-gb-btn" class="engine-tab-btn">Google Books</button>
-                <button type="button" id="search-gr-btn" class="engine-tab-btn">Goodreads</button>
-                <button type="button" id="search-db-btn" class="engine-tab-btn">豆瓣</button>
-                <button type="button" id="search-amjp-btn" class="engine-tab-btn">Amazon JP</button>
-                <button type="button" id="search-rm-btn" class="engine-tab-btn">Readmoo</button>
+              <div class="other-title-providers-buttons">
+                <button type="button" id="search-ol-btn" class="title-provider-tab-btn active">Open Library</button>
+                <button type="button" id="search-gb-btn" class="title-provider-tab-btn">Google Books</button>
+                <button type="button" id="search-gr-btn" class="title-provider-tab-btn">Goodreads</button>
+                <button type="button" id="search-db-btn" class="title-provider-tab-btn">豆瓣</button>
+                <button type="button" id="search-amjp-btn" class="title-provider-tab-btn">Amazon JP</button>
+                <button type="button" id="search-rm-btn" class="title-provider-tab-btn">Readmoo</button>
               </div>
             </div>
 
@@ -100,16 +100,16 @@
             </div>
 
             <!-- 手動搜尋 ISBN -->
-            <div class="step2-block search-engine-note" id="section-manual-search">
+            <div class="step2-block search-provider-note" id="section-manual-search">
               <h3 class="step2-block-title">或 手動搜尋 ISBN</h3>
               <p>
                 需由使用者手動複製ISBN：
                 <a id="manual-isbndb-link" href="https://isbndb.com/" target="_blank"
-                  rel="noopener noreferrer">ISBNdb</a>、
+                   rel="noopener noreferrer">ISBNdb</a>、
                 <a id="manual-isbnsearch-link" href="https://isbnsearch.org/" target="_blank"
-                  rel="noopener noreferrer">ISBNsearch</a>、
+                   rel="noopener noreferrer">ISBNsearch</a>、
                 <a id="manual-amazon-link" href="https://www.amazon.com/s?i=stripbooks" target="_blank"
-                  rel="noopener noreferrer">Amazon Books</a>
+                   rel="noopener noreferrer">Amazon Books</a>
               </p>
             </div>
           </section>
@@ -152,7 +152,7 @@
 
       </div>
     </div>
-    <footer class="app-footer search-engine-note">
+    <footer class="app-footer search-provider-note">
       <p>
         <span id="open-platform-info-btn" class="info-text-link" role="button" tabindex="0">[書籍資料庫比較]</span>
       </p>
