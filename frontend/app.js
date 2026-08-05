@@ -113,10 +113,75 @@ function renderCandidates(works) {
       }
     }
 
-    fragment.querySelector(".select-work").addEventListener("click", () => selectWork(work));
+    fragment.querySelector(".select-work").addEventListener("click", () => chooseCandidate(work));
     candidateList.append(fragment);
   });
   candidateSection.hidden = false;
+}
+
+function chooseCandidate(work) {
+  currentSelectedWork = work;
+  candidateList.querySelectorAll(".candidate-card").forEach((card) => {
+    card.classList.remove("selected");
+    const btn = card.querySelector(".select-work");
+    if (btn) {
+      btn.textContent = "Choose";
+      btn.disabled = false;
+    }
+  });
+
+  const selectedCard = candidateList.querySelector(`[data-key="${work.key}"]`);
+  if (selectedCard) {
+    selectedCard.classList.add("selected");
+    const btn = selectedCard.querySelector(".select-work");
+    if (btn) {
+      btn.textContent = "已選取";
+      btn.disabled = true;
+    }
+  }
+
+  const titleEl = document.querySelector("#bm-title");
+  const authorEl = document.querySelector("#bm-author");
+  const publishDateEl = document.querySelector("#bm-publish-date");
+  const isbnEl = document.querySelector("#bm-isbn");
+
+  if (titleEl) titleEl.value = work.title || "";
+  if (authorEl) authorEl.value = (work.author_name || []).join(", ") || "";
+  if (publishDateEl) publishDateEl.value = work.first_publish_year || "";
+  if (isbnEl) isbnEl.value = work.isbn || "";
+}
+
+function confirmToStep3() {
+  const titleVal = document.querySelector("#bm-title")?.value.trim() || "";
+  const authorVal = document.querySelector("#bm-author")?.value.trim() || "";
+  const publishDateVal = document.querySelector("#bm-publish-date")?.value.trim() || "";
+  const isbnVal = document.querySelector("#bm-isbn")?.value.trim() || "";
+
+  if (!titleVal) {
+    alert("請先選取書籍或輸入書名！");
+    return;
+  }
+
+  let workToUse = currentSelectedWork;
+  if (!workToUse) {
+    workToUse = {
+      key: "custom:" + Date.now(),
+      title: titleVal,
+      author_name: authorVal ? [authorVal] : ["Unknown"],
+      first_publish_year: publishDateVal,
+      isbn: isbnVal
+    };
+  } else {
+    workToUse = {
+      ...workToUse,
+      title: titleVal,
+      author_name: authorVal ? authorVal.split(",").map((s) => s.trim()) : workToUse.author_name,
+      first_publish_year: publishDateVal || workToUse.first_publish_year,
+      isbn: isbnVal || workToUse.isbn
+    };
+  }
+
+  selectWork(workToUse);
 }
 
 function getSelectedStrategies() {
@@ -596,6 +661,15 @@ async function searchWorks(query, page, titleProvider = "open_library") {
 
   if (page === 1) {
     saveHistory(query);
+    const titleEl = document.querySelector("#bm-title");
+    const authorEl = document.querySelector("#bm-author");
+    const publishDateEl = document.querySelector("#bm-publish-date");
+    const isbnEl = document.querySelector("#bm-isbn");
+    if (titleEl) titleEl.value = query;
+    if (authorEl) authorEl.value = "";
+    if (publishDateEl) publishDateEl.value = "";
+    if (isbnEl) isbnEl.value = "";
+    currentSelectedWork = null;
   }
 
   try {
@@ -830,15 +904,12 @@ btnPrevTo2.addEventListener("click", () => {
   goToStep(2);
   step3Status.textContent = "";
   step3Status.classList.remove("error");
-  candidateList.querySelectorAll(".candidate-card").forEach((card) => {
-    card.classList.remove("selected");
-    const btn = card.querySelector(".select-work");
-    if (btn) {
-      btn.textContent = "Choose";
-      btn.disabled = false;
-    }
-  });
 });
+
+const btnConfirmTo3 = document.querySelector("#btn-confirm-to-3");
+if (btnConfirmTo3) {
+  btnConfirmTo3.addEventListener("click", confirmToStep3);
+}
 
 const clearCacheBtn = document.querySelector("#clear-cache-btn");
 if (clearCacheBtn) {

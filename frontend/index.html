@@ -76,41 +76,77 @@
           </div>
           <div id="step-2-status" class="status" aria-live="polite"></div>
           <section id="candidate-section" hidden aria-live="polite">
-            <!-- 搜尋資料庫切換按鈕 -->
-            <div class="step2-block" id="section-title-provider-tabs">
-              <h3 class="step2-block-title">選取書籍資料庫</h3>
-              <div class="other-title-providers-buttons">
-                <button type="button" id="search-ol-btn" class="title-provider-tab-btn active">Open Library</button>
-                <button type="button" id="search-gb-btn" class="title-provider-tab-btn">Google Books</button>
-                <button type="button" id="search-gr-btn" class="title-provider-tab-btn">Goodreads</button>
-                <button type="button" id="search-db-btn" class="title-provider-tab-btn">豆瓣</button>
-                <button type="button" id="search-amjp-btn" class="title-provider-tab-btn">Amazon JP</button>
-                <button type="button" id="search-rm-btn" class="title-provider-tab-btn">Readmoo</button>
-              </div>
-            </div>
+            <div class="step2-split-layout">
+              <!-- 左欄：搜尋資料庫切換、結果列表、手動搜尋 -->
+              <div class="step2-left-panel">
+                <!-- 搜尋資料庫切換按鈕 -->
+                <div class="step2-block" id="section-title-provider-tabs">
+                  <h3 class="step2-block-title">選取書籍資料庫</h3>
+                  <div class="other-title-providers-buttons">
+                    <button type="button" id="search-ol-btn" class="title-provider-tab-btn active">Open Library</button>
+                    <button type="button" id="search-gb-btn" class="title-provider-tab-btn">Google Books</button>
+                    <button type="button" id="search-gr-btn" class="title-provider-tab-btn">Goodreads</button>
+                    <button type="button" id="search-db-btn" class="title-provider-tab-btn">豆瓣</button>
+                    <button type="button" id="search-amjp-btn" class="title-provider-tab-btn">Amazon JP</button>
+                    <button type="button" id="search-rm-btn" class="title-provider-tab-btn">Readmoo</button>
+                  </div>
+                </div>
 
-            <!-- 線上資料庫搜尋結果列表 -->
-            <div class="step2-block">
-              <div id="candidate-list" class="candidate-list"></div>
-              <div id="pagination-controls" class="pagination-controls" hidden>
-                <button type="button" id="prev-page-btn" class="btn-secondary">上一頁</button>
-                <span id="page-indicator">第 1 頁</span>
-                <button type="button" id="next-page-btn" class="btn-secondary">下一頁</button>
-              </div>
-            </div>
+                <!-- 線上資料庫搜尋結果列表 -->
+                <div class="step2-block">
+                  <div id="candidate-list" class="candidate-list"></div>
+                  <div id="pagination-controls" class="pagination-controls" hidden>
+                    <button type="button" id="prev-page-btn" class="btn-secondary">上一頁</button>
+                    <span id="page-indicator">第 1 頁</span>
+                    <button type="button" id="next-page-btn" class="btn-secondary">下一頁</button>
+                  </div>
+                </div>
 
-            <!-- 手動搜尋 ISBN -->
-            <div class="step2-block search-provider-note" id="section-manual-search">
-              <h3 class="step2-block-title">或 手動搜尋 ISBN</h3>
-              <p>
-                需由使用者手動複製ISBN：
-                <a id="manual-isbndb-link" href="https://isbndb.com/" target="_blank"
-                   rel="noopener noreferrer">ISBNdb</a>、
-                <a id="manual-isbnsearch-link" href="https://isbnsearch.org/" target="_blank"
-                   rel="noopener noreferrer">ISBNsearch</a>、
-                <a id="manual-amazon-link" href="https://www.amazon.com/s?i=stripbooks" target="_blank"
-                   rel="noopener noreferrer">Amazon Books</a>
-              </p>
+                <!-- 手動搜尋 ISBN -->
+                <div class="step2-block search-provider-note" id="section-manual-search">
+                  <h3 class="step2-block-title">或 手動搜尋 ISBN</h3>
+                  <p>
+                    需由使用者手動複製ISBN：
+                    <a id="manual-isbndb-link" href="https://isbndb.com/" target="_blank"
+                       rel="noopener noreferrer">ISBNdb</a>、
+                    <a id="manual-isbnsearch-link" href="https://isbnsearch.org/" target="_blank"
+                       rel="noopener noreferrer">ISBNsearch</a>、
+                    <a id="manual-amazon-link" href="https://www.amazon.com/s?i=stripbooks" target="_blank"
+                       rel="noopener noreferrer">Amazon Books</a>
+                  </p>
+                </div>
+              </div>
+
+              <!-- 右欄：Book Metadata 面板 -->
+              <aside class="step2-right-panel">
+                <div class="book-metadata-card">
+                  <div class="bm-card-header">
+                    <h3 class="bm-card-title">Book Metadata</h3>
+                    <button type="button" id="btn-confirm-to-3" class="btn-confirm-next" title="確認並進入 Step 3">➜ Step 3</button>
+                  </div>
+                  <p class="bm-card-subtitle">按 Choose 填入資料，確認後點擊右上角按鈕前往 Step 3</p>
+
+                  <div class="bm-field-group">
+                    <label for="bm-title">書名 (Title)</label>
+                    <input type="text" id="bm-title" class="bm-input" placeholder="選取書籍後自動帶入" />
+                  </div>
+
+                  <div class="bm-field-group">
+                    <label for="bm-author">作者 (Author)</label>
+                    <input type="text" id="bm-author" class="bm-input" placeholder="選取書籍後自動帶入" />
+                  </div>
+
+                  <div class="bm-field-group">
+                    <label for="bm-publish-date">出版日期 (Publish Date)</label>
+                    <input type="text" id="bm-publish-date" class="bm-input" placeholder="選取書籍後自動帶入" />
+                  </div>
+
+                  <div class="bm-field-group">
+                    <label for="bm-isbn">ISBN</label>
+                    <input type="text" id="bm-isbn" class="bm-input" placeholder="選取書籍後自動帶入" />
+                  </div>
+                </div>
+              </aside>
             </div>
           </section>
         </div>
