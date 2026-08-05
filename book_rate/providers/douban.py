@@ -15,8 +15,8 @@ def _build_subject_url(sub_id: str) -> str:
 
 
 def _parse_subject_html(html_str: str, url: str) -> dict:
-    """Parse Douban subject HTML page and extract rating, votes count, ISBN, pub_year, and title."""
-    res = {"rate": None, "votes": None, "isbn": None, "pub_year": None, "title": None, "url": url}
+    """Parse Douban subject HTML page and extract rating, votes count, ISBN, pub_year, title, and editions_count."""
+    res = {"rate": None, "votes": None, "isbn": None, "pub_year": None, "title": None, "url": url, "editions_count": None}
     if not html_str:
         return res
 
@@ -53,6 +53,10 @@ def _parse_subject_html(html_str: str, url: str) -> dict:
         ym = re.search(r'\b(19\d\d|20\d\d)\b', py_clean)
         res["pub_year"] = ym.group(1) if ym else py_clean
 
+    editions_match = re.search(r'这本书的其他版本.*?全部(\d+)', html_str, re.DOTALL)
+    if editions_match:
+        res["editions_count"] = int(editions_match.group(1))
+
     return res
 
 
@@ -75,7 +79,7 @@ class DoubanProvider(BaseProvider):
             return _parse_subject_html(resp.text, url)
         except Exception as e:
             logger.warning(f"Failed to fetch Douban subject details from '{url}': {e}")
-            return {"rate": None, "votes": None, "isbn": None, "pub_year": None, "title": None, "url": url}
+            return {"rate": None, "votes": None, "isbn": None, "pub_year": None, "title": None, "url": url, "editions_count": None}
 
     def _lookup_by_isbn(self, isbn: str) -> Optional[PlatformRating]:
         """
@@ -98,13 +102,15 @@ class DoubanProvider(BaseProvider):
             subject_url = _build_subject_url(sub_id)
             details = _parse_subject_html(resp.text, subject_url)
 
-            return PlatformRating(
+            rating = PlatformRating(
                 platform_name=self.name,
                 rate=details["rate"],
                 rating_count=details["votes"],
                 url=subject_url,
                 title=details["title"]
             )
+            rating.editions_count = details.get("editions_count")
+            return rating
         except Exception as e:
             logger.debug(f"Douban ISBN lookup failed for '{isbn_str}': {e}")
             return None
@@ -124,7 +130,8 @@ class DoubanProvider(BaseProvider):
                 work = Work(
                     work_id=f"db:{sub_id}",
                     title=rating.title or clean_query,
-                    author=""
+                    author="",
+                    edition_count=getattr(rating, "editions_count", None)
                 )
                 work.ratings[self.name] = rating
                 edition = Edition(edition_id=sub_id, title=rating.title or clean_query)
@@ -165,7 +172,8 @@ class DoubanProvider(BaseProvider):
                 work_id=f"db:{sub_id}" if sub_id else f"db:{title}",
                 title=title,
                 author=author_name,
-                first_publish_year=pub_year
+                first_publish_year=pub_year,
+                edition_count=details.get("editions_count")
             )
 
             if details["rate"] is not None or details["votes"] is not None or subject_url:

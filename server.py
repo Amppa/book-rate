@@ -253,7 +253,8 @@ def _resolve_work_editions_and_ol_rating(
             title=resolved_title,
             author=resolved_author,
             editions=editions,
-            isbn=resolved_isbn
+            isbn=resolved_isbn,
+            edition_count=details.get("editions_count") or (len(editions) if editions else None)
         )
         return ol_rating, editions, target_work, crawler_status
 
