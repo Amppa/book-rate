@@ -25,7 +25,7 @@ amazon_jp = aggregator.amazon_jp
 storygraph = aggregator.storygraph
 readmoo = aggregator.readmoo
 
-# 其他資料庫的搜尋優先順序（OL / GB 未啟用時，僅取第一個命中的資料庫）
+# 書名資料庫的搜尋優先順序（OL / GB 未啟用時，僅取第一個命中的資料庫）
 TITLE_PROVIDERS = ["goodreads", "douban", "storygraph", "amazon_jp", "readmoo"]
 
 
