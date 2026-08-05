@@ -66,7 +66,7 @@
           </form>
         </div>
 
-            <!-- 步驟 2 面板 -->
+        <!-- 步驟 2 面板 -->
         <div class="wizard-step" id="step-2">
           <div class="step-header">
             <button type="button" id="btn-prev-to-1" class="btn-secondary">← 上一步</button>
@@ -81,15 +81,8 @@
               <div class="step2-left-panel">
                 <!-- 搜尋資料庫切換按鈕 -->
                 <div class="step2-block" id="section-title-provider-tabs">
-                  <h3 class="step2-block-title">選取書籍資料庫</h3>
-                  <div class="other-title-providers-buttons">
-                    <button type="button" id="search-ol-btn" class="title-provider-tab-btn active">Open Library</button>
-                    <button type="button" id="search-gb-btn" class="title-provider-tab-btn">Google Books</button>
-                    <button type="button" id="search-gr-btn" class="title-provider-tab-btn">Goodreads</button>
-                    <button type="button" id="search-db-btn" class="title-provider-tab-btn">豆瓣</button>
-                    <button type="button" id="search-amjp-btn" class="title-provider-tab-btn">Amazon JP</button>
-                    <button type="button" id="search-rm-btn" class="title-provider-tab-btn">Readmoo</button>
-                  </div>
+                  <h3 class="step2-block-title">選取書名資料庫</h3>
+                  <div class="other-title-providers-buttons" id="title-provider-tabs-container"></div>
                 </div>
 
                 <!-- 線上資料庫搜尋結果列表 -->
@@ -108,11 +101,11 @@
                   <p>
                     需由使用者手動複製ISBN：
                     <a id="manual-isbndb-link" href="https://isbndb.com/" target="_blank"
-                       rel="noopener noreferrer">ISBNdb</a>、
+                      rel="noopener noreferrer">ISBNdb</a>、
                     <a id="manual-isbnsearch-link" href="https://isbnsearch.org/" target="_blank"
-                       rel="noopener noreferrer">ISBNsearch</a>、
+                      rel="noopener noreferrer">ISBNsearch</a>、
                     <a id="manual-amazon-link" href="https://www.amazon.com/s?i=stripbooks" target="_blank"
-                       rel="noopener noreferrer">Amazon Books</a>
+                      rel="noopener noreferrer">Amazon Books</a>
                   </p>
                 </div>
               </div>
@@ -122,7 +115,8 @@
                 <div class="book-metadata-card">
                   <div class="bm-card-header">
                     <h3 class="bm-card-title">Book Metadata</h3>
-                    <button type="button" id="btn-confirm-to-3" class="btn-confirm-next" title="確認並進入 Step 3">➜ Step 3</button>
+                    <button type="button" id="btn-confirm-to-3" class="btn-confirm-next" title="確認並進入 Step 3">➜ Step
+                      3</button>
                   </div>
                   <p class="bm-card-subtitle">按 Choose 填入資料，確認後點擊右上角按鈕前往 Step 3</p>
 
@@ -167,16 +161,9 @@
             <div class="table-wrap" hidden>
               <table>
                 <thead>
-                  <tr>
+                  <tr id="table-header-row">
                     <th>書名</th>
                     <th>Details</th>
-                    <th class="col-ol">Open Library</th>
-                    <th class="col-gr">Goodreads</th>
-                    <th class="col-db">豆瓣</th>
-                    <th class="col-am">Amazon</th>
-                    <th class="col-amjp">Amazon JP</th>
-                    <th class="col-sg">StoryGraph</th>
-                    <th class="col-rm">Readmoo</th>
                   </tr>
                   <tr id="score-strategy-row" class="thead-strategy-row"></tr>
                 </thead>
@@ -223,13 +210,6 @@
           <div><strong>爬蟲狀態:</strong> <span class="step3-crawler-status">-</span></div>
         </div>
       </td>
-      <td class="col-ol"><strong class="ol-rate"></strong><small class="ol-count"></small></td>
-      <td class="col-gr"><strong class="gr-rate"></strong><small class="gr-count"></small></td>
-      <td class="col-db"><strong class="db-rate"></strong><small class="db-count"></small></td>
-      <td class="col-am"><strong class="am-rate"></strong><small class="am-count"></small></td>
-      <td class="col-amjp"><strong class="amjp-rate"></strong><small class="amjp-count"></small></td>
-      <td class="col-sg"><strong class="sg-rate"></strong><small class="sg-count"></small></td>
-      <td class="col-rm"><strong class="rm-rate"></strong><small class="rm-count"></small></td>
     </tr>
   </template>
   <template id="candidate-template">

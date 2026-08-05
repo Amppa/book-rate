@@ -1,7 +1,7 @@
 import { OPEN_LIBRARY_BASE_URL, MAX_CANDIDATES, HISTORY_KEY, PROVIDERS, STRATEGIES, PROVIDER_CHECKBOX_SUFFIX, PROVIDER_PREFIX } from './js/constants.js';
 import { getCachedData, setCachedData, getRatingCache, setRatingCache, cleanExpiredCache } from './js/cache.js';
 import { fetchJson, displayRate, displayCount, getWorkExternalUrl, getProviderDisplayName } from './js/utils.js';
-import { renderProviderToggles, renderStrategySelects, updateTableVisibility, openEditionsModal } from './js/ui.js';
+import { renderProviderToggles, renderStrategySelects, updateTableVisibility, openEditionsModal, renderTableHeaders, renderTitleProviderTabs, initTableVisibilityStyles } from './js/ui.js';
 
 // Clean expired cache entries on load
 cleanExpiredCache();
@@ -275,7 +275,10 @@ async function selectWork(work) {
       url += `&google_key=${encodeURIComponent(apiKey)}`;
     }
 
-    const collectedDetails = { work, ratings: {}, editions: {}, goodreads: {}, douban: {}, amazon: {}, amazon_jp: {}, storygraph: {}, readmoo: {} };
+    const collectedDetails = { work, ratings: {}, editions: {} };
+    PROVIDERS.forEach((provider) => {
+      collectedDetails[provider.id] = {};
+    });
     const eventSource = new EventSource(url);
 
     eventSource.onmessage = (event) => {
@@ -421,12 +424,22 @@ function renderInitialWorkRow(work) {
 
   row.querySelector(".edition-count").textContent = "載入中...";
 
-  const prefixes = ["ol", "gr", "db", "am", "amjp", "sg", "rm"];
-  prefixes.forEach((prefix) => {
-    const rateEl = row.querySelector(`.${prefix}-rate`);
-    const countEl = row.querySelector(`.${prefix}-count`);
-    if (rateEl) rateEl.innerHTML = '<span class="fetching-tag">Fetching...</span>';
-    if (countEl) countEl.textContent = "讀取中...";
+  PROVIDERS.forEach((provider) => {
+    const suffix = PROVIDER_CHECKBOX_SUFFIX[provider.id];
+    const td = document.createElement("td");
+    td.className = `col-${suffix}`;
+
+    const strong = document.createElement("strong");
+    strong.className = `${suffix}-rate`;
+    strong.innerHTML = '<span class="fetching-tag">Fetching...</span>';
+
+    const small = document.createElement("small");
+    small.className = `${suffix}-count`;
+    small.textContent = "讀取中...";
+
+    td.appendChild(strong);
+    td.appendChild(small);
+    row.appendChild(td);
   });
 
   return fragment;
@@ -622,21 +635,12 @@ function updateManualSearchLinks(query) {
 }
 
 function updateTitleProviderTabs(titleProvider) {
-  const searchOlBtn = document.querySelector("#search-ol-btn");
-  const searchGrBtn = document.querySelector("#search-gr-btn");
-  const searchGbBtn = document.querySelector("#search-gb-btn");
-  const searchDbBtn = document.querySelector("#search-db-btn");
-  const searchAmjpBtn = document.querySelector("#search-amjp-btn");
-  const searchSgBtn = document.querySelector("#search-sg-btn");
-  const searchRmBtn = document.querySelector("#search-rm-btn");
-
-  if (searchOlBtn) searchOlBtn.classList.toggle("active", titleProvider === "open_library");
-  if (searchGrBtn) searchGrBtn.classList.toggle("active", titleProvider === "goodreads");
-  if (searchGbBtn) searchGbBtn.classList.toggle("active", titleProvider === "google_books");
-  if (searchDbBtn) searchDbBtn.classList.toggle("active", titleProvider === "douban");
-  if (searchAmjpBtn) searchAmjpBtn.classList.toggle("active", titleProvider === "amazon_jp");
-  if (searchSgBtn) searchSgBtn.classList.toggle("active", titleProvider === "storygraph");
-  if (searchRmBtn) searchRmBtn.classList.toggle("active", titleProvider === "readmoo");
+  const tabsContainer = document.querySelector("#title-provider-tabs-container");
+  if (tabsContainer) {
+    tabsContainer.querySelectorAll(".title-provider-tab-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.providerId === titleProvider);
+    });
+  }
 }
 
 async function searchWorks(query, page, titleProvider = "open_library") {
@@ -648,16 +652,8 @@ async function searchWorks(query, page, titleProvider = "open_library") {
   goToStep(2);
   updateTitleProviderTabs(titleProvider);
 
-  const titleProviderNameMap = {
-    open_library: "Open Library",
-    goodreads: "Goodreads",
-    google_books: "Google Books",
-    douban: "豆瓣",
-    amazon_jp: "Amazon JP",
-    storygraph: "StoryGraph",
-    readmoo: "Readmoo"
-  };
-  const titleProviderName = titleProviderNameMap[titleProvider] || "資料庫";
+  const providerObj = PROVIDERS.find(p => p.id === titleProvider);
+  const titleProviderName = providerObj ? providerObj.label : "資料庫";
 
   candidateList.replaceChildren();
   const loadingEl = document.createElement("div");
@@ -738,73 +734,16 @@ searchForm.addEventListener("submit", (event) => {
   searchWorks(query, 1, "open_library");
 });
 
-const searchOlBtn = document.querySelector("#search-ol-btn");
-const searchGrBtn = document.querySelector("#search-gr-btn");
-const searchGbBtn = document.querySelector("#search-gb-btn");
-const searchDbBtn = document.querySelector("#search-db-btn");
-const searchAmjpBtn = document.querySelector("#search-amjp-btn");
-const searchSgBtn = document.querySelector("#search-sg-btn");
-const searchRmBtn = document.querySelector("#search-rm-btn");
-
-if (searchOlBtn) {
-  searchOlBtn.addEventListener("click", () => {
-    const q = searchInput.value.trim() || currentQuery;
-    if (q) {
-      searchWorks(q, 1, "open_library");
-    }
-  });
-}
-
-if (searchGrBtn) {
-  searchGrBtn.addEventListener("click", () => {
-    const q = searchInput.value.trim() || currentQuery;
-    if (q) {
-      searchWorks(q, 1, "goodreads");
-    }
-  });
-}
-
-if (searchGbBtn) {
-  searchGbBtn.addEventListener("click", () => {
-    const q = searchInput.value.trim() || currentQuery;
-    if (q) {
-      searchWorks(q, 1, "google_books");
-    }
-  });
-}
-
-if (searchDbBtn) {
-  searchDbBtn.addEventListener("click", () => {
-    const q = searchInput.value.trim() || currentQuery;
-    if (q) {
-      searchWorks(q, 1, "douban");
-    }
-  });
-}
-
-if (searchAmjpBtn) {
-  searchAmjpBtn.addEventListener("click", () => {
-    const q = searchInput.value.trim() || currentQuery;
-    if (q) {
-      searchWorks(q, 1, "amazon_jp");
-    }
-  });
-}
-
-if (searchSgBtn) {
-  searchSgBtn.addEventListener("click", () => {
-    const q = searchInput.value.trim() || currentQuery;
-    if (q) {
-      searchWorks(q, 1, "storygraph");
-    }
-  });
-}
-
-if (searchRmBtn) {
-  searchRmBtn.addEventListener("click", () => {
-    const q = searchInput.value.trim() || currentQuery;
-    if (q) {
-      searchWorks(q, 1, "readmoo");
+const tabsContainer = document.querySelector("#title-provider-tabs-container");
+if (tabsContainer) {
+  tabsContainer.addEventListener("click", (e) => {
+    const btn = e.target.closest(".title-provider-tab-btn");
+    if (btn) {
+      const providerId = btn.dataset.providerId;
+      const q = searchInput.value.trim() || currentQuery;
+      if (q && providerId) {
+        searchWorks(q, 1, providerId);
+      }
     }
   });
 }
@@ -877,6 +816,10 @@ if (clearApiKeyBtn) {
 
 // Settings checkboxes logic
 function initSettings() {
+  initTableVisibilityStyles();
+  renderTableHeaders(document.querySelector("#table-header-row"));
+  renderTitleProviderTabs(document.querySelector("#title-provider-tabs-container"), currentTitleProvider);
+
   renderProviderToggles(scoreToggleBarEl);
   renderStrategySelects(scoreStrategyRowEl);
 

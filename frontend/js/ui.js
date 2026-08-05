@@ -64,6 +64,59 @@ export function updateTableVisibility(ratingTable) {
   }
 }
 
+export function renderTableHeaders(headerRow) {
+  if (!headerRow) return;
+  // Remove any previously appended headers (keep only title and details)
+  while (headerRow.children.length > 2) {
+    headerRow.removeChild(headerRow.lastChild);
+  }
+
+  PROVIDERS.forEach((provider) => {
+    const suffix = PROVIDER_CHECKBOX_SUFFIX[provider.id];
+    const th = document.createElement("th");
+    th.className = `col-${suffix}`;
+    th.textContent = provider.label;
+    headerRow.appendChild(th);
+  });
+}
+
+export function renderTitleProviderTabs(container, currentTitleProvider) {
+  if (!container) return;
+  container.replaceChildren();
+
+  PROVIDERS.forEach((provider) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "title-provider-tab-btn";
+    if (provider.id === currentTitleProvider) {
+      btn.classList.add("active");
+    }
+    btn.dataset.providerId = provider.id;
+    btn.textContent = provider.label;
+    container.appendChild(btn);
+  });
+}
+
+export function initTableVisibilityStyles() {
+  let styleEl = document.querySelector("#dynamic-visibility-styles");
+  if (!styleEl) {
+    styleEl = document.createElement("style");
+    styleEl.id = "dynamic-visibility-styles";
+    document.head.appendChild(styleEl);
+  }
+  let css = "";
+  PROVIDERS.forEach((provider) => {
+    const suffix = PROVIDER_CHECKBOX_SUFFIX[provider.id];
+    css += `
+      .hide-${suffix}-score .col-${suffix} {
+        display: none !important;
+      }
+    `;
+  });
+  styleEl.textContent = css;
+}
+
+
 function formatLanguageFullName(langItem) {
   if (!langItem) return "";
   let code = "";

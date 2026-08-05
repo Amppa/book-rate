@@ -26,7 +26,7 @@ storygraph = aggregator.storygraph
 readmoo = aggregator.readmoo
 
 # 書名資料庫的搜尋優先順序（OL / GB 未啟用時，僅取第一個命中的資料庫）
-TITLE_PROVIDERS = ["goodreads", "douban", "storygraph", "amazon_jp", "readmoo"]
+TITLE_PROVIDERS = ["goodreads", "storygraph", "amazon", "amazon_jp", "douban", "readmoo"]
 
 
 def _author_list(work: Work) -> list:
@@ -81,7 +81,7 @@ def api_search(
     q: str = Query(..., description="Search query"),
     page: int = Query(1, description="Page number"),
     google_key: str = Query(None, description="Optional Google Books API Key"),
-    engines: str = Query("open_library,google_books,goodreads,douban,storygraph,amazon_jp", description="Comma-separated engines to use")
+    engines: str = Query("open_library,google_books,goodreads,storygraph,amazon,amazon_jp,douban,readmoo", description="Comma-separated engines to use")
 ):
     print(f"\n[Search API] User query: '{q}', page: {page}, engines: '{engines}'")
     active_title_providers = [e.strip() for e in engines.split(",") if e.strip()]
@@ -105,6 +105,7 @@ def api_search(
             "goodreads": goodreads,
             "douban": douban,
             "storygraph": storygraph,
+            "amazon": amazon,
             "amazon_jp": amazon_jp,
             "readmoo": readmoo,
         }
@@ -290,8 +291,8 @@ def _resolve_work_editions_and_ol_rating(
         )
         return ol_rating, editions, target_work, crawler_status
 
-    # 純 ID 型 provider（SG / AMJP / RM）：僅靠 title/author 對應 OL，無 ISBN 提取
-    if work_id.startswith(("sg:", "amjp:", "rm:")):
+    # 純 ID 型 provider（SG / AM / AMJP / RM）：僅靠 title/author 對應 OL，無 ISBN 提取
+    if work_id.startswith(("sg:", "am:", "amjp:", "rm:")):
         book_id = work_id.split(":", 1)[1]
         prov_name = work_id.split(":", 1)[0]
         crawler_status[prov_name] = "Normal"
@@ -365,7 +366,7 @@ def api_work_details(
     title: str = Query(None, description="Title of the work"),
     author: str = Query(None, description="Author of the work"),
     google_key: str = Query(None, description="Optional Google Books API Key"),
-    engines: str = Query("open_library,google_books,goodreads,douban,amazon,amazon_jp,storygraph", description="Comma-separated score engines to fetch"),
+    engines: str = Query("open_library,google_books,goodreads,storygraph,amazon,amazon_jp,douban,readmoo", description="Comma-separated score engines to fetch"),
     strategies: str = Query(None, description="JSON string of provider search strategies")
 ):
     print(f"\n[Details API] User locked work: '{work_id}' (Title: '{title}', Author: '{author}', Engines: '{engines}')")
@@ -409,10 +410,10 @@ def api_work_details(
             try:
                 p_rating = fut.result()
                 quota = p_key == "google_books" and gb_provider.quota_exceeded
-                res_key = "google" if p_key == "google_books" else p_key
+                res_key = p_key
                 result_payload[res_key] = _format_rating_response(p_key, p_rating, target_work.title, quota_exceeded=quota)
             except Exception as e:
-                res_key = "google" if p_key == "google_books" else p_key
+                res_key = p_key
                 result_payload[res_key] = {
                     "average": 0, "count": 0, "title": target_work.title, "url": None,
                     "provider": p_key, "strategy": strat_dict.get(p_key), "query": "", "status": "ERROR"
@@ -427,7 +428,7 @@ def api_work_details_stream(
     title: str = Query(None, description="Title of the work"),
     author: str = Query(None, description="Author of the work"),
     google_key: str = Query(None, description="Optional Google Books API Key"),
-    engines: str = Query("open_library,google_books,goodreads,douban,amazon,amazon_jp,storygraph", description="Comma-separated score engines to fetch"),
+    engines: str = Query("open_library,google_books,goodreads,storygraph,amazon,amazon_jp,douban,readmoo", description="Comma-separated score engines to fetch"),
     strategies: str = Query(None, description="JSON string of provider search strategies")
 ):
     print(f"\n[Stream Details API] User locked work: '{work_id}' (Title: '{title}', Author: '{author}', Engines: '{engines}')")
