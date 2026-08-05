@@ -124,8 +124,7 @@ class DoubanProvider(BaseProvider):
                 work = Work(
                     work_id=f"db:{sub_id}",
                     title=rating.title or clean_query,
-                    author="",
-                    edition_count=1
+                    author=""
                 )
                 work.ratings[self.name] = rating
                 edition = Edition(edition_id=sub_id, title=rating.title or clean_query)
@@ -166,8 +165,7 @@ class DoubanProvider(BaseProvider):
                 work_id=f"db:{sub_id}" if sub_id else f"db:{title}",
                 title=title,
                 author=author_name,
-                first_publish_year=pub_year,
-                edition_count=1
+                first_publish_year=pub_year
             )
 
             if details["rate"] is not None or details["votes"] is not None or subject_url:

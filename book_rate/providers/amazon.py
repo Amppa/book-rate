@@ -96,8 +96,7 @@ class AmazonProvider(BaseProvider):
             work = Work(
                 work_id=f"am:{asin}" if asin else f"am:{raw_title}",
                 title=raw_title,
-                author=author_name,
-                edition_count=1
+                author=author_name
             )
             if avg_rate is not None or count_val is not None or book_url:
                 work.ratings[self.name] = PlatformRating(

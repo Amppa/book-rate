@@ -145,7 +145,7 @@ class GoodreadsProvider(BaseProvider):
             book_url = f"https://www.goodreads.com{book_url_rel}" if book_url_rel else None
 
             # Fetch details concurrently to get actual editions count and status
-            details = {"isbn": None, "pub_year": None, "editions_count": 1, "crawler_status": "Normal"}
+            details = {"isbn": None, "pub_year": None, "editions_count": None, "crawler_status": "Normal"}
             if book_id:
                 try:
                     details = self.fetch_book_details(book_id)
@@ -156,7 +156,7 @@ class GoodreadsProvider(BaseProvider):
                 work_id=f"gr:{book_id}" if book_id else f"gr:{title}",
                 title=title,
                 author=author_name,
-                edition_count=details.get("editions_count") or 1,
+                edition_count=details.get("editions_count"),
                 first_publish_year=int(details.get("pub_year")) if details.get("pub_year") and str(details.get("pub_year")).isdigit() else None,
                 isbn=details.get("isbn")
             )

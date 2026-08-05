@@ -197,7 +197,6 @@ class ReadmooProvider(BaseProvider):
                 work_id=f"rm:{item['book_id']}",
                 title=item["title"],
                 author=item["author"],
-                edition_count=1,
             )
             if item["avg_rating"] is not None:
                 work.ratings[self.name] = PlatformRating(

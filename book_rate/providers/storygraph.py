@@ -160,7 +160,7 @@ class StoryGraphProvider(BaseProvider):
             href, b_id, title, author_name = item
             subject_url = f"{self.BASE_URL}{href}"
 
-            details = {"isbn": None, "pub_year": None, "editions_count": 1, "crawler_status": "Normal"}
+            details = {"isbn": None, "pub_year": None, "editions_count": None, "crawler_status": "Normal"}
             try:
                 details = self.fetch_book_details(b_id)
             except Exception:
@@ -170,7 +170,7 @@ class StoryGraphProvider(BaseProvider):
                 work_id=f"sg:{b_id}",
                 title=details.get("title") or title,
                 author=details.get("author") or author_name,
-                edition_count=details.get("editions_count") or 1,
+                edition_count=details.get("editions_count"),
                 first_publish_year=int(details.get("pub_year")) if details.get("pub_year") and str(details.get("pub_year")).isdigit() else None,
                 isbn=details.get("isbn")
             )
