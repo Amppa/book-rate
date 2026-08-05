@@ -93,14 +93,100 @@ class TestGoodreadsProvider(unittest.TestCase):
         mock_get.return_value = mock_response
 
         provider = GoodreadsProvider()
+        provider.fetch_book_details = MagicMock(return_value={
+            "isbn": "9780735211292",
+            "pub_year": "2018",
+            "editions_count": 256,
+            "work_id": "62221762",
+            "title": "Atomic Habits",
+            "author": "James Clear",
+            "crawler_status": "Normal"
+        })
         works = provider.search_works("Atomic Habits", limit=1)
 
         self.assertEqual(len(works), 1)
         self.assertEqual(works[0].title, "Atomic Habits")
         self.assertEqual(works[0].author, "James Clear")
+        self.assertEqual(works[0].first_publish_year, 2018)
+        self.assertEqual(works[0].edition_count, 256)
         self.assertIn("Goodreads", works[0].ratings)
         self.assertEqual(works[0].ratings["Goodreads"].rate, 4.31)
         self.assertEqual(works[0].ratings["Goodreads"].rating_count, 1397637)
+
+    @patch('requests.Session.get')
+    def test_fetch_book_details(self, mock_get):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.url = "https://www.goodreads.com/work/editions/62221762"
+        mock_resp.text = """
+        <html><body>
+          <h1><a href="/book/show/40121378-atomic-habits">Atomic Habits</a> &gt; Editions</h1>
+          <h2>by <a href="/author/show/James_Clear">James Clear</a></h2>
+          <div class="showingPages">showing 1-30 of 256</div>
+          <div class="elementList clearFix">
+            <div class="dataRow">
+              <div class="dataTitle">ISBN:</div>
+              <div class="dataValue">9780735211292 <span class="greyText">(ISBN10: 0735211299)</span></div>
+            </div>
+            <div class="dataRow">
+              Published October 16th 2018 by Avery
+            </div>
+          </div>
+        </body></html>
+        """
+        mock_get.return_value = mock_resp
+
+        provider = GoodreadsProvider()
+        details = provider.fetch_book_details("40121378")
+
+        self.assertEqual(details["title"], "Atomic Habits")
+        self.assertEqual(details["author"], "James Clear")
+        self.assertEqual(details["isbn"], "9780735211292")
+        self.assertEqual(details["pub_year"], "2018")
+        self.assertEqual(details["work_id"], "62221762")
+        self.assertEqual(details["editions_count"], 256)
+
+    @patch('requests.Session.get')
+    def test_fetch_editions(self, mock_get):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = """
+        <html><body>
+          <div class="elementList clearFix">
+            <div class="editionData">
+              <div class="dataRow">
+                <a class="bookTitle" href="/book/show/40121378-atomic-habits">Atomic Habits (Kindle Edition)</a>
+              </div>
+              <div class="dataRow">
+                Published October 16th 2018 by Avery
+              </div>
+              <div class="moreDetails hideDetails">
+                <div class="dataRow">
+                  <div class="dataTitle">ISBN:</div>
+                  <div class="dataValue">9780735211292 <span class="greyText">(ISBN10: 0735211299)</span></div>
+                </div>
+                <div class="dataRow">
+                  <div class="dataTitle">Edition language:</div>
+                  <div class="dataValue">English</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </body></html>
+        """
+        mock_get.return_value = mock_resp
+
+        provider = GoodreadsProvider()
+        editions = provider.fetch_editions("62221762", limit=1)
+
+        self.assertEqual(len(editions), 1)
+        self.assertEqual(editions[0].edition_id, "40121378")
+        self.assertEqual(editions[0].title, "Atomic Habits (Kindle Edition)")
+        self.assertEqual(editions[0].publish_year, "2018")
+        self.assertEqual(editions[0].publisher, "Avery")
+        self.assertEqual(editions[0].language, "English")
+        self.assertEqual(editions[0].isbn_13, "9780735211292")
+        self.assertEqual(editions[0].isbn_10, "0735211299")
 
 
 class TestDoubanProvider(unittest.TestCase):

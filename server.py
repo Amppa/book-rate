@@ -36,13 +36,19 @@ def _author_list(work: Work) -> list:
 
 
 def _work_to_dict(work: Work) -> dict:
+    status = None
+    if "Goodreads" in work.ratings:
+        st = work.ratings["Goodreads"].status
+        if st:
+            status = "error" if ("failed" in st.lower() or "error" in st.lower() or "http" in st.lower()) else "pass"
     return {
         "key": work.work_id,
         "title": work.title,
         "author_name": _author_list(work),
         "first_publish_year": work.first_publish_year,
         "edition_count": work.edition_count,
-        "isbn": work.isbn
+        "isbn": work.isbn,
+        "status": status
     }
 
 
@@ -181,18 +187,20 @@ def _resolve_work_editions_and_ol_rating(
     author: str,
     active_title_providers: list,
     gb_provider: Optional[GoogleBooksProvider] = None
-) -> tuple[PlatformRating, list, Work]:
+) -> tuple[PlatformRating, list, Work, dict]:
     """Resolve Open Library rating, editions, and target Work for any work_id (OL, GB, GR, DB, SG, AMJP, RM)."""
     ol_rating = PlatformRating("Open Library")
     editions = []
     resolved_title = title or ""
     resolved_author = author or ""
     resolved_isbn = None
+    crawler_status = {}
 
     if work_id.startswith("gb:"):
         volume_id = work_id[3:]
         provider = gb_provider or google_books
         gb_work = provider.fetch_volume_by_id(volume_id)
+        crawler_status["google_books"] = "Normal" if gb_work else "Volume not found"
         if gb_work:
             resolved_title = gb_work.title or title or "Unknown"
             resolved_author = gb_work.author or author or "Unknown"
@@ -224,11 +232,12 @@ def _resolve_work_editions_and_ol_rating(
         if gb_work and "Google Books" in gb_work.ratings:
             target_work.ratings["Google Books"] = gb_work.ratings["Google Books"]
 
-        return ol_rating, editions, target_work
+        return ol_rating, editions, target_work, crawler_status
 
     if work_id.startswith("db:"):
         sub_id = work_id[3:]
         details = douban.fetch_subject_details(sub_id)
+        crawler_status["douban"] = "Normal" if details.get("isbn") else "Details not found"
         resolved_isbn = details.get("isbn")
         pub_year = details.get("pub_year")
         resolved_title = details.get("title") or title or "Unknown"
@@ -245,15 +254,26 @@ def _resolve_work_editions_and_ol_rating(
             editions=editions,
             isbn=resolved_isbn
         )
-        return ol_rating, editions, target_work
+        return ol_rating, editions, target_work, crawler_status
 
     if work_id.startswith("gr:"):
         book_id = work_id[3:]
         details = goodreads.fetch_book_details(book_id)
+        crawler_status["goodreads"] = details.get("crawler_status") or "Normal"
         resolved_isbn = details.get("isbn")
         pub_year = details.get("pub_year")
 
+        if details.get("title") and not resolved_title:
+            resolved_title = details.get("title")
+        if details.get("author") and not resolved_author:
+            resolved_author = details.get("author")
+
         ol_rating, editions = _apply_ol_mapping(resolved_isbn, resolved_title, resolved_author, active_title_providers)
+
+        if not editions:
+            gr_work_id = details.get("work_id")
+            if gr_work_id:
+                editions = goodreads.fetch_editions(gr_work_id, limit=100)
 
         if not editions:
             editions = _fallback_edition_list(
@@ -265,13 +285,16 @@ def _resolve_work_editions_and_ol_rating(
             title=resolved_title,
             author=resolved_author,
             editions=editions,
-            isbn=resolved_isbn
+            isbn=resolved_isbn,
+            edition_count=details.get("editions_count") or (len(editions) if editions else None)
         )
-        return ol_rating, editions, target_work
+        return ol_rating, editions, target_work, crawler_status
 
     # 純 ID 型 provider（SG / AMJP / RM）：僅靠 title/author 對應 OL，無 ISBN 提取
     if work_id.startswith(("sg:", "amjp:", "rm:")):
         book_id = work_id.split(":", 1)[1]
+        prov_name = work_id.split(":", 1)[0]
+        crawler_status[prov_name] = "Normal"
         ol_rating, editions = _apply_ol_mapping(None, resolved_title, resolved_author, active_title_providers)
 
         if not editions:
@@ -283,10 +306,11 @@ def _resolve_work_editions_and_ol_rating(
             author=resolved_author,
             editions=editions
         )
-        return ol_rating, editions, target_work
+        return ol_rating, editions, target_work, crawler_status
 
     # Open Library work ID
     full_work_id = work_id if work_id.startswith("/works/") else f"/works/{work_id}"
+    crawler_status["open_library"] = "Normal"
     if "open_library" in active_title_providers:
         ol_rating = open_library.fetch_ratings(Work(work_id=full_work_id, title="", author=""))
     else:
@@ -305,7 +329,7 @@ def _resolve_work_editions_and_ol_rating(
         editions=editions,
         isbn=resolved_isbn
     )
-    return ol_rating, editions, target_work
+    return ol_rating, editions, target_work, crawler_status
 
 
 def _build_prov_instances(gb_provider: GoogleBooksProvider) -> dict:
@@ -355,7 +379,7 @@ def api_work_details(
         except Exception:
             pass
 
-    ol_rating, editions, target_work = _resolve_work_editions_and_ol_rating(
+    ol_rating, editions, target_work, crawler_status = _resolve_work_editions_and_ol_rating(
         work_id, title or "", author or "", active_rate_providers, gb_provider=gb_provider
     )
 
@@ -368,7 +392,8 @@ def api_work_details(
 
     result_payload = {
         "ratings": ratings_dict,
-        "editions": editions_dict
+        "editions": editions_dict,
+        "crawler_status": crawler_status
     }
 
     fut_dict = {}
@@ -417,7 +442,7 @@ def api_work_details_stream(
             pass
 
     def event_generator():
-        ol_rating, editions, target_work = _resolve_work_editions_and_ol_rating(
+        ol_rating, editions, target_work, crawler_status = _resolve_work_editions_and_ol_rating(
             work_id, title or "", author or "", active_rate_providers, gb_provider=gb_provider
         )
 
@@ -431,7 +456,8 @@ def api_work_details_stream(
         init_data = {
             "type": "init",
             "ratings": ratings_dict,
-            "editions": editions_dict
+            "editions": editions_dict,
+            "crawler_status": crawler_status
         }
         yield f"data: {json.dumps(init_data)}\n\n"
 

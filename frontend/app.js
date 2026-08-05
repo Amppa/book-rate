@@ -92,9 +92,12 @@ function renderCandidates(works) {
     const publishText = work.first_publish_year
       ? `首版 ${work.first_publish_year}`
       : "";
-    const editionText = work.edition_count
+    let editionText = work.edition_count
       ? `${work.edition_count.toLocaleString()} 個版本`
       : "";
+    if (work.key && work.key.startsWith("gr:") && work.status) {
+      editionText += ` (${work.status})`;
+    }
 
     const metaText = [
       authorText,
@@ -281,6 +284,7 @@ async function selectWork(work) {
         if (data.type === "init") {
           collectedDetails.ratings = data.ratings;
           collectedDetails.editions = data.editions;
+          collectedDetails.crawler_status = data.crawler_status;
           updateWorkDetailRow(row, collectedDetails, strategies);
         } else if (data.type === "platform") {
           const platformKey = data.platform;
@@ -490,7 +494,7 @@ function renderPlatformCell(row, prefix, data, maxRate = 5) {
   }
 }
 
-function updateWorkDetailRow(row, { work, ratings, editions }, strategies) {
+function updateWorkDetailRow(row, { work, ratings, editions, crawler_status }, strategies) {
   if (!row) return;
 
   row.querySelector(".work-title").textContent = work.title;
@@ -504,6 +508,17 @@ function updateWorkDetailRow(row, { work, ratings, editions }, strategies) {
   // 1. 版本數量與 editions modal
   const size = work.edition_count || editions?.size || editions?.entries?.length || 0;
   row.querySelector(".edition-count").textContent = `${size.toLocaleString()}個版本`;
+
+  const statusEl = row.querySelector(".step3-crawler-status");
+  if (statusEl) {
+    if (crawler_status && Object.keys(crawler_status).length > 0) {
+      statusEl.textContent = Object.entries(crawler_status)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join(" | ");
+    } else {
+      statusEl.textContent = "正常";
+    }
+  }
 
   const btn = row.querySelector(".show-editions-btn");
   if (btn) {
