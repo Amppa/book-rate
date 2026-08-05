@@ -37,10 +37,10 @@ def _author_list(work: Work) -> list:
 
 def _work_to_dict(work: Work) -> dict:
     status = None
-    if "Goodreads" in work.ratings:
-        st = work.ratings["Goodreads"].status
-        if st:
-            status = st
+    if work.work_id.startswith("gr:") and "Goodreads" in work.ratings:
+        status = work.ratings["Goodreads"].status
+    elif work.work_id.startswith("sg:") and "StoryGraph" in work.ratings:
+        status = work.ratings["StoryGraph"].status
     return {
         "key": work.work_id,
         "title": work.title,
@@ -291,8 +291,37 @@ def _resolve_work_editions_and_ol_rating(
         )
         return ol_rating, editions, target_work, crawler_status
 
-    # 純 ID 型 provider（SG / AM / AMJP / RM）：僅靠 title/author 對應 OL，無 ISBN 提取
-    if work_id.startswith(("sg:", "am:", "amjp:", "rm:")):
+    if work_id.startswith("sg:"):
+        book_id = work_id[3:]
+        details = storygraph.fetch_book_details(book_id)
+        crawler_status["storygraph"] = details.get("crawler_status") or "Normal"
+        resolved_isbn = details.get("isbn")
+        pub_year = details.get("pub_year")
+
+        if details.get("title") and not resolved_title:
+            resolved_title = details.get("title")
+        if details.get("author") and not resolved_author:
+            resolved_author = details.get("author")
+
+        ol_rating, editions = _apply_ol_mapping(resolved_isbn, resolved_title, resolved_author, active_title_providers)
+
+        if not editions:
+            editions = _fallback_edition_list(
+                book_id, resolved_title or "Unknown", isbn=resolved_isbn, pub_year=pub_year
+            )
+
+        target_work = Work(
+            work_id=work_id,
+            title=resolved_title,
+            author=resolved_author,
+            editions=editions,
+            isbn=resolved_isbn,
+            edition_count=details.get("editions_count") or (len(editions) if editions else None)
+        )
+        return ol_rating, editions, target_work, crawler_status
+
+    # 純 ID 型 provider（AM / AMJP / RM）：僅靠 title/author 對應 OL，無 ISBN 提取
+    if work_id.startswith(("am:", "amjp:", "rm:")):
         book_id = work_id.split(":", 1)[1]
         prov_name = work_id.split(":", 1)[0]
         crawler_status[prov_name] = "Normal"

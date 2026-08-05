@@ -129,7 +129,7 @@ function renderCandidates(works) {
       : "";
 
     const statusTag = fragment.querySelector(".candidate-status-tag");
-    if (statusTag && work.key && work.key.startsWith("gr:") && work.status) {
+    if (statusTag && work.key && (work.key.startsWith("gr:") || work.key.startsWith("sg:")) && work.status) {
       const shortInfo = getShortStatus(work.status);
       if (shortInfo) {
         statusTag.textContent = shortInfo.text;

@@ -68,6 +68,69 @@ class StoryGraphProvider(BaseProvider):
         votes = int(votes_m.group(1).replace(",", "")) if votes_m else None
         return rate, votes
 
+    def fetch_book_details(self, book_id: str) -> dict:
+        """Fetch book details page from StoryGraph and extract ISBN, pub_year, and editions_count."""
+        url = f"https://app.thestorygraph.com/books/{book_id}"
+        res = {
+            "isbn": None,
+            "pub_year": None,
+            "editions_count": 1,
+            "work_id": book_id,
+            "title": None,
+            "author": None,
+            "crawler_status": "Normal",
+            "url": url
+        }
+
+        try:
+            html_str = self._fetch_html(url)
+            if not html_str:
+                res["crawler_status"] = "Empty HTML response"
+                return res
+
+            # 1. Extract editions count (e.g. "304 editions" inside browse-editions-link)
+            editions_match = re.search(r'class="browse-editions-link[^"]*">\s*([\d,]+)\s+editions', html_str, re.IGNORECASE)
+            if not editions_match:
+                # Alternate search pattern
+                editions_match = re.search(r'([\d,]+)\s+editions', html_str, re.IGNORECASE)
+            if editions_match:
+                res["editions_count"] = int(editions_match.group(1).replace(",", ""))
+
+            # 2. Extract ISBN/UID (e.g. <span class="font-semibold">ISBN/UID:</span> 9781846558238)
+            isbn_match = re.search(r'ISBN/UID:</span>\s*([a-zA-Z0-9]+)', html_str, re.IGNORECASE)
+            if isbn_match:
+                res["isbn"] = isbn_match.group(1).strip()
+
+            # 3. Extract publication year
+            # Looking for: <span class="text-darkerGrey dark:text-lightGrey"> • </span>2011
+            # Or Edition Pub Date: 25 Feb 2015
+            pub_date_match = re.search(r'Edition Pub Date:</span>\s*([^<]+)', html_str, re.IGNORECASE)
+            if pub_date_match:
+                date_str = pub_date_match.group(1).strip()
+                year_match = re.search(r'\b\d{4}\b', date_str)
+                if year_match:
+                    res["pub_year"] = year_match.group(0)
+            else:
+                # Try simple year match on lines with bullet points
+                year_match = re.search(r'•\s*</span>\s*(\d{4})\b', html_str)
+                if year_match:
+                    res["pub_year"] = year_match.group(1)
+
+            # 4. Extract title and author if not found
+            title_match = re.search(r'<h3 class="[^"]*text-2xl[^"]*">\s*(.*?)\s*</h3>', html_str, re.DOTALL)
+            if title_match:
+                res["title"] = html.unescape(re.sub(r'<[^>]+>', '', title_match.group(1)).strip())
+
+            author_match = re.search(r'href="/authors/[^"]+">\s*(.*?)\s*</a>', html_str, re.DOTALL)
+            if author_match:
+                res["author"] = html.unescape(re.sub(r'<[^>]+>', '', author_match.group(1)).strip())
+
+        except Exception as e:
+            logger.warning(f"Failed to fetch StoryGraph book details for '{book_id}': {e}")
+            res["crawler_status"] = f"Error: {e}"
+
+        return res
+
     def search_works(self, query: str, limit: int = 5, page: int = 1) -> List[Work]:
         """Search The StoryGraph browse endpoint for query string or ISBN."""
         clean_query = query.strip()
@@ -93,30 +156,43 @@ class StoryGraphProvider(BaseProvider):
             author = html.unescape(author_matches[len(unique_books)].strip()) if len(unique_books) < len(author_matches) else "Unknown Author"
             unique_books.append((href, b_id, title, author))
 
-        works: List[Work] = []
-        for href, b_id, title, author_name in unique_books[:limit]:
+        def process_single_item(item):
+            href, b_id, title, author_name = item
             subject_url = f"{self.BASE_URL}{href}"
-            avg_rating, ratings_count = self._fetch_book_rating(b_id)
+
+            details = {"isbn": None, "pub_year": None, "editions_count": 1, "crawler_status": "Normal"}
+            try:
+                details = self.fetch_book_details(b_id)
+            except Exception:
+                pass
 
             work = Work(
                 work_id=f"sg:{b_id}",
-                title=title,
-                author=author_name,
-                edition_count=1
+                title=details.get("title") or title,
+                author=details.get("author") or author_name,
+                edition_count=details.get("editions_count") or 1,
+                first_publish_year=int(details.get("pub_year")) if details.get("pub_year") and str(details.get("pub_year")).isdigit() else None,
+                isbn=details.get("isbn")
             )
 
-            if avg_rating is not None or ratings_count is not None:
-                work.ratings[self.name] = PlatformRating(
-                    platform_name=self.name,
-                    rate=avg_rating,
-                    rating_count=ratings_count,
-                    url=subject_url,
-                    title=title
-                )
+            work.ratings[self.name] = PlatformRating(
+                platform_name=self.name,
+                rate=None,
+                rating_count=None,
+                url=subject_url,
+                title=details.get("title") or title,
+                status=details.get("crawler_status") or "Normal"
+            )
 
-            edition = Edition(edition_id=b_id, title=title)
+            edition = Edition(edition_id=b_id, title=details.get("title") or title)
             work.editions.append(edition)
-            works.append(work)
+            return work
+
+        from concurrent.futures import ThreadPoolExecutor
+        works: List[Work] = []
+        with ThreadPoolExecutor(max_workers=limit) as executor:
+            resolved_works = list(executor.map(process_single_item, unique_books[:limit]))
+            works = [w for w in resolved_works if w is not None]
 
         return works
 
