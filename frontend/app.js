@@ -163,6 +163,29 @@ function renderCandidates(works) {
   candidateSection.hidden = false;
 }
 
+function appendAndLimitTextarea(textareaEl, newItems, maxLimit) {
+  if (!textareaEl) return;
+
+  const items = Array.isArray(newItems) ? newItems : [newItems];
+  const validItems = items.map(item => String(item).trim()).filter(Boolean);
+  if (validItems.length === 0) return;
+
+  const currentVal = textareaEl.value.trim();
+  let lines = currentVal ? currentVal.split('\n').map(s => s.trim()) : [];
+
+  validItems.forEach(item => {
+    if (!lines.includes(item)) {
+      lines.push(item);
+    }
+  });
+
+  if (lines.length > maxLimit) {
+    lines = lines.slice(lines.length - maxLimit);
+  }
+
+  textareaEl.value = lines.join('\n');
+}
+
 function chooseCandidate(work) {
   currentSelectedWork = work;
   candidateList.querySelectorAll(".candidate-card").forEach((card) => {
@@ -194,53 +217,26 @@ function chooseCandidate(work) {
 
   if (work.title) {
     if (hasCjk(work.title)) {
-      if (titleZhEl) {
-        const currentVal = titleZhEl.value.trim();
-        const lines = currentVal ? currentVal.split('\n').map(s => s.trim()) : [];
-        if (!lines.includes(work.title)) {
-          titleZhEl.value = currentVal ? currentVal + '\n' + work.title : work.title;
-        }
-      }
+      appendAndLimitTextarea(titleZhEl, work.title, 4);
     } else {
-      if (titleEl) {
-        const currentVal = titleEl.value.trim();
-        const lines = currentVal ? currentVal.split('\n').map(s => s.trim()) : [];
-        if (!lines.includes(work.title)) {
-          titleEl.value = currentVal ? currentVal + '\n' + work.title : work.title;
-        }
-      }
+      appendAndLimitTextarea(titleEl, work.title, 4);
     }
   }
-  if (authorEl && work.author_name && work.author_name.length > 0) {
+
+  if (work.author_name && work.author_name.length > 0) {
     const validAuthors = work.author_name
       .map(name => name.trim())
       .filter(name => name && name.toLowerCase() !== 'unknown');
-
-    if (validAuthors.length > 0) {
-      const currentVal = authorEl.value.trim();
-      const lines = currentVal ? currentVal.split('\n').map(s => s.trim()) : [];
-      const toAppend = [];
-      validAuthors.forEach(author => {
-        if (!lines.includes(author) && !toAppend.includes(author)) {
-          toAppend.push(author);
-        }
-      });
-      if (toAppend.length > 0) {
-        const appendText = toAppend.join('\n');
-        authorEl.value = currentVal ? currentVal + '\n' + appendText : appendText;
-      }
-    }
+    appendAndLimitTextarea(authorEl, validAuthors, 8);
   }
-  if (publishDateEl) publishDateEl.value = work.first_publish_year || "";
-  if (isbnEl && work.isbn) {
-    let isbnVal = Array.isArray(work.isbn) ? work.isbn[0] : work.isbn;
-    if (isbnVal) {
-      const currentVal = isbnEl.value.trim();
-      const lines = currentVal ? currentVal.split('\n').map(s => s.trim()) : [];
-      if (!lines.includes(isbnVal)) {
-        isbnEl.value = currentVal ? currentVal + '\n' + isbnVal : isbnVal;
-      }
-    }
+
+  if (publishDateEl) {
+    publishDateEl.value = work.first_publish_year || "";
+  }
+
+  if (work.isbn) {
+    const isbnVal = Array.isArray(work.isbn) ? work.isbn[0] : work.isbn;
+    appendAndLimitTextarea(isbnEl, isbnVal, 8);
   }
 }
 
