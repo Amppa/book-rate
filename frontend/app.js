@@ -190,10 +190,25 @@ function chooseCandidate(work) {
   const publishDateEl = document.querySelector("#bm-publish-date");
   const isbnEl = document.querySelector("#bm-isbn");
 
-  if (titleEl) titleEl.value = work.title || "";
-  if (authorEl) authorEl.value = (work.author_name || []).join(", ") || "";
+  if (titleEl && work.title) {
+    const currentVal = titleEl.value.trim();
+    titleEl.value = currentVal ? currentVal + '\n' + work.title : work.title;
+  }
+  if (authorEl) {
+    const authorVal = (work.author_name || []).join(", ");
+    if (authorVal) {
+      const currentVal = authorEl.value.trim();
+      authorEl.value = currentVal ? currentVal + '\n' + authorVal : authorVal;
+    }
+  }
   if (publishDateEl) publishDateEl.value = work.first_publish_year || "";
-  if (isbnEl) isbnEl.value = work.isbn || "";
+  if (isbnEl && work.isbn) {
+    let isbnVal = Array.isArray(work.isbn) ? work.isbn[0] : work.isbn;
+    if (isbnVal) {
+      const currentVal = isbnEl.value.trim();
+      isbnEl.value = currentVal ? currentVal + '\n' + isbnVal : isbnVal;
+    }
+  }
 }
 
 function confirmToStep3() {
@@ -714,11 +729,14 @@ async function searchWorks(query, page, titleProvider = "open_library") {
 
   if (page === 1) {
     saveHistory(query);
+    const searchNameEl = document.querySelector("#bm-search-name");
     const titleEl = document.querySelector("#bm-title");
     const authorEl = document.querySelector("#bm-author");
     const publishDateEl = document.querySelector("#bm-publish-date");
     const isbnEl = document.querySelector("#bm-isbn");
-    if (titleEl) titleEl.value = query;
+    
+    if (searchNameEl) searchNameEl.value = query;
+    if (titleEl) titleEl.value = "";
     if (authorEl) authorEl.value = "";
     if (publishDateEl) publishDateEl.value = "";
     if (isbnEl) isbnEl.value = "";
