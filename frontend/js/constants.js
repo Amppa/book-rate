@@ -7,13 +7,13 @@ export const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 export const PROVIDERS = [
   { id: "open_library", label: "Open Library", defaultStrategy: "title_author", lang: ["en"] },
-  { id: "google_books", label: "Google Books", defaultStrategy: "title_author", lang: ["en"] },
+  { id: "google_books", label: "谷歌圖書", defaultStrategy: "title_author", lang: ["en"] },
   { id: "goodreads", label: "Goodreads", defaultStrategy: "title_author", lang: ["en"] },
   { id: "storygraph", label: "StoryGraph", defaultStrategy: "title_author", lang: ["en"] },
   { id: "amazon", label: "Amazon", defaultStrategy: "title_author", lang: ["en"] },
   { id: "amazon_jp", label: "Amazon JP", defaultStrategy: "title_author", lang: ["en"] },
   { id: "douban", label: "豆瓣", defaultStrategy: "title", lang: ["zh", "en"] },
-  { id: "readmoo", label: "Readmoo", defaultStrategy: "title_author", lang: ["zh"] },
+  { id: "readmoo", label: "讀墨", defaultStrategy: "title_author", lang: ["zh"] },
 ];
 
 export const STRATEGIES = [
