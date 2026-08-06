@@ -392,6 +392,11 @@ textarea.bm-input {
   min-height: 80px;
 }
 
+#s3-title,
+#s3-title-zh {
+  height: 95px;
+}
+
 @media (max-width: 768px) {
   .step3-metadata-grid {
     grid-template-columns: 1fr;
