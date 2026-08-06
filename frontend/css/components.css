@@ -171,7 +171,7 @@ header {
   border: 0;
 }
 
-.test-link-btn {
+.presets-link-btn {
   background: transparent;
   border: 0;
   padding: 0;
@@ -184,7 +184,7 @@ header {
   transition: color 0.2s ease;
 }
 
-.test-link-btn:hover {
+.presets-link-btn:hover {
   background: transparent;
 }
 
@@ -213,45 +213,42 @@ header {
 }
 
 .step2-block-title {
-  font-size: var(--fs-title);
-  color: var(--primary);
-  margin: 0 0 var(--space-3) 0;
+  font-size: var(--fs-lg);
+  margin: 0 0 0.6rem 0;
   font-weight: 700;
 }
 
-.other-title-providers-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-}
-
-.other-title-providers-buttons button {
-  padding: 0.65rem 1rem;
-  font-size: var(--fs-md);
-}
 
 .title-provider-tab-btn {
-  padding: 0.65rem 1.2rem;
+  padding: 1rem 0.5rem;
   font-size: var(--fs-md);
   font-weight: 600;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border);
-  background: var(--surface-card);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  border: 1px solid var(--border-light);
+  border-bottom: none;
+  background: var(--surface-bg) transparent;
   color: var(--text-primary);
   cursor: pointer;
   transition: all 0.2s ease;
+  margin-bottom: -2px;
+  /* Overlap the bottom border */
 }
 
 .title-provider-tab-btn:hover {
   background: var(--surface-subtle);
-  border-color: var(--primary);
 }
 
 .title-provider-tab-btn.active {
-  background: var(--primary);
-  color: var(--text-contrast);
+  /* background: var(--primary); */
+  background: var(--surface-card);
+  /* color: var(--text-contrast); */
   border-color: var(--primary);
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
+}
+
+#section-title-provider-tabs+.step2-block {
+  margin-top: 0;
+  /* Remove gap between tabs and candidate list */
 }
 
 /* Step 2 Split Layout & Book Metadata Card */
@@ -267,7 +264,7 @@ header {
 }
 
 .step2-right-panel {
-  width: 340px;
+  width: 300px;
   flex-shrink: 0;
   position: sticky;
   top: 20px;
@@ -359,6 +356,10 @@ header {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  background: var(--surface-card);
+  border: 1px solid var(--border-light);
+  border-top: none;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
   box-shadow: var(--shadow-sm);
 }
 
@@ -439,7 +440,7 @@ a.candidate-meta:hover {
   gap: var(--space-2);
   font-size: var(--fs-sm);
   color: var(--text-primary);
-  cursor: pointer; 
+  cursor: pointer;
   margin-bottom: 0;
 }
 
@@ -759,6 +760,7 @@ tbody tr:last-child td {
     opacity: 0;
     transform: translateY(-4px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -790,4 +792,3 @@ tbody tr:last-child td {
   color: var(--error);
   border: 1px solid var(--error);
 }
-
