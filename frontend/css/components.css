@@ -208,15 +208,12 @@ header {
 }
 
 /* Step 2 Sections */
-.step2-block {
-  margin-top: var(--space-6);
-}
-
 .step2-block-title {
   font-size: var(--fs-lg);
   margin: 0 0 0.6rem 0;
   font-weight: 700;
 }
+
 .other-title-providers-buttons {
   display: flex;
   flex-wrap: wrap;
@@ -346,11 +343,17 @@ header {
   width: 100%;
   padding: var(--space-2) var(--space-3);
   font-size: var(--fs-sm);
+  font-family: inherit;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background: var(--surface-card);
   color: var(--text-primary);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+textarea.bm-input {
+  resize: vertical;
+  min-height: 60px;
 }
 
 .bm-input:focus {

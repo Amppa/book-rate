@@ -81,7 +81,6 @@
               <div class="step2-left-panel">
                 <!-- 搜尋資料庫切換按鈕 -->
                 <div class="step2-block" id="section-title-provider-tabs">
-                  <h3 class="step2-block-title">選取書名資料庫</h3>
                   <div class="other-title-providers-buttons" id="title-provider-tabs-container"></div>
                 </div>
 
@@ -121,13 +120,18 @@
                   <p class="bm-card-subtitle">按 Choose 填入資料，確認後點擊右上角按鈕前往 Step 3</p>
 
                   <div class="bm-field-group">
+                    <label for="bm-search-name">搜尋名稱</label>
+                    <input type="text" id="bm-search-name" class="bm-input" placeholder="選取書籍後自動帶入" />
+                  </div>
+
+                  <div class="bm-field-group">
                     <label for="bm-title">書名 (Title)</label>
-                    <input type="text" id="bm-title" class="bm-input" placeholder="選取書籍後自動帶入" />
+                    <textarea id="bm-title" class="bm-input" placeholder="選取書籍後自動帶入"></textarea>
                   </div>
 
                   <div class="bm-field-group">
                     <label for="bm-author">作者 (Author)</label>
-                    <input type="text" id="bm-author" class="bm-input" placeholder="選取書籍後自動帶入" />
+                    <textarea id="bm-author" class="bm-input" placeholder="選取書籍後自動帶入"></textarea>
                   </div>
 
                   <div class="bm-field-group">
@@ -137,7 +141,7 @@
 
                   <div class="bm-field-group">
                     <label for="bm-isbn">ISBN</label>
-                    <input type="text" id="bm-isbn" class="bm-input" placeholder="選取書籍後自動帶入" />
+                    <textarea id="bm-isbn" class="bm-input" placeholder="選取書籍後自動帶入"></textarea>
                   </div>
                 </div>
               </aside>
