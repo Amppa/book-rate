@@ -185,19 +185,50 @@ function chooseCandidate(work) {
   }
 
   const titleEl = document.querySelector("#bm-title");
+  const titleZhEl = document.querySelector("#bm-title-zh");
   const authorEl = document.querySelector("#bm-author");
   const publishDateEl = document.querySelector("#bm-publish-date");
   const isbnEl = document.querySelector("#bm-isbn");
 
-  if (titleEl && work.title) {
-    const currentVal = titleEl.value.trim();
-    titleEl.value = currentVal ? currentVal + '\n' + work.title : work.title;
+  const hasCjk = (str) => /[\u4e00-\u9fa5\u3040-\u309f\u30a0-\u30ff\uac00-\ud7a3]/.test(str);
+
+  if (work.title) {
+    if (hasCjk(work.title)) {
+      if (titleZhEl) {
+        const currentVal = titleZhEl.value.trim();
+        const lines = currentVal ? currentVal.split('\n').map(s => s.trim()) : [];
+        if (!lines.includes(work.title)) {
+          titleZhEl.value = currentVal ? currentVal + '\n' + work.title : work.title;
+        }
+      }
+    } else {
+      if (titleEl) {
+        const currentVal = titleEl.value.trim();
+        const lines = currentVal ? currentVal.split('\n').map(s => s.trim()) : [];
+        if (!lines.includes(work.title)) {
+          titleEl.value = currentVal ? currentVal + '\n' + work.title : work.title;
+        }
+      }
+    }
   }
-  if (authorEl) {
-    const authorVal = (work.author_name || []).join(", ");
-    if (authorVal) {
+  if (authorEl && work.author_name && work.author_name.length > 0) {
+    const validAuthors = work.author_name
+      .map(name => name.trim())
+      .filter(name => name && name.toLowerCase() !== 'unknown');
+
+    if (validAuthors.length > 0) {
       const currentVal = authorEl.value.trim();
-      authorEl.value = currentVal ? currentVal + '\n' + authorVal : authorVal;
+      const lines = currentVal ? currentVal.split('\n').map(s => s.trim()) : [];
+      const toAppend = [];
+      validAuthors.forEach(author => {
+        if (!lines.includes(author) && !toAppend.includes(author)) {
+          toAppend.push(author);
+        }
+      });
+      if (toAppend.length > 0) {
+        const appendText = toAppend.join('\n');
+        authorEl.value = currentVal ? currentVal + '\n' + appendText : appendText;
+      }
     }
   }
   if (publishDateEl) publishDateEl.value = work.first_publish_year || "";
@@ -205,9 +236,29 @@ function chooseCandidate(work) {
     let isbnVal = Array.isArray(work.isbn) ? work.isbn[0] : work.isbn;
     if (isbnVal) {
       const currentVal = isbnEl.value.trim();
-      isbnEl.value = currentVal ? currentVal + '\n' + isbnVal : isbnVal;
+      const lines = currentVal ? currentVal.split('\n').map(s => s.trim()) : [];
+      if (!lines.includes(isbnVal)) {
+        isbnEl.value = currentVal ? currentVal + '\n' + isbnVal : isbnVal;
+      }
     }
   }
+}
+
+function resetMetadataPanel(query) {
+  const searchNameEl = document.querySelector("#bm-search-name");
+  const titleEl = document.querySelector("#bm-title");
+  const titleZhEl = document.querySelector("#bm-title-zh");
+  const authorEl = document.querySelector("#bm-author");
+  const publishDateEl = document.querySelector("#bm-publish-date");
+  const isbnEl = document.querySelector("#bm-isbn");
+
+  if (searchNameEl) searchNameEl.value = query || "";
+  if (titleEl) titleEl.value = "";
+  if (titleZhEl) titleZhEl.value = "";
+  if (authorEl) authorEl.value = "";
+  if (publishDateEl) publishDateEl.value = "";
+  if (isbnEl) isbnEl.value = "";
+  currentSelectedWork = null;
 }
 
 function confirmToStep3() {
@@ -640,18 +691,6 @@ async function searchWorks(query, page, titleProvider = "open_library") {
 
   if (page === 1) {
     saveHistory(query);
-    const searchNameEl = document.querySelector("#bm-search-name");
-    const titleEl = document.querySelector("#bm-title");
-    const authorEl = document.querySelector("#bm-author");
-    const publishDateEl = document.querySelector("#bm-publish-date");
-    const isbnEl = document.querySelector("#bm-isbn");
-    
-    if (searchNameEl) searchNameEl.value = query;
-    if (titleEl) titleEl.value = "";
-    if (authorEl) authorEl.value = "";
-    if (publishDateEl) publishDateEl.value = "";
-    if (isbnEl) isbnEl.value = "";
-    currentSelectedWork = null;
   }
 
   try {
@@ -702,6 +741,7 @@ searchForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const query = searchInput.value.trim();
   if (!query) return;
+  resetMetadataPanel(query);
   searchWorks(query, 1, "open_library");
 });
 
