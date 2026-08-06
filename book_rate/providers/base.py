@@ -8,11 +8,12 @@ logger = logging.getLogger(__name__)
 
 
 class SearchStrategy:
-    ISBN_PRIMARY = "isbn_primary"
-    ISBN_ALL = "isbn_all"
-    TITLE = "title"
-    TITLE_AUTHOR = "title_author"
-    TITLE_AUTHOR_YEAR = "title_author_year"
+    SEARCH_NAME = "search_name"
+    TITLE_LIST = "title_list"
+    TITLE_ZH_LIST = "title_zh_list"
+    TITLE_LIST_FULL = "title_list_full"
+    TITLE_ZH_LIST_FULL = "title_zh_list_full"
+    ISBN = "isbn"
     PROVIDER_ID = "provider_id"
 
 
@@ -106,87 +107,7 @@ class BaseProvider:
         query_used = ""
         network_error_msg = None
 
-        primary_isbn = getattr(work, "isbn", None)
-        if not primary_isbn and work.editions:
-            for ed in work.editions:
-                if ed.isbn_13 or ed.isbn_10:
-                    primary_isbn = ed.isbn_13 or ed.isbn_10
-                    break
-        cleaned = clean_isbn(primary_isbn) if primary_isbn else None
-
-        if strat == SearchStrategy.ISBN_PRIMARY and not cleaned and strategy is None:
-            strat = SearchStrategy.TITLE_AUTHOR
-
-        if strat == SearchStrategy.ISBN_PRIMARY:
-            if cleaned:
-                query_used = cleaned
-                try:
-                    candidate_works.extend(search(cleaned))
-                except ProviderNetworkError as ne:
-                    network_error_msg = ne.message
-                except Exception as e:
-                    network_error_msg = f"Error: {e}"
-
-        elif strat == SearchStrategy.ISBN_ALL:
-            isbns = extract_isbns_from_work(work)
-            if isbns:
-                query_used = ", ".join(isbns[:5])
-                for isbn in isbns[:5]:
-                    try:
-                        candidate_works.extend(search(isbn))
-                    except ProviderNetworkError as ne:
-                        network_error_msg = ne.message
-                        break
-                    except Exception as e:
-                        network_error_msg = f"Error: {e}"
-                        break
-
-        elif strat == SearchStrategy.TITLE:
-            query_used = target_title or ""
-            if query_used:
-                try:
-                    candidate_works.extend(search(query_used))
-                except ProviderNetworkError as ne:
-                    network_error_msg = ne.message
-                except Exception as e:
-                    network_error_msg = f"Error: {e}"
-
-        elif strat == SearchStrategy.TITLE_AUTHOR:
-            clean_author = ""
-            if work.author and work.author not in ["Unknown Author", "Unknown"]:
-                clean_author = work.author.split(",")[0].strip()
-            query_used = f"{target_title} {clean_author}".strip()
-            if query_used:
-                try:
-                    candidate_works.extend(search(query_used))
-                except ProviderNetworkError as ne:
-                    network_error_msg = ne.message
-                except Exception as e:
-                    network_error_msg = f"Error: {e}"
-
-        elif strat == SearchStrategy.TITLE_AUTHOR_YEAR:
-            clean_author = ""
-            if work.author and work.author not in ["Unknown Author", "Unknown"]:
-                clean_author = work.author.split(",")[0].strip()
-            pub_year = work.first_publish_year
-            if not pub_year and work.editions:
-                for ed in work.editions:
-                    if ed.publish_year:
-                        year_match = re.search(r'\b\d{4}\b', str(ed.publish_year))
-                        if year_match:
-                            pub_year = year_match.group(0)
-                            break
-            year_str = str(pub_year) if pub_year else ""
-            query_used = f"{target_title} {clean_author} {year_str}".strip()
-            if query_used:
-                try:
-                    candidate_works.extend(search(query_used))
-                except ProviderNetworkError as ne:
-                    network_error_msg = ne.message
-                except Exception as e:
-                    network_error_msg = f"Error: {e}"
-
-        elif strat == SearchStrategy.PROVIDER_ID:
+        if strat == SearchStrategy.PROVIDER_ID:
             query_used = work.work_id
             if self.name in work.ratings and work.ratings[self.name].rate is not None:
                 r = work.ratings[self.name]
@@ -214,6 +135,164 @@ class BaseProvider:
                     network_error_msg = ne.message
                 except Exception as e:
                     network_error_msg = f"Error: {e}"
+
+        elif strat == SearchStrategy.SEARCH_NAME:
+            query_used = work.search_name or work.title
+            if query_used:
+                try:
+                    candidate_works.extend(search(query_used))
+                except ProviderNetworkError as ne:
+                    network_error_msg = ne.message
+                except Exception as e:
+                    network_error_msg = f"Error: {e}"
+
+        elif strat == SearchStrategy.TITLE_LIST:
+            titles_to_try = work.title_list if work.title_list else ([work.title] if work.title else [])
+            for t in titles_to_try:
+                t = t.strip()
+                if not t:
+                    continue
+                try:
+                    res_works = search(t)
+                    if res_works:
+                        best_rating = self._select_best_rating(res_works, target_title=t)
+                        if best_rating and (best_rating.rate is not None or best_rating.rating_count is not None or best_rating.url):
+                            best_rating.strategy = strat
+                            best_rating.query = t
+                            best_rating.status = "MATCH" if (best_rating.rate is not None or best_rating.rating_count is not None) else "NO_MATCH"
+                            return best_rating
+                except ProviderNetworkError as ne:
+                    network_error_msg = ne.message
+                    break
+                except Exception as e:
+                    network_error_msg = f"Error: {e}"
+                    break
+
+        elif strat == SearchStrategy.TITLE_ZH_LIST:
+            titles_to_try = work.title_zh_list if work.title_zh_list else ([work.title] if work.title else [])
+            for t in titles_to_try:
+                t = t.strip()
+                if not t:
+                    continue
+                try:
+                    res_works = search(t)
+                    if res_works:
+                        best_rating = self._select_best_rating(res_works, target_title=t)
+                        if best_rating and (best_rating.rate is not None or best_rating.rating_count is not None or best_rating.url):
+                            best_rating.strategy = strat
+                            best_rating.query = t
+                            best_rating.status = "MATCH" if (best_rating.rate is not None or best_rating.rating_count is not None) else "NO_MATCH"
+                            return best_rating
+                except ProviderNetworkError as ne:
+                    network_error_msg = ne.message
+                    break
+                except Exception as e:
+                    network_error_msg = f"Error: {e}"
+                    break
+
+        elif strat == SearchStrategy.ISBN:
+            raw_isbns = work.isbn_list if work.isbn_list else ([work.isbn] if work.isbn else [])
+            cleaned_isbns = []
+            for r_isbn in raw_isbns:
+                c = clean_isbn(r_isbn)
+                if c and c not in cleaned_isbns:
+                    cleaned_isbns.append(c)
+            
+            for isbn in cleaned_isbns[:5]:
+                try:
+                    res_works = search(isbn)
+                    if res_works:
+                        best_rating = self._select_best_rating(res_works, target_title=None)
+                        if best_rating and (best_rating.rate is not None or best_rating.rating_count is not None or best_rating.url):
+                            best_rating.strategy = strat
+                            best_rating.query = isbn
+                            best_rating.status = "MATCH" if (best_rating.rate is not None or best_rating.rating_count is not None) else "NO_MATCH"
+                            return best_rating
+                except ProviderNetworkError as ne:
+                    network_error_msg = ne.message
+                    break
+                except Exception as e:
+                    network_error_msg = f"Error: {e}"
+                    break
+
+        elif strat in (SearchStrategy.TITLE_LIST_FULL, SearchStrategy.TITLE_ZH_LIST_FULL):
+            titles_to_try = work.title_list if strat == SearchStrategy.TITLE_LIST_FULL else work.title_zh_list
+            if not titles_to_try:
+                titles_to_try = [work.title] if work.title else []
+            
+            results_list = []
+            best_rating = None
+            
+            import time
+            for i, t in enumerate(titles_to_try[:4]):
+                t = t.strip()
+                if not t:
+                    continue
+                if i > 0:
+                    time.sleep(1.0)
+                
+                try:
+                    res_works = search(t)
+                    if res_works:
+                        r = self._select_best_rating(res_works, target_title=t)
+                        if r and (r.rate is not None or r.rating_count is not None or r.url):
+                            results_list.append({
+                                "average": r.rate,
+                                "count": r.rating_count,
+                                "url": r.url,
+                                "title": r.title or t,
+                                "status": "MATCH",
+                                "query": t
+                            })
+                            if not best_rating or (r.rating_count or 0) > (best_rating.rating_count or 0):
+                                best_rating = r
+                        else:
+                            results_list.append({
+                                "average": None,
+                                "count": None,
+                                "url": None,
+                                "title": t,
+                                "status": "NO_MATCH",
+                                "query": t
+                            })
+                    else:
+                        results_list.append({
+                            "average": None,
+                            "count": None,
+                            "url": None,
+                            "title": t,
+                            "status": "NO_MATCH",
+                            "query": t
+                        })
+                except Exception as e:
+                    results_list.append({
+                        "average": None,
+                        "count": None,
+                        "url": None,
+                        "title": t,
+                        "status": f"Error: {e}",
+                        "query": t
+                    })
+            
+            if best_rating:
+                from copy import copy
+                copied_rating = copy(best_rating)
+                copied_rating.strategy = strat
+                copied_rating.query = ", ".join(t for t in titles_to_try[:4])
+                copied_rating.status = "MATCH"
+                copied_rating.results = results_list
+                return copied_rating
+            else:
+                return PlatformRating(
+                    platform_name=self.name,
+                    rate=None,
+                    rating_count=None,
+                    url=None,
+                    strategy=strat,
+                    query=", ".join(t for t in titles_to_try[:4]),
+                    status="NO_MATCH",
+                    results=results_list
+                )
 
         best_rating = self._select_best_rating(candidate_works, target_title=target_title)
         if best_rating and (best_rating.rate is not None or best_rating.rating_count is not None or best_rating.url):

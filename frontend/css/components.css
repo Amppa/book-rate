@@ -844,3 +844,45 @@ tbody tr:last-child td {
   color: var(--error);
   border: 1px solid var(--error);
 }
+
+/* Multi-result lists styles for Strategy 5/6 */
+.multi-result-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--fs-xs);
+  text-align: left;
+  margin-top: var(--space-1);
+}
+
+.multi-result-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px 0;
+  border-bottom: 1px dashed var(--border-light);
+}
+
+.multi-result-item:last-child {
+  border-bottom: none;
+}
+
+.multi-result-index {
+  color: var(--text-muted);
+  font-weight: bold;
+  min-width: 14px;
+}
+
+.multi-result-value {
+  flex-grow: 1;
+  white-space: nowrap;
+}
+
+.multi-result-link {
+  color: var(--primary-color);
+  text-decoration: none;
+}
+
+.multi-result-link:hover {
+  text-decoration: underline;
+}

@@ -6,22 +6,23 @@ export const CACHE_PREFIX = "bookrate:cache:";
 export const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 export const PROVIDERS = [
-  { id: "open_library", label: "Open Library", defaultStrategy: "title_author", lang: ["en"] },
-  { id: "google_books", label: "谷歌圖書", defaultStrategy: "title_author", lang: ["en"] },
-  { id: "goodreads", label: "Goodreads", defaultStrategy: "title_author", lang: ["en"] },
-  { id: "storygraph", label: "StoryGraph", defaultStrategy: "title_author", lang: ["en"] },
-  { id: "amazon", label: "Amazon", defaultStrategy: "title_author", lang: ["en"] },
-  { id: "amazon_jp", label: "Amazon JP", defaultStrategy: "title_author", lang: ["en"] },
-  { id: "douban", label: "豆瓣", defaultStrategy: "title", lang: ["zh", "en"] },
-  { id: "readmoo", label: "讀墨", defaultStrategy: "title_author", lang: ["zh"] },
+  { id: "open_library", label: "Open Library", defaultStrategy: "title_list", lang: ["en"] },
+  { id: "google_books", label: "谷歌圖書", defaultStrategy: "title_list", lang: ["en"] },
+  { id: "goodreads", label: "Goodreads", defaultStrategy: "title_list", lang: ["en"] },
+  { id: "storygraph", label: "StoryGraph", defaultStrategy: "title_list", lang: ["en"] },
+  { id: "amazon", label: "Amazon", defaultStrategy: "title_list", lang: ["en"] },
+  { id: "amazon_jp", label: "Amazon JP", defaultStrategy: "title_list", lang: ["en"] },
+  { id: "douban", label: "豆瓣", defaultStrategy: "title_zh_list", lang: ["zh", "en"] },
+  { id: "readmoo", label: "讀墨", defaultStrategy: "title_zh_list", lang: ["zh"] },
 ];
 
 export const STRATEGIES = [
-  { value: "isbn_primary", label: "ISBN (Primary)" },
-  { value: "isbn_all", label: "ISBN (All Editions)" },
-  { value: "title_author_year", label: "Title + Author + Year" },
-  { value: "title_author", label: "Title + Author" },
-  { value: "title", label: "Title" },
+  { value: "search_name", label: "搜尋名稱 (User input title)" },
+  { value: "title_list", label: "書名列表 (短路)" },
+  { value: "title_zh_list", label: "書名列表 (亞洲) (短路)" },
+  { value: "title_list_full", label: "書名列表 (完整)" },
+  { value: "title_zh_list_full", label: "書名列表 (亞洲) (完整)" },
+  { value: "isbn", label: "ISBN" },
 ];
 
 export const PROVIDER_CHECKBOX_SUFFIX = {

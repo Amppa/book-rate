@@ -13,6 +13,7 @@ class PlatformRating:
     strategy: Optional[str] = None
     query: Optional[str] = None
     status: str = "NO_MATCH"
+    results: List[dict] = field(default_factory=list)
 
     def format_rate_count(self) -> str:
         """Format rate and count as string (e.g. '4.25 / 150 ratings' or 'N/A')."""
@@ -48,6 +49,11 @@ class Work:
     ratings: Dict[str, PlatformRating] = field(default_factory=dict)
     original_title: Optional[str] = None
     isbn: Optional[str] = None
+    search_name: Optional[str] = None
+    title_list: List[str] = field(default_factory=list)
+    title_zh_list: List[str] = field(default_factory=list)
+    author_list: List[str] = field(default_factory=list)
+    isbn_list: List[str] = field(default_factory=list)
 
     def get_rating_summary(self, platform_name: str) -> str:
         """Get formatted rating for a platform or return N/A."""

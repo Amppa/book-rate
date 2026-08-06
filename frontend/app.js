@@ -330,6 +330,20 @@ function getActiveRateProvidersList() {
   return rateProviders;
 }
 
+function getStep3Metadata() {
+  const searchName = document.querySelector("#s3-search-name")?.value.trim() || "";
+  const titleList = (document.querySelector("#s3-title")?.value || "").split("\n").map(s => s.trim()).filter(Boolean);
+  const titleZhList = (document.querySelector("#s3-title-zh")?.value || "").split("\n").map(s => s.trim()).filter(Boolean);
+  const authorList = (document.querySelector("#s3-author")?.value || "").split("\n").map(s => s.trim()).filter(Boolean);
+  const isbnList = (document.querySelector("#s3-isbn")?.value || "").split("\n").map(s => s.trim()).filter(Boolean);
+
+  return { searchName, titleList, titleZhList, authorList, isbnList };
+}
+
+function getProviderDefaultStrat(provId) {
+  return PROVIDERS.find(p => p.id === provId)?.defaultStrategy || "title_list";
+}
+
 async function selectWork(work) {
   currentSelectedWork = work;
   candidateList.querySelectorAll(".candidate-card").forEach((card) => {
@@ -371,7 +385,7 @@ async function selectWork(work) {
   const pendingRateProviders = [];
 
   activeRateProvidersList.forEach((provider) => {
-    const strategy = strategies[provider] || "isbn_primary";
+    const strategy = strategies[provider] || getProviderDefaultStrat(provider);
     const cachedData = getRatingCache(work.key, provider, strategy);
     if (cachedData) {
       cachedRateProviders.push({ provider, data: cachedData });
@@ -388,8 +402,16 @@ async function selectWork(work) {
   });
 
   try {
+    const meta = getStep3Metadata();
     const strategiesStr = JSON.stringify(strategies);
-    let url = `/api/work-details-stream?work_id=${encodeURIComponent(work.key)}&title=${encodeURIComponent(work.title)}&author=${encodeURIComponent((work.author_name || []).join(","))}&engines=${encodeURIComponent(pendingRateProviders.join(","))}&strategies=${encodeURIComponent(strategiesStr)}`;
+    let url = `/api/work-details-stream?work_id=${encodeURIComponent(work.key)}` +
+              `&search_name=${encodeURIComponent(meta.searchName)}` +
+              `&title_list=${encodeURIComponent(JSON.stringify(meta.titleList))}` +
+              `&title_zh_list=${encodeURIComponent(JSON.stringify(meta.titleZhList))}` +
+              `&author_list=${encodeURIComponent(JSON.stringify(meta.authorList))}` +
+              `&isbn_list=${encodeURIComponent(JSON.stringify(meta.isbnList))}` +
+              `&engines=${encodeURIComponent(pendingRateProviders.join(","))}` +
+              `&strategies=${encodeURIComponent(strategiesStr)}`;
     if (apiKey) {
       url += `&google_key=${encodeURIComponent(apiKey)}`;
     }
@@ -416,7 +438,7 @@ async function selectWork(work) {
           const maxRate = prefix === "db" ? 10 : 5;
 
           // 寫入評分快取
-          const strategy = strategies[platformKey] || "isbn_primary";
+          const strategy = strategies[platformKey] || getProviderDefaultStrat(platformKey);
           setRatingCache(work.key, platformKey, strategy, data.data);
 
           renderPlatformCell(row, prefix, data.data, maxRate);
@@ -462,7 +484,15 @@ function reQuerySingleProvider(work, providerKey) {
   const strategies = getSelectedStrategies();
   const strategiesStr = JSON.stringify(strategies);
 
-  let url = `/api/work-details-stream?work_id=${encodeURIComponent(work.key)}&title=${encodeURIComponent(work.title)}&author=${encodeURIComponent((work.author_name || []).join(","))}&engines=${encodeURIComponent(providerKey)}&strategies=${encodeURIComponent(strategiesStr)}`;
+  const meta = getStep3Metadata();
+  let url = `/api/work-details-stream?work_id=${encodeURIComponent(work.key)}` +
+            `&search_name=${encodeURIComponent(meta.searchName)}` +
+            `&title_list=${encodeURIComponent(JSON.stringify(meta.titleList))}` +
+            `&title_zh_list=${encodeURIComponent(JSON.stringify(meta.titleZhList))}` +
+            `&author_list=${encodeURIComponent(JSON.stringify(meta.authorList))}` +
+            `&isbn_list=${encodeURIComponent(JSON.stringify(meta.isbnList))}` +
+            `&engines=${encodeURIComponent(providerKey)}` +
+            `&strategies=${encodeURIComponent(strategiesStr)}`;
   if (apiKey) {
     url += `&google_key=${encodeURIComponent(apiKey)}`;
   }
@@ -475,7 +505,7 @@ function reQuerySingleProvider(work, providerKey) {
         const maxRate = prefix === "db" ? 10 : 5;
 
         // 重新查詢寫入評分快取並渲染
-        const strategy = strategies[providerKey] || "isbn_primary";
+        const strategy = strategies[providerKey] || getProviderDefaultStrat(providerKey);
         setRatingCache(work.key, providerKey, strategy, data.data);
 
         renderPlatformCell(row, prefix, data.data, maxRate);
@@ -569,6 +599,78 @@ function renderPlatformCell(row, prefix, data, maxRate = 5) {
   // Clear previous elements
   rateEl.replaceChildren();
 
+  const STRATEGY_LABEL_MAP = {
+    "search_name": "搜尋名稱",
+    "title_list": "書名列表 (短路)",
+    "title_zh_list": "書名列表 (亞洲) (短路)",
+    "title_list_full": "書名列表 (完整)",
+    "title_zh_list_full": "書名列表 (亞洲) (完整)",
+    "isbn": "ISBN",
+    "provider_id": "書籍ID (精確)"
+  };
+
+  if (data.results && data.results.length > 0) {
+    const listContainer = document.createElement("div");
+    listContainer.className = "multi-result-list";
+
+    data.results.forEach((res, index) => {
+      const item = document.createElement("div");
+      item.className = "multi-result-item";
+      
+      const friendlyStrat = STRATEGY_LABEL_MAP[res.strategy] || res.strategy || "N/A";
+      item.title = `查詢: ${res.query || "N/A"}\n書名: ${res.title || "N/A"}`;
+
+      const numSpan = document.createElement("span");
+      numSpan.className = "multi-result-index";
+      numSpan.textContent = `${index + 1}.`;
+      item.appendChild(numSpan);
+
+      const valSpan = document.createElement("span");
+      valSpan.className = "multi-result-value";
+
+      const rScore = typeof res.average === "number" && res.average > 0;
+      if (res.status && res.status.startsWith("Error")) {
+        valSpan.innerHTML = '<span class="error">錯誤 ⚠️</span>';
+      } else if (rScore) {
+        const rateText = displayRate(res.average, res.count, maxRate);
+        if (res.url) {
+          valSpan.innerHTML = `<a href="${res.url}" target="_blank" rel="noreferrer" class="multi-result-link">${rateText} (${displayCount(res.count)}) ↗</a>`;
+        } else {
+          valSpan.textContent = `${rateText} (${displayCount(res.count)})`;
+        }
+      } else if (res.url) {
+        valSpan.innerHTML = `<a href="${res.url}" target="_blank" rel="noreferrer" class="multi-result-link">暫無評分 ↗</a>`;
+      } else {
+        valSpan.textContent = "無此書籍";
+        valSpan.style.color = "var(--text-muted)";
+      }
+
+      item.appendChild(valSpan);
+      listContainer.appendChild(item);
+    });
+
+    rateEl.appendChild(listContainer);
+    countEl.replaceChildren(); // clear countEl
+
+    // Render status tag
+    const cell = rateEl.closest("td");
+    if (cell) {
+      const oldTag = cell.querySelector(".search-status-tag");
+      if (oldTag) oldTag.remove();
+
+      const tag = document.createElement("span");
+      tag.className = `search-status-tag status-${status.toLowerCase().replace(/[^a-z0-9_]/g, "-")}`;
+      tag.textContent = status;
+      tag.dataset.strat = data.strategy || "";
+      tag.dataset.query = data.query || "";
+      const friendlyStrat = STRATEGY_LABEL_MAP[data.strategy] || data.strategy || "N/A";
+      tag.title = `策略: ${friendlyStrat}, 查詢: ${data.query || "N/A"}`;
+      cell.appendChild(tag);
+    }
+    return;
+  }
+
+  // --- Single-result render logic ---
   let resultText = "";
 
   if (data.quota_exceeded || status === "QUOTA_EXCEEDED") {
@@ -581,7 +683,7 @@ function renderPlatformCell(row, prefix, data, maxRate = 5) {
     resultText = "讀取錯誤";
   } else if (isNetworkError) {
     rateEl.innerHTML = '<span class="error">連線異常 ⚠️</span>';
-    countEl.textContent = status; // Shows HTTP 503 etc.
+    countEl.textContent = status;
     resultText = `連線異常 (${status})`;
   } else if (hasScore) {
     const rateText = displayRate(data.average, data.count, maxRate);
@@ -609,8 +711,8 @@ function renderPlatformCell(row, prefix, data, maxRate = 5) {
     tag.textContent = status;
     tag.dataset.strat = data.strategy || "";
     tag.dataset.query = data.query || "";
-    // 用 native tooltip 取代 debug modal
-    tag.title = `策略: ${data.strategy || "N/A"}, 查詢: ${data.query || "N/A"}`;
+    const friendlyStrat = STRATEGY_LABEL_MAP[data.strategy] || data.strategy || "N/A";
+    tag.title = `策略: ${friendlyStrat}, 查詢: ${data.query || "N/A"}`;
 
     cell.appendChild(tag);
   }
@@ -626,7 +728,7 @@ function updateWorkDetailRow(row, { work, ratings }, strategies) {
 
   // 寫入快取
   if (strategies) {
-    const olStrategy = strategies.open_library || "title_author";
+    const olStrategy = strategies.open_library || getProviderDefaultStrat("open_library");
     setRatingCache(work.key, "open_library", olStrategy, olData);
   }
 }

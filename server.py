@@ -376,6 +376,18 @@ def _build_prov_instances(gb_provider: GoogleBooksProvider) -> dict:
     }
 
 
+def parse_json_list(param_str: Optional[str]) -> list:
+    if not param_str:
+        return []
+    try:
+        data = json.loads(param_str)
+        if isinstance(data, list):
+            return [str(item).strip() for item in data if item]
+    except Exception:
+        pass
+    return [item.strip() for item in param_str.split(",") if item.strip()]
+
+
 def _format_rating_response(provider_key: str, p_rating: PlatformRating, fallback_title: str, quota_exceeded: bool = False) -> dict:
     return {
         "average": p_rating.rate if p_rating and p_rating.rate is not None else 0,
@@ -386,7 +398,8 @@ def _format_rating_response(provider_key: str, p_rating: PlatformRating, fallbac
         "strategy": p_rating.strategy if p_rating else None,
         "query": p_rating.query if p_rating else "",
         "status": p_rating.status if p_rating else "NO_MATCH",
-        "quota_exceeded": quota_exceeded
+        "quota_exceeded": quota_exceeded,
+        "results": p_rating.results if p_rating else []
     }
 
 
@@ -397,7 +410,12 @@ def api_work_details(
     author: str = Query(None, description="Author of the work"),
     google_key: str = Query(None, description="Optional Google Books API Key"),
     engines: str = Query("open_library,google_books,goodreads,storygraph,amazon,amazon_jp,douban,readmoo", description="Comma-separated score engines to fetch"),
-    strategies: str = Query(None, description="JSON string of provider search strategies")
+    strategies: str = Query(None, description="JSON string of provider search strategies"),
+    search_name: str = Query(None, description="User input search name"),
+    title_list: str = Query(None, description="List of book titles"),
+    title_zh_list: str = Query(None, description="List of Asian/Chinese book titles"),
+    author_list: str = Query(None, description="List of author names"),
+    isbn_list: str = Query(None, description="List of ISBNs")
 ):
     print(f"\n[Details API] User locked work: '{work_id}' (Title: '{title}', Author: '{author}', Engines: '{engines}')")
     active_rate_providers = [e.strip() for e in engines.split(",") if e.strip()]
@@ -413,6 +431,12 @@ def api_work_details(
     ol_rating, editions, target_work, crawler_status = _resolve_work_editions_and_ol_rating(
         work_id, title or "", author or "", active_rate_providers, gb_provider=gb_provider
     )
+
+    target_work.search_name = search_name
+    target_work.title_list = parse_json_list(title_list)
+    target_work.title_zh_list = parse_json_list(title_zh_list)
+    target_work.author_list = parse_json_list(author_list)
+    target_work.isbn_list = parse_json_list(isbn_list)
 
     ratings_dict = {
         "average": ol_rating.rate if ol_rating and ol_rating.rate is not None else 0,
@@ -446,7 +470,8 @@ def api_work_details(
                 res_key = p_key
                 result_payload[res_key] = {
                     "average": 0, "count": 0, "title": target_work.title, "url": None,
-                    "provider": p_key, "strategy": strat_dict.get(p_key), "query": "", "status": "ERROR"
+                    "provider": p_key, "strategy": strat_dict.get(p_key), "query": "", "status": "ERROR",
+                    "results": []
                 }
 
     return result_payload
@@ -459,7 +484,12 @@ def api_work_details_stream(
     author: str = Query(None, description="Author of the work"),
     google_key: str = Query(None, description="Optional Google Books API Key"),
     engines: str = Query("open_library,google_books,goodreads,storygraph,amazon,amazon_jp,douban,readmoo", description="Comma-separated score engines to fetch"),
-    strategies: str = Query(None, description="JSON string of provider search strategies")
+    strategies: str = Query(None, description="JSON string of provider search strategies"),
+    search_name: str = Query(None, description="User input search name"),
+    title_list: str = Query(None, description="List of book titles"),
+    title_zh_list: str = Query(None, description="List of Asian/Chinese book titles"),
+    author_list: str = Query(None, description="List of author names"),
+    isbn_list: str = Query(None, description="List of ISBNs")
 ):
     print(f"\n[Stream Details API] User locked work: '{work_id}' (Title: '{title}', Author: '{author}', Engines: '{engines}')")
     active_rate_providers = [e.strip() for e in engines.split(",") if e.strip()]
@@ -476,6 +506,12 @@ def api_work_details_stream(
         ol_rating, editions, target_work, crawler_status = _resolve_work_editions_and_ol_rating(
             work_id, title or "", author or "", active_rate_providers, gb_provider=gb_provider
         )
+
+        target_work.search_name = search_name
+        target_work.title_list = parse_json_list(title_list)
+        target_work.title_zh_list = parse_json_list(title_zh_list)
+        target_work.author_list = parse_json_list(author_list)
+        target_work.isbn_list = parse_json_list(isbn_list)
 
         ratings_dict = {
             "average": ol_rating.rate if ol_rating and ol_rating.rate is not None else 0,
@@ -511,7 +547,8 @@ def api_work_details_stream(
                 except Exception as e:
                     p_dict = {
                         "average": 0, "count": 0, "title": target_work.title, "url": None,
-                        "provider": p_key, "strategy": strat_dict.get(p_key), "query": "", "status": "ERROR"
+                        "provider": p_key, "strategy": strat_dict.get(p_key), "query": "", "status": "ERROR",
+                        "results": []
                     }
 
                 yield f"data: {json.dumps({'type': 'platform', 'platform': p_key, 'data': p_dict})}\n\n"
