@@ -371,6 +371,10 @@ textarea.bm-input {
   box-shadow: var(--shadow-sm);
 }
 
+.step3-metadata-grid .bm-field-group {
+  gap: 0px;
+}
+
 .step3-metadata-grid {
   display: grid;
   grid-template-columns: 3fr 3fr 1fr;
