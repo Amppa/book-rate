@@ -164,16 +164,45 @@
           </div>
           <div id="step-3-status" class="status" aria-live="polite"></div>
           <section id="results" aria-live="polite">
+            <div class="step3-metadata-card" id="step3-metadata-card" style="margin-bottom: var(--space-4);">
+              <h3 class="bm-card-title" style="margin-bottom: var(--space-2); font-size: var(--fs-md);">Book Metadata</h3>
+              <div class="step3-metadata-grid">
+                <div class="meta-col">
+                  <div class="bm-field-group">
+                    <label for="s3-search-name">搜尋名稱 (User input)</label>
+                    <input type="text" id="s3-search-name" class="bm-input" readonly />
+                  </div>
+                  <div class="bm-field-group" style="margin-top: var(--space-2);">
+                    <label for="s3-author">作者</label>
+                    <textarea id="s3-author" class="bm-input" readonly></textarea>
+                  </div>
+                </div>
+                <div class="meta-col">
+                  <div class="bm-field-group">
+                    <label for="s3-title">多版本書名 (Titles from Provider)</label>
+                    <textarea id="s3-title" class="bm-input" readonly></textarea>
+                  </div>
+                  <div class="bm-field-group" style="margin-top: var(--space-2);">
+                    <label for="s3-title-zh">中文多版本書名</label>
+                    <textarea id="s3-title-zh" class="bm-input" readonly></textarea>
+                  </div>
+                </div>
+                <div class="meta-col">
+                  <div class="bm-field-group" style="height: 100%;">
+                    <label for="s3-isbn">ISBN</label>
+                    <textarea id="s3-isbn" class="bm-input" readonly style="height: calc(100% - 1.5rem); min-height: 120px;"></textarea>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div class="score-display-toggles" id="score-toggle-bar">
               <span class="toggle-title">來源：</span>
             </div>
             <div class="table-wrap" hidden>
               <table>
                 <thead>
-                  <tr id="table-header-row">
-                    <th>書名</th>
-                    <th>Details</th>
-                  </tr>
+                  <tr id="table-header-row"></tr>
                   <tr id="score-strategy-row" class="thead-strategy-row"></tr>
                 </thead>
                 <tbody id="result-body"></tbody>
@@ -194,33 +223,7 @@
       </p>
     </footer>
   </main>
-  <template id="result-template">
-    <tr class="work-row">
-      <td class="work-title"></td>
-      <td class="work-info-cell">
-        <div class="info-author"></div>
-        <div class="info-publish"></div>
-        <div class="info-metadata-btn-row"
-          style="display: flex; gap: var(--space-2); align-items: center; margin-top: var(--space-1);">
-          <button type="button" class="toggle-metadata-btn btn-secondary btn-xs">metadata</button>
-        </div>
-        <div class="step3-metadata-details" hidden
-          style="margin-top: var(--space-2); padding-top: var(--space-2); border-top: 1px dashed var(--border-light); font-size: 0.8rem; width: 100%; display: flex; flex-direction: column; gap: 4px;">
-          <div>
-            <strong>版本數量:</strong>
-            <button type="button" class="btn-link show-editions-btn"
-              style="padding: 0; border: 0; font-size: inherit; background: transparent; cursor: pointer; text-decoration: underline; color: var(--link);">
-              <span class="edition-count"></span>
-            </button>
-          </div>
-          <div><strong>代表 ISBN:</strong> <span class="step3-primary-isbn">-</span></div>
-          <div><strong>系列 ISBN:</strong> <span class="step3-other-isbns">-</span></div>
-          <div><strong>連結:</strong> <span class="step3-links">-</span></div>
-          <div><strong>爬蟲狀態:</strong> <span class="step3-crawler-status">-</span></div>
-        </div>
-      </td>
-    </tr>
-  </template>
+
   <template id="candidate-template">
     <article class="candidate-card">
       <div>

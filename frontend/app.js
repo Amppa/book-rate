@@ -1,7 +1,7 @@
 import { OPEN_LIBRARY_BASE_URL, MAX_CANDIDATES, HISTORY_KEY, PROVIDERS, STRATEGIES, PROVIDER_CHECKBOX_SUFFIX, PROVIDER_PREFIX } from './js/constants.js';
 import { getCachedData, setCachedData, getRatingCache, setRatingCache, cleanExpiredCache } from './js/cache.js';
 import { fetchJson, displayRate, displayCount, getWorkExternalUrl, getProviderDisplayName } from './js/utils.js';
-import { renderProviderToggles, renderStrategySelects, updateTableVisibility, openEditionsModal, renderTableHeaders, renderTitleProviderTabs, initTableVisibilityStyles } from './js/ui.js';
+import { renderProviderToggles, renderStrategySelects, updateTableVisibility, renderTableHeaders, renderTitleProviderTabs, initTableVisibilityStyles } from './js/ui.js';
 
 // Clean expired cache entries on load
 cleanExpiredCache();
@@ -19,7 +19,6 @@ const resultsSection = document.querySelector("#results");
 const tableWrap = resultsSection.querySelector(".table-wrap");
 const resultBody = document.querySelector("#result-body");
 const detailsHeading = document.querySelector("#details-heading");
-const resultRowTemplate = document.querySelector("#result-template");
 const paginationControls = document.querySelector("#pagination-controls");
 const prevPageBtn = document.querySelector("#prev-page-btn");
 const nextPageBtn = document.querySelector("#next-page-btn");
@@ -212,7 +211,9 @@ function chooseCandidate(work) {
 }
 
 function confirmToStep3() {
+  const searchNameVal = document.querySelector("#bm-search-name")?.value || "";
   const titleVal = document.querySelector("#bm-title")?.value.trim() || "";
+  const titleZhVal = document.querySelector("#bm-title-zh")?.value || "";
   const authorVal = document.querySelector("#bm-author")?.value.trim() || "";
   const publishDateVal = document.querySelector("#bm-publish-date")?.value.trim() || "";
   const isbnVal = document.querySelector("#bm-isbn")?.value.trim() || "";
@@ -221,6 +222,19 @@ function confirmToStep3() {
     alert("請先選取書籍或輸入書名！");
     return;
   }
+
+  // Copy values to step 3 metadata fields
+  const s3SearchName = document.querySelector("#s3-search-name");
+  const s3Title = document.querySelector("#s3-title");
+  const s3TitleZh = document.querySelector("#s3-title-zh");
+  const s3Author = document.querySelector("#s3-author");
+  const s3Isbn = document.querySelector("#s3-isbn");
+
+  if (s3SearchName) s3SearchName.value = searchNameVal;
+  if (s3Title) s3Title.value = titleVal;
+  if (s3TitleZh) s3TitleZh.value = titleZhVal;
+  if (s3Author) s3Author.value = authorVal;
+  if (s3Isbn) s3Isbn.value = isbnVal;
 
   let workToUse = currentSelectedWork;
   if (!workToUse) {
@@ -292,9 +306,8 @@ async function selectWork(work) {
   goToStep(3);
   resultBody.replaceChildren();
 
-  const rowFragment = renderInitialWorkRow(work);
-  const row = rowFragment.querySelector(".work-row");
-  resultBody.append(rowFragment);
+  const row = renderInitialWorkRow(work);
+  resultBody.append(row);
   tableWrap.hidden = false;
 
   step3Status.classList.remove("error");
@@ -468,18 +481,8 @@ function renderCountCell(countEl, countVal, url) {
 }
 
 function renderInitialWorkRow(work) {
-  const fragment = resultRowTemplate.content.cloneNode(true);
-  const row = fragment.querySelector(".work-row");
-
-  row.querySelector(".work-title").textContent = work.title;
-
-  const authorText = `作者：${(work.author_name || ["Unknown"]).join("、")}`;
-  row.querySelector(".info-author").textContent = authorText;
-
-  const publishText = `首版：${work.first_publish_year || "Unknown"}`;
-  row.querySelector(".info-publish").textContent = publishText;
-
-  row.querySelector(".edition-count").textContent = "載入中...";
+  const row = document.createElement("tr");
+  row.className = "work-row";
 
   PROVIDERS.forEach((provider) => {
     const suffix = PROVIDER_CHECKBOX_SUFFIX[provider.id];
@@ -499,7 +502,7 @@ function renderInitialWorkRow(work) {
     row.appendChild(td);
   });
 
-  return fragment;
+  return row;
 }
 
 function renderPlatformCell(row, prefix, data, maxRate = 5) {
@@ -564,102 +567,8 @@ function renderPlatformCell(row, prefix, data, maxRate = 5) {
   }
 }
 
-function updateWorkDetailRow(row, { work, ratings, editions, crawler_status }, strategies) {
+function updateWorkDetailRow(row, { work, ratings }, strategies) {
   if (!row) return;
-
-  row.querySelector(".work-title").textContent = work.title;
-
-  const authorText = `作者：${(work.author_name || ["Unknown"]).join("、")}`;
-  row.querySelector(".info-author").textContent = authorText;
-
-  const publishText = `首版：${work.first_publish_year || "Unknown"}`;
-  row.querySelector(".info-publish").textContent = publishText;
-
-  // 1. 版本數量與 editions modal
-  const size = work.edition_count || editions?.size || editions?.entries?.length || 0;
-  row.querySelector(".edition-count").textContent = `${size.toLocaleString()}個版本`;
-
-  const statusEl = row.querySelector(".step3-crawler-status");
-  if (statusEl) {
-    if (crawler_status && Object.keys(crawler_status).length > 0) {
-      statusEl.textContent = Object.entries(crawler_status)
-        .map(([k, v]) => `${k}: ${v}`)
-        .join(" | ");
-    } else {
-      statusEl.textContent = "正常";
-    }
-  }
-
-  const btn = row.querySelector(".show-editions-btn");
-  if (btn) {
-    btn.onclick = () => {
-      openEditionsModal(work.title, editions);
-    };
-  }
-
-  // 2. 填寫 metadata 展開內容
-  let reprIsbn = "Unknown";
-  let otherIsbnsText = "無";
-  if (editions?.entries) {
-    const isbns = [];
-    editions.entries.forEach(ed => {
-      const isbnVal = ed.isbn_13 || ed.isbn_10;
-      if (isbnVal && !isbns.includes(isbnVal)) {
-        isbns.push(isbnVal);
-      }
-    });
-    if (isbns.length > 0) {
-      reprIsbn = isbns[0];
-      const remaining = isbns.slice(1, 11);
-      if (remaining.length > 0) {
-        otherIsbnsText = remaining.join("、");
-        if (isbns.length > 11) {
-          otherIsbnsText += " ...";
-        }
-      }
-    }
-  } else if (work.isbn) {
-    const isbnList = Array.isArray(work.isbn) ? work.isbn : [work.isbn];
-    if (isbnList.length > 0) {
-      reprIsbn = isbnList[0];
-      const remaining = isbnList.slice(1, 11);
-      if (remaining.length > 0) {
-        otherIsbnsText = remaining.join("、");
-        if (isbnList.length > 11) {
-          otherIsbnsText += " ...";
-        }
-      }
-    }
-  }
-  row.querySelector(".step3-primary-isbn").textContent = reprIsbn;
-  row.querySelector(".step3-other-isbns").textContent = otherIsbnsText;
-
-  // 外部連結：
-  const linksContainer = row.querySelector(".step3-links");
-  linksContainer.replaceChildren();
-  const extUrl = getWorkExternalUrl(work.key);
-  if (extUrl) {
-    const a = document.createElement("a");
-    a.href = extUrl;
-    a.target = "_blank";
-    a.rel = "noopener noreferrer";
-    a.textContent = `${getProviderDisplayName(work.key.split(":")[0]) || "外部連結"} ↗`;
-    linksContainer.appendChild(a);
-  } else {
-    linksContainer.textContent = "-";
-  }
-
-  // 綁定 metadata 展開按鈕事件
-  const toggleBtn = row.querySelector(".toggle-metadata-btn");
-  const detailsBlock = row.querySelector(".step3-metadata-details");
-  if (toggleBtn && detailsBlock) {
-    toggleBtn.onclick = (e) => {
-      e.stopPropagation();
-      const isHidden = detailsBlock.hidden;
-      detailsBlock.hidden = !isHidden;
-      toggleBtn.classList.toggle("active", isHidden);
-    };
-  }
 
   // 3. 渲染 Open Library 評分
   const olUrl = ratings?.url || ((work.key && work.key.startsWith("/works/")) ? `${OPEN_LIBRARY_BASE_URL}${work.key}` : null);
