@@ -228,12 +228,14 @@ function confirmToStep3() {
   const s3Title = document.querySelector("#s3-title");
   const s3TitleZh = document.querySelector("#s3-title-zh");
   const s3Author = document.querySelector("#s3-author");
+  const s3PublishDate = document.querySelector("#s3-publish-date");
   const s3Isbn = document.querySelector("#s3-isbn");
 
   if (s3SearchName) s3SearchName.value = searchNameVal;
   if (s3Title) s3Title.value = titleVal;
   if (s3TitleZh) s3TitleZh.value = titleZhVal;
   if (s3Author) s3Author.value = authorVal;
+  if (s3PublishDate) s3PublishDate.value = publishDateVal;
   if (s3Isbn) s3Isbn.value = isbnVal;
 
   let workToUse = currentSelectedWork;

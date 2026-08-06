@@ -373,8 +373,8 @@ textarea.bm-input {
 
 .step3-metadata-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-4);
+  grid-template-columns: 3fr 3fr 1fr;
+  gap: var(--space-3);
 }
 
 .step3-metadata-grid .bm-input[readonly] {

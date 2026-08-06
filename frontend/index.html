@@ -165,7 +165,8 @@
           <div id="step-3-status" class="status" aria-live="polite"></div>
           <section id="results" aria-live="polite">
             <div class="step3-metadata-card" id="step3-metadata-card" style="margin-bottom: var(--space-4);">
-              <h3 class="bm-card-title" style="margin-bottom: var(--space-2); font-size: var(--fs-md);">Book Metadata</h3>
+              <h3 class="bm-card-title" style="margin-bottom: var(--space-2); font-size: var(--fs-md);">Book Metadata
+              </h3>
               <div class="step3-metadata-grid">
                 <div class="meta-col">
                   <div class="bm-field-group">
@@ -176,21 +177,26 @@
                     <label for="s3-author">作者</label>
                     <textarea id="s3-author" class="bm-input" readonly></textarea>
                   </div>
+                  <div class="bm-field-group" style="margin-top: var(--space-2);">
+                    <label for="s3-publish-date">出版日期</label>
+                    <input type="text" id="s3-publish-date" class="bm-input" readonly />
+                  </div>
                 </div>
                 <div class="meta-col">
                   <div class="bm-field-group">
-                    <label for="s3-title">多版本書名 (Titles from Provider)</label>
+                    <label for="s3-title">多版本書名</label>
                     <textarea id="s3-title" class="bm-input" readonly></textarea>
                   </div>
                   <div class="bm-field-group" style="margin-top: var(--space-2);">
-                    <label for="s3-title-zh">中文多版本書名</label>
+                    <label for="s3-title-zh">多版本書名 (中文)</label>
                     <textarea id="s3-title-zh" class="bm-input" readonly></textarea>
                   </div>
                 </div>
                 <div class="meta-col">
                   <div class="bm-field-group" style="height: 100%;">
                     <label for="s3-isbn">ISBN</label>
-                    <textarea id="s3-isbn" class="bm-input" readonly style="height: calc(100% - 1.5rem); min-height: 120px;"></textarea>
+                    <textarea id="s3-isbn" class="bm-input" readonly
+                      style="height: calc(100% - 1.5rem); min-height: 120px;"></textarea>
                   </div>
                 </div>
               </div>
@@ -272,7 +278,7 @@
     </div>
   </div>
 
-  <script type="module" src="./app.js?v=1.0.12"></script>
+  <script type="module" src="./app.js?v=1.0.13"></script>
 </body>
 
 </html>
