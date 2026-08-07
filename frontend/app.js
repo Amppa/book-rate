@@ -480,8 +480,8 @@ function confirmToStep3() {
   const publishDateVal = document.querySelector("#bm-publish-date")?.value.trim() || "";
   const isbnVal = document.querySelector("#bm-isbn")?.value.trim() || "";
 
-  if (!titleVal) {
-    alert("請先選取書籍或輸入書名！");
+  if (!searchNameVal.trim() && !isbnVal.trim()) {
+    alert("搜尋名稱或 ISBN 至少要有一個。");
     return;
   }
 
@@ -504,7 +504,7 @@ function confirmToStep3() {
   if (!workToUse) {
     workToUse = {
       key: "custom:" + Date.now(),
-      title: titleVal,
+      title: titleVal || (titleZhVal ? titleZhVal.split("\n")[0] : ""),
       author_name: authorVal ? [authorVal] : ["Unknown"],
       first_publish_year: publishDateVal,
       isbn: isbnVal
@@ -512,7 +512,7 @@ function confirmToStep3() {
   } else {
     workToUse = {
       ...workToUse,
-      title: titleVal,
+      title: titleVal || workToUse.title || (titleZhVal ? titleZhVal.split("\n")[0] : ""),
       author_name: authorVal ? authorVal.split(",").map((s) => s.trim()) : workToUse.author_name,
       first_publish_year: publishDateVal || workToUse.first_publish_year,
       isbn: isbnVal || workToUse.isbn
@@ -620,13 +620,13 @@ async function selectWork(work) {
     const meta = getStep3Metadata();
     const strategiesStr = JSON.stringify(strategies);
     let url = `/api/work-details-stream?work_id=${encodeURIComponent(work.key)}` +
-              `&search_name=${encodeURIComponent(meta.searchName)}` +
-              `&title_list=${encodeURIComponent(JSON.stringify(meta.titleList))}` +
-              `&title_zh_list=${encodeURIComponent(JSON.stringify(meta.titleZhList))}` +
-              `&author_list=${encodeURIComponent(JSON.stringify(meta.authorList))}` +
-              `&isbn_list=${encodeURIComponent(JSON.stringify(meta.isbnList))}` +
-              `&engines=${encodeURIComponent(pendingRateProviders.join(","))}` +
-              `&strategies=${encodeURIComponent(strategiesStr)}`;
+      `&search_name=${encodeURIComponent(meta.searchName)}` +
+      `&title_list=${encodeURIComponent(JSON.stringify(meta.titleList))}` +
+      `&title_zh_list=${encodeURIComponent(JSON.stringify(meta.titleZhList))}` +
+      `&author_list=${encodeURIComponent(JSON.stringify(meta.authorList))}` +
+      `&isbn_list=${encodeURIComponent(JSON.stringify(meta.isbnList))}` +
+      `&engines=${encodeURIComponent(pendingRateProviders.join(","))}` +
+      `&strategies=${encodeURIComponent(strategiesStr)}`;
     if (apiKey) {
       url += `&google_key=${encodeURIComponent(apiKey)}`;
     }
@@ -701,13 +701,13 @@ function reQuerySingleProvider(work, providerKey) {
 
   const meta = getStep3Metadata();
   let url = `/api/work-details-stream?work_id=${encodeURIComponent(work.key)}` +
-            `&search_name=${encodeURIComponent(meta.searchName)}` +
-            `&title_list=${encodeURIComponent(JSON.stringify(meta.titleList))}` +
-            `&title_zh_list=${encodeURIComponent(JSON.stringify(meta.titleZhList))}` +
-            `&author_list=${encodeURIComponent(JSON.stringify(meta.authorList))}` +
-            `&isbn_list=${encodeURIComponent(JSON.stringify(meta.isbnList))}` +
-            `&engines=${encodeURIComponent(providerKey)}` +
-            `&strategies=${encodeURIComponent(strategiesStr)}`;
+    `&search_name=${encodeURIComponent(meta.searchName)}` +
+    `&title_list=${encodeURIComponent(JSON.stringify(meta.titleList))}` +
+    `&title_zh_list=${encodeURIComponent(JSON.stringify(meta.titleZhList))}` +
+    `&author_list=${encodeURIComponent(JSON.stringify(meta.authorList))}` +
+    `&isbn_list=${encodeURIComponent(JSON.stringify(meta.isbnList))}` +
+    `&engines=${encodeURIComponent(providerKey)}` +
+    `&strategies=${encodeURIComponent(strategiesStr)}`;
   if (apiKey) {
     url += `&google_key=${encodeURIComponent(apiKey)}`;
   }
@@ -831,7 +831,7 @@ function renderPlatformCell(row, prefix, data, maxRate = 5) {
     data.results.forEach((res, index) => {
       const item = document.createElement("div");
       item.className = "multi-result-item";
-      
+
       const friendlyStrat = STRATEGY_LABEL_MAP[res.strategy] || res.strategy || "N/A";
       item.title = `查詢: ${res.query || "N/A"}\n書名: ${res.title || "N/A"}`;
 
