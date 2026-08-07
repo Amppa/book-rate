@@ -220,7 +220,16 @@
 }
 
 .modal-content.modal-wide {
-  width: min(920px, calc(100% - 32px));
+  width: min(800px, calc(100% - 32px));
+}
+
+.note {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-top: 0;
+  margin-bottom: var(--space-4);
+  text-align: left;
 }
 
 /* Platform Info Table */
@@ -228,11 +237,17 @@
   width: 100%;
   border-collapse: collapse;
   font-size: var(--fs-sm);
+  table-layout: fixed;
+}
+
+.platform-info-table td {
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .platform-info-table th,
 .platform-info-table td {
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-2) var(--space-2);
   vertical-align: middle;
   border-bottom: 1px solid var(--border-light);
 }

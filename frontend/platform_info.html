@@ -1,29 +1,40 @@
 <!-- 評分平台說明 Modal (獨立模組) -->
 <div id="platform-info-modal" class="modal" hidden>
+  <style>
+    /* 覆蓋全域 table 的 min-width，避免平台說明表格出現左右捲軸 */
+    #platform-info-modal .table-wrap {
+      overflow-x: visible;
+    }
+
+    #platform-info-modal table {
+      min-width: 0;
+    }
+  </style>
   <div class="modal-content modal-wide">
     <div class="modal-header">
       <h3>評分平台說明</h3>
       <button type="button" id="close-platform-info-btn" class="close-btn">&times;</button>
     </div>
     <div class="modal-body">
+      <p class="note">※ 除了 Open Library 和 Google Books，其他平台無提供 API，需用爬蟲爬分數，可能會因為網頁改版而失效。</p>
       <div class="table-wrap">
         <table class="platform-info-table">
           <thead>
             <tr>
-              <th style="width: 13%;">平台名稱</th>
-              <th style="width: 10%;">書籍數量</th>
-              <th style="width: 10%;">評分量</th>
-              <th style="width: 10%;">評分層級</th>
-              <th style="width: 10%;">API / 來源</th>
-              <th style="width: 40%;">備註</th>
+              <th style="width: 15%;">平台名稱</th>
+              <th style="width: 12%;">書籍數量</th>
+              <th style="width: 15%;">評分量</th>
+              <th style="width: 15%;">支援找同系列</th>
+              <th style="width: 15%;">API / 來源</th>
+              <th style="width: 28%;">備註</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td><a href="https://openlibrary.org/" target="_blank" rel="noopener noreferrer">Open Library</a></td>
               <td>千萬級</td>
-              <td><span class="star-rating">★☆☆☆☆</span></td>
-              <td>系列＋版本</td>
+              <td><span class="star-rating">☆☆☆☆☆</span></td>
+              <td>可</td>
               <td><span class="tag tag-api">官方 API</span></td>
               <td>最佳書籍辨識來源，提供 Edition(Work) / ISBN 對應。雖然有些書名因翻譯而有遺漏。</td>
             </tr>
@@ -31,8 +42,8 @@
             <tr>
               <td><a href="https://books.google.com/" target="_blank" rel="noopener noreferrer">Google Books</a></td>
               <td>千萬級</td>
-              <td><span class="star-rating">★★☆☆☆</span></td>
-              <td>分版本</td>
+              <td><span class="star-rating">☆☆☆☆☆</span></td>
+              <td>無</td>
               <td><span class="tag tag-api">官方 API</span></td>
               <td>書本量多，但書評少。需要API key</td>
             </tr>
@@ -41,27 +52,36 @@
               <td><a href="https://www.goodreads.com/" target="_blank" rel="noopener noreferrer">Goodreads</a></td>
               <td>未知</td>
               <td><span class="star-rating">★★★★★</span></td>
-              <td>系列</td>
+              <td>可</td>
               <td><span class="tag tag-web">Web 擷取</span></td>
               <td>全球最大的讀者社群，英文作品評價最具代表性。雖被Amazon併購，但數據是分開的。</td>
+            </tr>
+
+            <tr>
+              <td><a href="https://app.thestorygraph.com/" target="_blank" rel="noopener noreferrer">StoryGraph</a></td>
+              <td>未知</td>
+              <td><span class="star-rating">★★★★☆</span></td>
+              <td>可</td>
+              <td><span class="tag tag-web">Web 擷取</span></td>
+              <td>新興讀者社群，goodreads的競爭者</td>
             </tr>
 
             <tr>
               <td><a href="https://www.amazon.com/s?i=stripbooks" target="_blank" rel="noopener noreferrer">Amazon
                   (US)</a></td>
               <td>千萬級</td>
-              <td><span class="star-rating">★★★★★</span></td>
-              <td>分版本</td>
+              <td><span class="star-rating">★★★☆☆</span></td>
+              <td>無</td>
               <td><span class="tag tag-web">Web 擷取</span></td>
               <td>世界最大的書籍銷售平台。商品評價，以版本為單位，不同語言通常不合併。當Web改版，爬蟲會失效。</td>
             </tr>
 
             <tr>
               <td><a href="https://www.amazon.co.jp/s?i=stripbooks" target="_blank" rel="noopener noreferrer">Amazon
-                  JP</a></td>
+                  Japan</a></td>
               <td>百萬級</td>
-              <td><span class="star-rating">★★★★☆</span></td>
-              <td>分版本</td>
+              <td><span class="star-rating">★★☆☆☆</span></td>
+              <td>無</td>
               <td><span class="tag tag-web">Web 擷取</span></td>
               <td>日本 Amazon。</td>
             </tr>
@@ -70,25 +90,16 @@
               <td><a href="https://book.douban.com/" target="_blank" rel="noopener noreferrer">豆瓣讀書</a></td>
               <td>百萬級</td>
               <td><span class="star-rating">★★★★★</span></td>
-              <td>分版本</td>
+              <td>可</td>
               <td><span class="tag tag-web">Web 擷取</span></td>
               <td>中國最大的讀者社群，書評多，通常依出版社與 ISBN 分開。</td>
             </tr>
 
             <tr>
-              <td><a href="https://app.thestorygraph.com/" target="_blank" rel="noopener noreferrer">StoryGraph</a></td>
-              <td>未知</td>
-              <td><span class="star-rating">★★★☆☆</span></td>
-              <td>系列</td>
-              <td><span class="tag tag-web">Web 擷取</span></td>
-              <td>新興讀者社群，goodreads的競爭者</td>
-            </tr>
-
-            <tr>
-              <td><a href="https://readmoo.com/" target="_blank" rel="noopener noreferrer">Readmoo</a></td>
+              <td><a href="https://readmoo.com/" target="_blank" rel="noopener noreferrer">Readmoo讀墨</a></td>
               <td>十萬級</td>
               <td><span class="star-rating">★★★☆☆</span></td>
-              <td>分版本</td>
+              <td>無</td>
               <td><span class="tag tag-web">Web 擷取</span></td>
               <td>台灣最大的電子書平台，繁體中文書評多。</td>
             </tr>

@@ -1317,9 +1317,14 @@ if (openPlatformInfoBtn) {
   openPlatformInfoBtn.addEventListener("click", async () => {
     let platformInfoModal = document.querySelector("#platform-info-modal");
 
+    if (platformInfoModal) {
+      platformInfoModal.remove();
+      platformInfoModal = null;
+    }
+
     if (!platformInfoModal) {
       try {
-        const resp = await fetch("./platform_info.html");
+        const resp = await fetch("./platform_info.html?v=" + Date.now());
         if (resp.ok) {
           const htmlText = await resp.text();
           const tempDiv = document.createElement("div");
