@@ -1,4 +1,4 @@
-import { OPEN_LIBRARY_BASE_URL, MAX_CANDIDATES, HISTORY_KEY, PROVIDERS, STRATEGIES, PROVIDER_CHECKBOX_SUFFIX, PROVIDER_PREFIX } from './js/constants.js';
+import { OPEN_LIBRARY_BASE_URL, MAX_CANDIDATES, HISTORY_KEY, PROVIDERS, STRATEGIES, PROVIDER_CHECKBOX_SUFFIX, PROVIDER_PREFIX, LANGUAGE_NAME_MAP } from './js/constants.js';
 import { getCachedData, setCachedData, getRatingCache, setRatingCache, cleanExpiredCache } from './js/cache.js';
 import { fetchJson, displayRate, displayCount, getWorkExternalUrl, getProviderDisplayName } from './js/utils.js';
 import { renderProviderToggles, renderStrategySelects, updateTableVisibility, renderTableHeaders, renderTitleProviderTabs, initTableVisibilityStyles } from './js/ui.js';
@@ -110,11 +110,22 @@ function getShortStatus(status) {
 
 function renderCandidates(works) {
   candidateList.replaceChildren();
+
+  // Find current provider configuration to check if enable_extend_editions is true
+  const currentProviderObj = PROVIDERS.find(p => p.id === currentTitleProvider);
+
   works.forEach((work) => {
+    // Only allow expansion if the provider supports it AND the work has more than 1 edition
+    const hasMultipleEditions = typeof work.edition_count === "number" && work.edition_count > 1;
+    const enableExtend = currentProviderObj && currentProviderObj.enable_extend_editions === true && hasMultipleEditions;
+
     const fragment = candidateTemplate.content.cloneNode(true);
     const cardEl = fragment.querySelector(".candidate-card");
     if (cardEl) {
       cardEl.dataset.key = work.key;
+      if (enableExtend) {
+        cardEl.classList.add("expandable");
+      }
     }
     fragment.querySelector(".candidate-title").textContent = work.title;
 
@@ -157,10 +168,191 @@ function renderCandidates(works) {
       }
     }
 
-    fragment.querySelector(".select-work").addEventListener("click", () => chooseCandidate(work));
+    // Toggle chevron visibility
+    const chevronEl = fragment.querySelector(".candidate-chevron");
+    if (chevronEl) {
+      chevronEl.hidden = !enableExtend;
+    }
+
+    const selectBtn = fragment.querySelector(".select-work");
+    selectBtn.addEventListener("click", (e) => {
+      e.stopPropagation(); // Prevent toggling expansion when choosing
+      chooseCandidate(work);
+    });
+
+    if (enableExtend) {
+      const mainRow = fragment.querySelector(".candidate-main-row");
+      const editionsArea = fragment.querySelector(".candidate-editions-area");
+
+      mainRow.addEventListener("click", async (e) => {
+        // Ignore clicks on links or buttons
+        if (e.target.closest(".select-work") || e.target.closest(".candidate-link")) {
+          return;
+        }
+
+        const isCurrentlyHidden = editionsArea.hidden;
+
+        if (isCurrentlyHidden) {
+          // Collapse all other candidate cards first (accordion style)
+          candidateList.querySelectorAll(".candidate-card").forEach((otherCard) => {
+            if (otherCard !== cardEl && otherCard.classList.contains("expanded")) {
+              otherCard.classList.remove("expanded");
+              const otherEdArea = otherCard.querySelector(".candidate-editions-area");
+              if (otherEdArea) otherEdArea.hidden = true;
+            }
+          });
+
+          cardEl.classList.add("expanded");
+          editionsArea.hidden = false;
+        } else {
+          cardEl.classList.remove("expanded");
+          editionsArea.hidden = true;
+          return;
+        }
+
+        // Check if editions are already cached on the work object
+        if (work.fetched_editions) {
+          renderEditionsList(editionsArea, work, work.fetched_editions);
+          return;
+        }
+
+        // Show loading state
+        editionsArea.innerHTML = '<div class="loading-editions">載入版本資訊中...</div>';
+
+        try {
+          const resp = await fetch(`/api/work-editions?work_id=${encodeURIComponent(work.key)}`);
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          const data = await resp.json(); // { size: N, entries: [...] }
+
+          // Store in cache
+          work.fetched_editions = data.entries || [];
+
+          renderEditionsList(editionsArea, work, work.fetched_editions);
+        } catch (err) {
+          console.error("Failed to load editions:", err);
+          editionsArea.innerHTML = '<div class="error-editions">無法載入版本資訊 ⚠️</div>';
+        }
+      });
+    }
+
+    // If this candidate was already the selected one, mark it
+    if (currentSelectedWork && currentSelectedWork.key === work.key) {
+      if (cardEl) cardEl.classList.add("selected");
+      selectBtn.textContent = "已選取";
+      selectBtn.disabled = true;
+    }
+
     candidateList.append(fragment);
   });
   candidateSection.hidden = false;
+}
+
+function renderEditionsList(container, work, editions, showAll = false) {
+  container.replaceChildren();
+
+  if (!editions || editions.length === 0) {
+    container.innerHTML = '<div class="empty-editions">無版本資訊</div>';
+    return;
+  }
+
+  // 1. Deduplicate strictly by ISBN
+  const seenIsbns = new Set();
+  const uniqueEditions = [];
+
+  editions.forEach((ed) => {
+    const isbn = ed.isbn_13 || ed.isbn_10;
+    if (isbn) {
+      const clean = String(isbn).trim().toUpperCase();
+      if (seenIsbns.has(clean)) {
+        return;
+      }
+      seenIsbns.add(clean);
+    }
+    uniqueEditions.push(ed);
+  });
+
+  if (uniqueEditions.length === 0) {
+    container.innerHTML = '<div class="empty-editions">無版本資訊</div>';
+    return;
+  }
+
+  // 2. Define English & Chinese language tags
+  const targetLangs = ["eng", "en", "zho", "chi", "zh", "cht", "chs", "zh-hant", "zh-hans", "zh-tw", "zh-cn"];
+  const isEnOrZh = (ed) => {
+    if (!ed.languages || ed.languages.length === 0) return false;
+    return ed.languages.some((lang) => {
+      const code = (lang.key || "").replace("/languages/", "").toLowerCase();
+      return targetLangs.includes(code);
+    });
+  };
+
+  // 3. Split by language match
+  const matchEditions = [];
+  const otherEditions = [];
+
+  uniqueEditions.forEach((ed) => {
+    if (isEnOrZh(ed)) {
+      matchEditions.push(ed);
+    } else {
+      otherEditions.push(ed);
+    }
+  });
+
+  const listDiv = document.createElement("div");
+  listDiv.className = "edition-list";
+
+  const renderSingleEdition = (ed) => {
+    const title = ed.title || work.title || "Unknown Title";
+    const author = (work.author_name || []).join(", ") || "Unknown Author";
+    const year = ed.publish_date || "Unknown Year";
+    const isbn = ed.isbn_13 || ed.isbn_10 || "No ISBN";
+
+    // Resolve language codes to names using LANGUAGE_NAME_MAP
+    const langList = (ed.languages || []).map((l) => {
+      const code = (l.key || "").replace("/languages/", "").toLowerCase();
+      return LANGUAGE_NAME_MAP[code] || code;
+    });
+    const langStr = langList.join(", ") || "Unknown Language";
+
+    const editionText = `${title} / 作者: ${author} / ${year} / ISBN: ${isbn} / 語言: ${langStr}`;
+
+    const itemEl = document.createElement("div");
+    itemEl.className = "edition-item";
+    itemEl.textContent = editionText;
+
+    itemEl.addEventListener("click", (e) => {
+      e.stopPropagation(); // Prevent toggling the parent card expansion
+      chooseEdition(work, ed, itemEl);
+    });
+
+    listDiv.appendChild(itemEl);
+  };
+
+  const hasEnZh = matchEditions.length > 0;
+  const hasOthers = otherEditions.length > 0;
+  const shouldSplit = hasEnZh && hasOthers;
+
+  if (showAll || !shouldSplit) {
+    uniqueEditions.forEach(renderSingleEdition);
+  } else {
+    matchEditions.forEach(renderSingleEdition);
+
+    if (otherEditions.length > 0) {
+      const moreBtn = document.createElement("div");
+      moreBtn.className = "edition-more-btn";
+      moreBtn.textContent = `[other language]`;
+      moreBtn.addEventListener("click", (e) => {
+        e.stopPropagation(); // Prevent collapsing card
+        renderEditionsList(container, work, editions, true);
+      });
+      listDiv.appendChild(moreBtn);
+    } else if (matchEditions.length === 0) {
+      container.innerHTML = '<div class="empty-editions">無符合中/英文語言之版本</div>';
+      return;
+    }
+  }
+
+  container.appendChild(listDiv);
 }
 
 function appendAndLimitTextarea(textareaEl, newItems, maxLimit) {
@@ -195,6 +387,11 @@ function chooseCandidate(work) {
       btn.textContent = "Choose";
       btn.disabled = false;
     }
+  });
+
+  // Clear any active highlights on editions list
+  document.querySelectorAll(".edition-item").forEach((el) => {
+    el.classList.remove("selected");
   });
 
   const selectedCard = candidateList.querySelector(`[data-key="${work.key}"]`);
@@ -236,6 +433,45 @@ function chooseCandidate(work) {
 
   if (work.isbn) {
     const isbnVal = Array.isArray(work.isbn) ? work.isbn[0] : work.isbn;
+    appendAndLimitTextarea(isbnEl, isbnVal, 8);
+  }
+}
+
+function chooseEdition(work, edition, itemEl) {
+  // Mark parent work as selected
+  chooseCandidate(work);
+
+  // Set highlight state on selected edition item element
+  document.querySelectorAll(".edition-item").forEach((el) => {
+    el.classList.remove("selected");
+  });
+  if (itemEl) {
+    itemEl.classList.add("selected");
+  }
+
+  const titleEl = document.querySelector("#bm-title");
+  const titleZhEl = document.querySelector("#bm-title-zh");
+  const publishDateEl = document.querySelector("#bm-publish-date");
+  const isbnEl = document.querySelector("#bm-isbn");
+
+  const hasCjk = (str) => /[\u4e00-\u9fa5\u3040-\u309f\u30a0-\u30ff\uac00-\ud7a3]/.test(str);
+
+  const titleVal = edition.title || work.title;
+  if (titleVal) {
+    if (hasCjk(titleVal)) {
+      appendAndLimitTextarea(titleZhEl, titleVal, 4);
+    } else {
+      appendAndLimitTextarea(titleEl, titleVal, 4);
+    }
+  }
+
+  const pubDateVal = edition.publish_date || (work.first_publish_year ? String(work.first_publish_year) : "");
+  if (publishDateEl && pubDateVal) {
+    publishDateEl.value = pubDateVal;
+  }
+
+  const isbnVal = edition.isbn_13 || edition.isbn_10;
+  if (isbnEl && isbnVal) {
     appendAndLimitTextarea(isbnEl, isbnVal, 8);
   }
 }

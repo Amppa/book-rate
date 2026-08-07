@@ -232,14 +232,18 @@
 
   <template id="candidate-template">
     <article class="candidate-card">
-      <div>
-        <h3 class="candidate-title"></h3>
-        <div style="display: flex; gap: var(--space-2); align-items: center; margin-top: var(--space-1);">
-          <a class="candidate-meta candidate-link" target="_blank" rel="noopener noreferrer" style="margin-top: 0;"></a>
-          <span class="candidate-status-tag" hidden></span>
+      <div class="candidate-main-row">
+        <div>
+          <h3 class="candidate-title"></h3>
+          <div style="display: flex; gap: var(--space-2); align-items: center; margin-top: var(--space-1);">
+            <a class="candidate-meta candidate-link" target="_blank" rel="noopener noreferrer" style="margin-top: 0;"></a>
+            <span class="candidate-chevron" hidden>▼</span>
+            <span class="candidate-status-tag" hidden></span>
+          </div>
         </div>
+        <button type="button" class="select-work">Choose</button>
       </div>
-      <button type="button" class="select-work">Choose</button>
+      <div class="candidate-editions-area" hidden></div>
     </article>
   </template>
 

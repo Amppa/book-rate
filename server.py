@@ -477,6 +477,16 @@ def api_work_details(
     return result_payload
 
 
+@app.get("/api/work-editions")
+def api_work_editions(
+    work_id: str = Query(..., description="Work ID e.g. OL17267881W"),
+):
+    print(f"\n[Editions API] User requested editions for work: '{work_id}'")
+    full_work_id = work_id if work_id.startswith("/works/") else f"/works/{work_id}"
+    editions = open_library.fetch_editions(full_work_id, limit=100)
+    return _format_editions(editions)
+
+
 @app.get("/api/work-details-stream")
 def api_work_details_stream(
     work_id: str = Query(..., description="Work ID e.g. OL17267881W"),

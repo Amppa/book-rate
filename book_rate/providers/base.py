@@ -43,6 +43,11 @@ class BaseProvider:
         raise NotImplementedError
 
     @property
+    def enable_extend_editions(self) -> bool:
+        """Whether this provider supports expanding and selecting editions in step 2."""
+        return False
+
+    @property
     def default_strategy(self) -> str:
         """Default search strategy for this provider."""
         return SearchStrategy.TITLE_AUTHOR

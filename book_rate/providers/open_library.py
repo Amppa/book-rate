@@ -18,6 +18,10 @@ class OpenLibraryProvider(BaseProvider):
     def name(self) -> str:
         return "Open Library"
 
+    @property
+    def enable_extend_editions(self) -> bool:
+        return True
+
     def search_works(self, query: str, limit: int = 5, page: int = 1, include_details: bool = True) -> List[Work]:
         """Search Open Library for works matching query."""
         clean_query = query.strip()
