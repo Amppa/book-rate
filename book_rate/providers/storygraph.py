@@ -137,24 +137,34 @@ class StoryGraphProvider(BaseProvider):
         if not clean_query:
             return []
 
-        search_url = f"{self.BROWSE_URL}?search_term={urllib.parse.quote(clean_query)}"
-        search_html = self._fetch_html(search_url)
-        if not search_html:
-            return []
+        # Check if direct ID
+        direct_id = None
+        if clean_query.startswith("sg:"):
+            direct_id = clean_query[3:]
+        elif len(clean_query) == 36 and re.match(r'^[a-f0-9\-]{36}$', clean_query):
+            direct_id = clean_query
 
-        book_matches = re.findall(r'href="(/books/([a-f0-9\-]{36}))">([^<]+)</a>', search_html)
-        author_matches = re.findall(r'href="/authors/[^"]+">([^<]+)</a>', search_html)
+        if direct_id:
+            unique_books = [(f"/books/{direct_id}", direct_id, "Unknown Title", "Unknown Author")]
+        else:
+            search_url = f"{self.BROWSE_URL}?search_term={urllib.parse.quote(clean_query)}"
+            search_html = self._fetch_html(search_url)
+            if not search_html:
+                return []
 
-        unique_books = []
-        seen_ids = set()
+            book_matches = re.findall(r'href="(/books/([a-f0-9\-]{36}))">([^<]+)</a>', search_html)
+            author_matches = re.findall(r'href="/authors/[^"]+">([^<]+)</a>', search_html)
 
-        for idx, (href, b_id, raw_title) in enumerate(book_matches):
-            if b_id in seen_ids:
-                continue
-            seen_ids.add(b_id)
-            title = html.unescape(raw_title.strip())
-            author = html.unescape(author_matches[len(unique_books)].strip()) if len(unique_books) < len(author_matches) else "Unknown Author"
-            unique_books.append((href, b_id, title, author))
+            unique_books = []
+            seen_ids = set()
+
+            for idx, (href, b_id, raw_title) in enumerate(book_matches):
+                if b_id in seen_ids:
+                    continue
+                seen_ids.add(b_id)
+                title = html.unescape(raw_title.strip())
+                author = html.unescape(author_matches[len(unique_books)].strip()) if len(unique_books) < len(author_matches) else "Unknown Author"
+                unique_books.append((href, b_id, title, author))
 
         def process_single_item(item):
             href, b_id, title, author_name = item
@@ -165,6 +175,15 @@ class StoryGraphProvider(BaseProvider):
                 details = self.fetch_book_details(b_id)
             except Exception:
                 pass
+
+            # Fetch rating & rating count
+            rate, votes = None, None
+            try:
+                rate, votes = self._fetch_book_rating(b_id)
+            except Exception as e:
+                logger.warning(f"Failed to fetch StoryGraph rating for '{b_id}': {e}")
+                if details.get("crawler_status") == "Normal":
+                    details["crawler_status"] = f"Rating error: {e}"
 
             work = Work(
                 work_id=f"sg:{b_id}",
@@ -177,8 +196,8 @@ class StoryGraphProvider(BaseProvider):
 
             work.ratings[self.name] = PlatformRating(
                 platform_name=self.name,
-                rate=None,
-                rating_count=None,
+                rate=rate,
+                rating_count=votes,
                 url=subject_url,
                 title=details.get("title") or title,
                 status=details.get("crawler_status") or "Normal"

@@ -15,6 +15,7 @@ class SearchStrategy:
     TITLE_ZH_LIST_FULL = "title_zh_list_full"
     ISBN = "isbn"
     PROVIDER_ID = "provider_id"
+    TITLE_AUTHOR = "title_author"
 
 
 class ProviderNetworkError(Exception):
@@ -151,8 +152,16 @@ class BaseProvider:
                 except Exception as e:
                     network_error_msg = f"Error: {e}"
 
-        elif strat == SearchStrategy.TITLE_LIST:
+        elif strat in (SearchStrategy.TITLE_LIST, SearchStrategy.TITLE_AUTHOR):
             titles_to_try = work.title_list if work.title_list else ([work.title] if work.title else [])
+            if strat == SearchStrategy.TITLE_AUTHOR and work.author:
+                author_suffix = f" {work.author}"
+                extended_titles = []
+                for t in titles_to_try:
+                    extended_titles.append(f"{t}{author_suffix}")
+                    extended_titles.append(t)
+                titles_to_try = extended_titles
+            
             for t in titles_to_try:
                 t = t.strip()
                 if not t:
