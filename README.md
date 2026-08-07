@@ -7,11 +7,17 @@ A Python tool and framework for searching books by title (including Chinese titl
 ## Key Features
 
 - **Work & Edition Modeling**: Maps specific book editions (ISBNs, published languages, publishers) to abstract **Works** (Open Library `/works/OL...W` architecture).
-- **Multi-Provider Aggregation**: Fetches and aggregates score ratings and rating counts across APIs:
-  - **Open Library API**: Work ratings (`average`, `count`) and Work editions list.
-  - **Google Books API**: Volume `averageRating` and `ratingsCount` with optional API key support.
-- **Chinese Title Support**: Smart search fallback strategies handling short Chinese queries (e.g. `快思慢想`, `原子習慣`).
-- **Flexible Table Formatting**: Outputs formatted Markdown tables, colored terminal tables (powered by `rich`), CSV, or JSON exports.
+- **Multi-Provider Aggregation**: Fetches and aggregates score ratings and rating counts across 8 different platforms: Open Library, Google Books, Goodreads, Douban, Amazon, Amazon JP, StoryGraph, and Readmoo.
+- **Granular Search Strategy Configuration**: Allows selecting from 6 distinct search strategies for each platform in the comparison table:
+  1. **User input title**: Search exactly by Step 1 query.
+  2. **Book list title (Short-circuit)**: Sequentially tries English/main titles, stops on first match.
+  3. **Asian book list title (Short-circuit)**: Sequentially tries CJK/Asian titles, stops on first match.
+  4. **Book list title (Full)**: Queries all book titles, displaying all results in a vertical list inside the cell (1-second query delay).
+  5. **Asian book list title (Full)**: Queries all Asian titles, displaying all results in a vertical list inside the cell (1-second query delay).
+  6. **ISBN**: Sequentially tries cleaned ISBNs, stops on first match.
+- **Wizard-Style Web UI**: Features a 3-step search, review (metadata editing card), and rating comparison flow.
+- **Flexible CLI & Table Formatting**: Outputs formatted Markdown tables, colored terminal tables (powered by `rich`), CSV, or JSON exports.
+- **Rating Cache Flow**: Locally caches fetched ratings based on work key, platform, and selected strategy to prevent duplicate queries and optimize page speed.
 
 ---
 
