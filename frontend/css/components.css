@@ -529,7 +529,8 @@ a.candidate-meta:hover {
   margin-top: 6px;
 }
 
-.search-status-tag.status-match {
+.search-status-tag.status-match,
+.search-status-tag.status-curl_match {
   background: #e6f4ea;
   color: #137333;
 }

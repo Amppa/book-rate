@@ -809,7 +809,7 @@ function renderPlatformCell(row, prefix, data, maxRate = 5) {
   const hasScore = typeof data.average === "number" && data.average > 0;
   const hasUrl = Boolean(data.url);
   const status = data.status || (hasScore ? "MATCH" : "NO_MATCH");
-  const isNetworkError = status && status !== "MATCH" && status !== "NO_MATCH" && status !== "QUOTA_EXCEEDED" && status !== "ERROR";
+  const isNetworkError = status && status !== "MATCH" && status !== "CURL_MATCH" && status !== "NO_MATCH" && status !== "QUOTA_EXCEEDED" && status !== "ERROR";
 
   // Clear previous elements
   rateEl.replaceChildren();

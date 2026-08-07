@@ -21,25 +21,6 @@ class StoryGraphProvider(BaseProvider):
     def name(self) -> str:
         return "StoryGraph"
 
-    def _fetch_html(self, url: str) -> str:
-        """Fetch URL using curl.exe to pass Cloudflare TLS fingerprinting checks on Windows."""
-        try:
-            cmd = [
-                "curl.exe", "-s", "-L",
-                "-A", self.DEFAULT_USER_AGENT,
-                url
-            ]
-            output = subprocess.check_output(cmd, timeout=self.timeout)
-            return output.decode("utf-8", errors="ignore")
-        except Exception as e:
-            logger.warning(f"Failed to fetch HTML via curl for URL '{url}': {e}")
-            try:
-                resp = self.session.get(url, timeout=self.timeout)
-                resp.raise_for_status()
-                return resp.text
-            except Exception as ex:
-                logger.warning(f"Fallback requests.get also failed for '{url}': {ex}")
-                return ""
 
     def _fetch_book_rating(self, book_id: str) -> tuple[Optional[float], Optional[int]]:
         """Fetch rating and review count for a book from community_reviews Turbo Frame."""
@@ -194,13 +175,16 @@ class StoryGraphProvider(BaseProvider):
                 isbn=details.get("isbn")
             )
 
+            is_match = (rate is not None or votes is not None)
+            status_val = ("CURL_MATCH" if getattr(self, "last_request_used_curl", False) else "MATCH") if is_match else (details.get("crawler_status") or "Normal")
+
             work.ratings[self.name] = PlatformRating(
                 platform_name=self.name,
                 rate=rate,
                 rating_count=votes,
                 url=subject_url,
                 title=details.get("title") or title,
-                status=details.get("crawler_status") or "Normal"
+                status=status_val
             )
 
             edition = Edition(edition_id=b_id, title=details.get("title") or title)
@@ -221,4 +205,5 @@ class StoryGraphProvider(BaseProvider):
 
     def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> PlatformRating:
         """Fetch StoryGraph rating for a Work using explicit SearchStrategy."""
+        self.last_request_used_curl = False
         return self._fetch_ratings(work, strategy=strategy)

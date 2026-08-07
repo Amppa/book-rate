@@ -1,5 +1,6 @@
 import logging
 import re
+import subprocess
 from typing import List, Optional, Callable
 from book_rate.models import Work, PlatformRating
 from book_rate.utils.isbn import clean_isbn, extract_isbns_from_work
@@ -37,6 +38,31 @@ class BaseProvider:
         self.session.headers.update({
             "User-Agent": self.DEFAULT_USER_AGENT
         })
+        self.last_request_used_curl = False
+
+    def _fetch_html(self, url: str) -> str:
+        """Fetch URL using curl.exe to pass Cloudflare TLS fingerprinting checks on Windows."""
+        self.last_request_used_curl = False
+        try:
+            cmd = [
+                "curl.exe", "-s", "-L",
+                "-A", self.DEFAULT_USER_AGENT,
+                url
+            ]
+            output = subprocess.check_output(cmd, timeout=self.timeout)
+            self.last_request_used_curl = True
+            return output.decode("utf-8", errors="ignore")
+        except Exception as e:
+            logger.warning(f"Failed to fetch HTML via curl for URL '{url}': {e}")
+            try:
+                resp = self.session.get(url, timeout=self.timeout)
+                resp.raise_for_status()
+                self.last_request_used_curl = False
+                return resp.text
+            except Exception as ex:
+                logger.warning(f"Fallback requests.get also failed for '{url}': {ex}")
+                self.last_request_used_curl = False
+                return ""
 
     @property
     def name(self) -> str:
@@ -105,6 +131,7 @@ class BaseProvider:
         Execute explicit SearchStrategy for the given Work object.
         No silent fallback.
         """
+        self.last_request_used_curl = False
         strat = strategy or self.default_strategy
         search = custom_search or (lambda q: self.search_works(q, limit=5))
         target_title = work.original_title or work.title
@@ -173,7 +200,8 @@ class BaseProvider:
                         if best_rating and (best_rating.rate is not None or best_rating.rating_count is not None or best_rating.url):
                             best_rating.strategy = strat
                             best_rating.query = t
-                            best_rating.status = "MATCH" if (best_rating.rate is not None or best_rating.rating_count is not None) else "NO_MATCH"
+                            is_match = (best_rating.rate is not None or best_rating.rating_count is not None)
+                            best_rating.status = ("CURL_MATCH" if getattr(self, "last_request_used_curl", False) else "MATCH") if is_match else "NO_MATCH"
                             return best_rating
                 except ProviderNetworkError as ne:
                     network_error_msg = ne.message
@@ -195,7 +223,8 @@ class BaseProvider:
                         if best_rating and (best_rating.rate is not None or best_rating.rating_count is not None or best_rating.url):
                             best_rating.strategy = strat
                             best_rating.query = t
-                            best_rating.status = "MATCH" if (best_rating.rate is not None or best_rating.rating_count is not None) else "NO_MATCH"
+                            is_match = (best_rating.rate is not None or best_rating.rating_count is not None)
+                            best_rating.status = ("CURL_MATCH" if getattr(self, "last_request_used_curl", False) else "MATCH") if is_match else "NO_MATCH"
                             return best_rating
                 except ProviderNetworkError as ne:
                     network_error_msg = ne.message
@@ -220,7 +249,8 @@ class BaseProvider:
                         if best_rating and (best_rating.rate is not None or best_rating.rating_count is not None or best_rating.url):
                             best_rating.strategy = strat
                             best_rating.query = isbn
-                            best_rating.status = "MATCH" if (best_rating.rate is not None or best_rating.rating_count is not None) else "NO_MATCH"
+                            is_match = (best_rating.rate is not None or best_rating.rating_count is not None)
+                            best_rating.status = ("CURL_MATCH" if getattr(self, "last_request_used_curl", False) else "MATCH") if is_match else "NO_MATCH"
                             return best_rating
                 except ProviderNetworkError as ne:
                     network_error_msg = ne.message
@@ -293,7 +323,7 @@ class BaseProvider:
                 copied_rating = copy(best_rating)
                 copied_rating.strategy = strat
                 copied_rating.query = ", ".join(t for t in titles_to_try[:4])
-                copied_rating.status = "MATCH"
+                copied_rating.status = "CURL_MATCH" if getattr(self, "last_request_used_curl", False) else "MATCH"
                 copied_rating.results = results_list
                 return copied_rating
             else:
@@ -312,7 +342,8 @@ class BaseProvider:
         if best_rating and (best_rating.rate is not None or best_rating.rating_count is not None or best_rating.url):
             best_rating.strategy = strat
             best_rating.query = query_used
-            best_rating.status = "MATCH" if (best_rating.rate is not None or best_rating.rating_count is not None) else "NO_MATCH"
+            is_match = (best_rating.rate is not None or best_rating.rating_count is not None)
+            best_rating.status = ("CURL_MATCH" if getattr(self, "last_request_used_curl", False) else "MATCH") if is_match else "NO_MATCH"
             return best_rating
 
         return PlatformRating(

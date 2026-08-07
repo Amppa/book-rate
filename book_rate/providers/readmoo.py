@@ -41,14 +41,10 @@ class ReadmooProvider(BaseProvider):
     def _fetch_book_page(self, book_id: str) -> dict:
         """Fetch and parse a Readmoo book page into rating/title/author details."""
         url = f"{self.BASE_URL}/book/{book_id}"
-        try:
-            resp = self.session.get(url, timeout=self.timeout)
-            resp.raise_for_status()
-        except Exception as e:
-            logger.warning(f"Failed to fetch Readmoo book page '{url}': {e}")
+        s = self._fetch_html(url)
+        if not s:
+            logger.warning(f"Failed to fetch Readmoo book page HTML for '{url}'")
             return {"book_id": book_id, "rate": None, "count": None, "title": None, "author": None, "url": url}
-
-        s = resp.text
         rate = None
         count = None
         title = None
@@ -184,28 +180,28 @@ class ReadmooProvider(BaseProvider):
             return []
 
         search_url = f"{self.SEARCH_URL}?q={urllib.parse.quote(clean_query)}"
-        try:
-            resp = self.session.get(search_url, timeout=self.timeout)
-            resp.raise_for_status()
-        except Exception as e:
-            logger.warning(f"Readmoo search failed for '{query}': {e}")
+        search_html = self._fetch_html(search_url)
+        if not search_html:
             return []
 
         works: List[Work] = []
-        for item in self._parse_search_items(resp.text, limit=limit):
+        for item in self._parse_search_items(search_html, limit=limit):
             work = Work(
                 work_id=f"rm:{item['book_id']}",
                 title=item["title"],
                 author=item["author"],
             )
-            if item["avg_rating"] is not None:
-                work.ratings[self.name] = PlatformRating(
-                    platform_name=self.name,
-                    rate=item["avg_rating"],
-                    rating_count=None,
-                    url=item["url"],
-                    title=item["title"],
-                )
+            is_match = (item["avg_rating"] is not None)
+            status_val = ("CURL_MATCH" if getattr(self, "last_request_used_curl", False) else "MATCH") if is_match else "NO_MATCH"
+
+            work.ratings[self.name] = PlatformRating(
+                platform_name=self.name,
+                rate=item["avg_rating"],
+                rating_count=None,
+                url=item["url"],
+                title=item["title"],
+                status=status_val
+            )
             work.editions.append(Edition(edition_id=item["book_id"], title=item["title"]))
             works.append(work)
 
@@ -223,7 +219,7 @@ class ReadmooProvider(BaseProvider):
             title=page["title"] or None,
             strategy=strategy,
             query=query,
-            status="MATCH" if (page["rate"] is not None or page["count"] is not None) else "NO_MATCH",
+            status=("CURL_MATCH" if getattr(self, "last_request_used_curl", False) else "MATCH") if (page["rate"] is not None or page["count"] is not None) else "NO_MATCH",
         )
 
     def _enrich_with_book_page(self, rating: PlatformRating) -> PlatformRating:
@@ -244,11 +240,12 @@ class ReadmooProvider(BaseProvider):
             rating.rating_count = page["count"]
         if not rating.title and page["title"]:
             rating.title = page["title"]
-        rating.status = "MATCH"
+        rating.status = "CURL_MATCH" if getattr(self, "last_request_used_curl", False) else "MATCH"
         return rating
 
     def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> PlatformRating:
         """Fetch Readmoo rating for a Work using explicit SearchStrategy."""
+        self.last_request_used_curl = False
         target_id = getattr(work, "work_id", "") or ""
         if target_id.startswith("rm:"):
             # Direct Readmoo book ID: fetch the book page directly.
