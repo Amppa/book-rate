@@ -54,7 +54,15 @@ def _work_to_dict(work: Work) -> dict:
 
 def _format_editions(editions_list) -> dict:
     entries = []
+    seen_isbns = set()
     for ed in editions_list:
+        isbn = ed.isbn_13 or ed.isbn_10
+        if isbn:
+            clean_isbn = isbn.strip().upper()
+            if clean_isbn in seen_isbns:
+                continue
+            seen_isbns.add(clean_isbn)
+
         langs = []
         if ed.language:
             for l in ed.language.split(","):
@@ -72,7 +80,7 @@ def _format_editions(editions_list) -> dict:
         })
         
     return {
-        "size": len(editions_list),
+        "size": len(entries),
         "entries": entries
     }
 

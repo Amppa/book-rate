@@ -255,42 +255,21 @@ function renderEditionsList(container, work, editions, showAll = false) {
     return;
   }
 
-  // 1. Deduplicate strictly by ISBN
-  const seenIsbns = new Set();
-  const uniqueEditions = [];
-
-  editions.forEach((ed) => {
-    const isbn = ed.isbn_13 || ed.isbn_10;
-    if (isbn) {
-      const clean = String(isbn).trim().toUpperCase();
-      if (seenIsbns.has(clean)) {
-        return;
-      }
-      seenIsbns.add(clean);
-    }
-    uniqueEditions.push(ed);
-  });
-
-  if (uniqueEditions.length === 0) {
-    container.innerHTML = '<div class="empty-editions">無版本資訊</div>';
-    return;
-  }
-
-  // 2. Define English & Chinese language tags
-  const targetLangs = ["eng", "en", "zho", "chi", "zh", "cht", "chs", "zh-hant", "zh-hans", "zh-tw", "zh-cn"];
+  // 1. Define English & Chinese language matcher using LANGUAGE_NAME_MAP dynamic resolution
   const isEnOrZh = (ed) => {
     if (!ed.languages || ed.languages.length === 0) return false;
     return ed.languages.some((lang) => {
       const code = (lang.key || "").replace("/languages/", "").toLowerCase();
-      return targetLangs.includes(code);
+      const resolvedName = LANGUAGE_NAME_MAP[code] || "";
+      return resolvedName.includes("English") || resolvedName.includes("Chinese");
     });
   };
 
-  // 3. Split by language match
+  // 2. Split by language match
   const matchEditions = [];
   const otherEditions = [];
 
-  uniqueEditions.forEach((ed) => {
+  editions.forEach((ed) => {
     if (isEnOrZh(ed)) {
       matchEditions.push(ed);
     } else {
@@ -333,7 +312,7 @@ function renderEditionsList(container, work, editions, showAll = false) {
   const shouldSplit = hasEnZh && hasOthers;
 
   if (showAll || !shouldSplit) {
-    uniqueEditions.forEach(renderSingleEdition);
+    editions.forEach(renderSingleEdition);
   } else {
     matchEditions.forEach(renderSingleEdition);
 
