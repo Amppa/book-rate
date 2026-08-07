@@ -814,6 +814,20 @@ function renderPlatformCell(row, prefix, data, maxRate = 5) {
   // Clear previous elements
   rateEl.replaceChildren();
 
+  const cell = rateEl.closest("td");
+  if (cell) {
+    const oldTitle = cell.querySelector(".platform-book-title");
+    if (oldTitle) oldTitle.remove();
+    
+    // In single-result mode, display the title above the rating if it exists
+    if (data.title && (!data.results || data.results.length === 0)) {
+      const titleDiv = document.createElement("div");
+      titleDiv.className = "platform-book-title";
+      titleDiv.textContent = data.title;
+      cell.insertBefore(titleDiv, rateEl);
+    }
+  }
+
   const STRATEGY_LABEL_MAP = {
     "search_name": "搜尋名稱",
     "title_list": "書名列表 (短路)",
@@ -840,6 +854,16 @@ function renderPlatformCell(row, prefix, data, maxRate = 5) {
       numSpan.textContent = `${index + 1}.`;
       item.appendChild(numSpan);
 
+      const detailContainer = document.createElement("div");
+      detailContainer.className = "multi-result-details";
+
+      if (res.title) {
+        const titleDiv = document.createElement("div");
+        titleDiv.className = "multi-result-title";
+        titleDiv.textContent = res.title;
+        detailContainer.appendChild(titleDiv);
+      }
+
       const valSpan = document.createElement("span");
       valSpan.className = "multi-result-value";
 
@@ -860,7 +884,8 @@ function renderPlatformCell(row, prefix, data, maxRate = 5) {
         valSpan.style.color = "var(--text-muted)";
       }
 
-      item.appendChild(valSpan);
+      detailContainer.appendChild(valSpan);
+      item.appendChild(detailContainer);
       listContainer.appendChild(item);
     });
 
@@ -868,7 +893,6 @@ function renderPlatformCell(row, prefix, data, maxRate = 5) {
     countEl.replaceChildren(); // clear countEl
 
     // Render status tag
-    const cell = rateEl.closest("td");
     if (cell) {
       const oldTag = cell.querySelector(".search-status-tag");
       if (oldTag) oldTag.remove();
@@ -916,7 +940,6 @@ function renderPlatformCell(row, prefix, data, maxRate = 5) {
   }
 
   // Render status tag at the bottom of the td cell
-  const cell = rateEl.closest("td");
   if (cell) {
     const oldTag = cell.querySelector(".search-status-tag");
     if (oldTag) oldTag.remove();

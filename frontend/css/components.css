@@ -1002,3 +1002,37 @@ tbody tr:last-child td {
   font-size: var(--fs-xs);
   color: var(--text-muted);
 }
+
+.platform-book-title {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+  line-height: 1.25;
+}
+
+.multi-result-item {
+  align-items: flex-start;
+}
+
+.multi-result-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-grow: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.multi-result-title {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 130px;
+  line-height: 1.25;
+}
