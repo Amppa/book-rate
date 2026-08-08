@@ -158,3 +158,46 @@ button:disabled:hover {
   cursor: not-allowed;
   filter: none;
 }
+
+/* ==========================================================================
+   Global Utilities & Modifiers
+   ========================================================================== */
+/* Checkbox Label Utility */
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-md);
+  font-weight: normal;
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--primary);
+  cursor: pointer;
+  flex: none;
+  margin: 0;
+  padding: 0;
+}
+
+.checkbox-label span {
+  color: var(--text-green-gray);
+  transition: color 0.2s ease;
+}
+
+/* Button Size Utilities */
+.btn-xs {
+  padding: 2px var(--space-2);
+  font-size: 0.75rem;
+  border-radius: var(--radius-sm);
+}
+
+.btn-sm {
+  padding: 4px var(--space-3);
+  font-size: 0.8rem;
+  border-radius: var(--radius-sm);
+}
+

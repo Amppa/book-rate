@@ -1,0 +1,293 @@
+/* ==========================================================================
+   Candidate List & Editions Components (Step 2)
+   ========================================================================== */
+/* Step 2 Sections */
+.step2-block-title {
+  font-size: var(--fs-lg);
+  margin: 0 0 0.6rem 0;
+  font-weight: 700;
+}
+
+.other-title-sources-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  border-bottom: 2px solid var(--border-mid);
+  position: relative;
+  z-index: 1;
+}
+
+.title-source-tab-btn {
+  padding: 0.7rem 0.5rem;
+  font-size: var(--fs-md);
+  font-weight: 600;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  border: 2px solid transparent;
+  border-bottom: none;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: -2px;
+}
+
+.title-source-tab-btn:hover {
+  background: var(--surface-subtle);
+}
+
+.title-source-tab-btn.active {
+  background: var(--surface-card);
+  color: var(--primary);
+  border: 2px solid var(--border-mid);
+  border-bottom: 2px solid var(--surface-card);
+  margin-bottom: -2px;
+  position: relative;
+  z-index: var(--z-index-tab-active);
+  box-shadow: none;
+}
+
+#section-title-source-tabs+.step2-block {
+  margin-top: 0;
+}
+
+/* Candidate List & Container */
+.candidate-list {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--surface-card);
+  border: 2px solid var(--border-mid);
+  border-top: none;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.no-results {
+  padding: var(--space-6);
+  text-align: center;
+  color: var(--text-muted);
+}
+
+/* Candidate Cards */
+.candidate-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.candidate-card:last-child {
+  border-bottom: 0;
+}
+
+.candidate-card.selected {
+  background: var(--surface-subtle);
+}
+
+.candidate-card.selected h3 {
+  color: var(--primary);
+}
+
+.candidate-card h3,
+.candidate-card p {
+  margin: 0;
+}
+
+.candidate-card h3 {
+  font-size: var(--fs-xl);
+}
+
+.candidate-meta {
+  display: inline-block;
+  margin-top: var(--space-1);
+  color: var(--text-green-gray);
+  font-size: var(--fs-sm);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+a.candidate-meta:hover {
+  color: var(--link);
+  text-decoration: underline;
+}
+
+/* Metadata Expandable Block details */
+.candidate-info-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.candidate-header-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.candidate-basic-meta {
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.candidate-details-row {
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  animation: slideDown 0.2s ease-out;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.candidate-actions {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: var(--space-1);
+}
+
+
+/* Status Tags */
+.candidate-status-tag {
+  font-size: var(--fs-xs);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.status-tag-info {
+  background-color: var(--surface-subtle);
+  color: var(--primary);
+  border: 1px solid var(--border);
+}
+
+.status-tag-warning {
+  background-color: #fef7e0;
+  color: #b06000;
+  border: 1px solid #f0b000;
+}
+
+.status-tag-error {
+  background-color: #fce8e6;
+  color: var(--error);
+  border: 1px solid var(--error);
+}
+
+/* Candidate Editions Expandable Section */
+.candidate-card.expandable {
+  flex-direction: column;
+  align-items: stretch;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.candidate-card.expandable:hover {
+  background-color: var(--surface-subtle);
+}
+
+.candidate-main-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+  width: 100%;
+}
+
+.candidate-info-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-grow: 1;
+}
+
+.candidate-chevron {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  transition: transform var(--transition-fast);
+  flex-shrink: 0;
+  display: inline-block;
+  margin-left: var(--space-1);
+}
+
+.candidate-card.expanded .candidate-chevron {
+  transform: rotate(180deg);
+}
+
+.candidate-editions-area {
+  margin-top: var(--space-3);
+  border-top: 1px dashed var(--border);
+  padding-top: var(--space-3);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.edition-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-height: 250px;
+  overflow-y: auto;
+  padding-right: var(--space-2);
+}
+
+.edition-item {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  background: var(--surface-bg);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  line-height: 1.3;
+  word-wrap: break-word;
+  word-break: break-all;
+  text-align: left;
+}
+
+.edition-item:hover {
+  background: var(--secondary);
+  border-color: var(--primary);
+  color: var(--primary);
+  transform: translateX(4px);
+}
+
+.edition-item.selected {
+  background: var(--secondary);
+  border-color: var(--primary);
+  color: var(--primary);
+  font-weight: 600;
+  box-shadow: 0 0 0 2px rgba(23, 79, 60, 0.1);
+}
+
+.edition-more-btn {
+  display: block;
+  width: 100%;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-style: italic;
+  padding: var(--space-1) var(--space-2);
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-bg);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.edition-more-btn:hover {
+  background: var(--surface-subtle);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.loading-editions, .error-editions, .empty-editions {
+  padding: var(--space-2);
+  text-align: center;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
