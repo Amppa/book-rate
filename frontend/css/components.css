@@ -71,7 +71,7 @@ header {
   font-size: var(--fs-md);
   border-radius: var(--radius-md);
   flex-shrink: 0;
-  z-index: 10;
+  z-index: var(--z-index-header-btn);
 }
 
 .section-heading {
@@ -171,6 +171,11 @@ header {
   border: 0;
 }
 
+.history-item:not(:disabled):hover {
+  filter: brightness(92%);
+  color: var(--primary);
+}
+
 .presets-link-btn {
   background: transparent;
   border: 0;
@@ -186,6 +191,8 @@ header {
 
 .presets-link-btn:hover {
   background: transparent;
+  filter: brightness(92%);
+  color: var(--primary);
 }
 
 /* Pagination */
@@ -248,7 +255,7 @@ header {
   border-bottom: 2px solid var(--surface-card);
   margin-bottom: -2px;
   position: relative;
-  z-index: 2;
+  z-index: var(--z-index-tab-active);
   box-shadow: none;
 }
 
@@ -434,6 +441,14 @@ textarea.bm-input {
   border-bottom: 0;
 }
 
+.candidate-card.selected {
+  background: var(--surface-subtle);
+}
+
+.candidate-card.selected h3 {
+  color: var(--primary);
+}
+
 .candidate-card h3,
 .candidate-card p {
   margin: 0;
@@ -616,7 +631,7 @@ tbody tr:last-child td {
   background: transparent;
   border: 0;
   box-shadow: none;
-  z-index: 100;
+  z-index: var(--z-index-dropdown);
   font-size: var(--fs-md);
 }
 
@@ -880,7 +895,7 @@ tbody tr:last-child td {
 }
 
 .multi-result-link {
-  color: var(--primary-color);
+  color: var(--link);
   text-decoration: none;
 }
 

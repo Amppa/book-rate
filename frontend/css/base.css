@@ -132,3 +132,29 @@ label {
   font-size: var(--fs-lg);
   font-weight: 700;
 }
+
+/* ==========================================================================
+   Interactive & Disabled States
+   ========================================================================== */
+button:not(:disabled):hover,
+.settings-details summary:hover,
+a:hover {
+  filter: brightness(92%);
+  color: var(--primary);
+}
+
+button:not(:disabled):not(.btn-secondary):not(.title-source-tab-btn):not(.btn-link):hover {
+  color: var(--text-contrast);
+}
+
+.checkbox-label:hover span {
+  color: var(--primary);
+}
+
+button:disabled,
+button:disabled:hover {
+  background: var(--btn-disabled-bg);
+  color: var(--btn-disabled-text);
+  cursor: not-allowed;
+  filter: none;
+}
