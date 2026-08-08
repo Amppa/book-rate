@@ -32,7 +32,7 @@ class GoogleBooksSource(BaseSource):
         return "isbn_primary"
 
     def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> SourceRating:
-        """Fetch Google Books rating for a Work using explicit SearchStrategy."""
+        """Fetch Google Books rating for a Work using explicit SearchStrategy and enrich with Google Play ratings."""
         if self.quota_exceeded:
             return SourceRating(
                 source_name=self.name,
@@ -40,7 +40,97 @@ class GoogleBooksSource(BaseSource):
                 status="QUOTA_EXCEEDED"
             )
 
-        return self._fetch_ratings(work, strategy=strategy)
+        rating = self._fetch_ratings(work, strategy=strategy)
+
+        # Enhance Google Books rating with Google Play details if a match was found
+        if rating and rating.status in ("MATCH", "CURL_MATCH"):
+            volume_id = None
+            if work.work_id and work.work_id.startswith("gb:"):
+                volume_id = work.work_id[3:]
+            else:
+                volume_id = self._extract_volume_id(rating)
+
+            if volume_id:
+                logger.info(f"Enriching Google Books rating from Google Play Books for volume {volume_id}")
+                play_rate, play_count = self._fetch_google_play_rating(volume_id)
+                if play_rate is not None:
+                    rating.rate = play_rate
+                    rating.rating_count = play_count
+                    rating.url = f"https://play.google.com/store/books/details?id={volume_id}"
+                    if getattr(self, "last_request_used_curl", False):
+                        rating.status = "CURL_MATCH"
+                    else:
+                        rating.status = "MATCH"
+
+                # Update matching result in results list if present
+                if rating.results:
+                    for res in rating.results:
+                        res_vol_id = self._extract_volume_id_from_url(res.get("url"))
+                        if res_vol_id == volume_id and play_rate is not None:
+                            res["average"] = play_rate
+                            res["count"] = play_count
+                            res["url"] = f"https://play.google.com/store/books/details?id={volume_id}"
+                            res["status"] = "MATCH"
+
+        return rating
+
+    def _extract_volume_id_from_url(self, url: Optional[str]) -> Optional[str]:
+        if not url:
+            return None
+        m = re.search(r'[?&]id=([^&]+)', url)
+        if m:
+            return m.group(1)
+        m2 = re.search(r'books/details/([^?&/]+)', url)
+        if m2:
+            return m2.group(1)
+        return None
+
+    def _extract_volume_id(self, rating: SourceRating) -> Optional[str]:
+        """Extract Google Books/Play volume ID from rating object."""
+        if not rating:
+            return None
+        if rating.query and rating.query.startswith("gb:"):
+            return rating.query[3:]
+        return self._extract_volume_id_from_url(rating.url)
+
+    def _fetch_google_play_rating(self, volume_id: str) -> tuple[Optional[float], Optional[int]]:
+        """Fetch rating and vote count from Google Play Books detail page."""
+        url = f"https://play.google.com/store/books/details?id={volume_id}"
+        html_content = self._fetch_html(url)
+        if not html_content:
+            return None, None
+
+        # 1. Try parsing application/ld+json
+        ld_json_blocks = re.findall(r'<script[^>]*type="application/ld\+json"[^>]*>(.*?)</script>', html_content, re.DOTALL)
+        import json
+        for block in ld_json_blocks:
+            try:
+                data = json.loads(block.strip())
+                if isinstance(data, dict):
+                    items = [data]
+                    if "@graph" in data and isinstance(data["@graph"], list):
+                        items.extend(data["@graph"])
+
+                    for item in items:
+                        if "aggregateRating" in item and isinstance(item["aggregateRating"], dict):
+                            ar = item["aggregateRating"]
+                            r_val = ar.get("ratingValue")
+                            r_count = ar.get("ratingCount")
+                            if r_val is not None and r_count is not None:
+                                return float(r_val), int(r_count)
+            except Exception as e:
+                logger.debug(f"Failed to parse JSON-LD block: {e}")
+
+        # 2. Fallback to direct regex searches
+        try:
+            rv = re.search(r'"ratingValue"\s*:\s*"([^"]+)"', html_content)
+            rc = re.search(r'"ratingCount"\s*:\s*"([^"]+)"', html_content)
+            if rv and rc:
+                return float(rv.group(1)), int(rc.group(1))
+        except Exception as e:
+            logger.debug(f"Fallback regex parsing failed: {e}")
+
+        return None, None
 
 
     def search_works(self, query: str, limit: int = 5, include_details: bool = True, page: int = 1) -> List[Work]:
