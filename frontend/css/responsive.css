@@ -13,7 +13,7 @@ a:hover,
   color: var(--primary);
 }
 
-button:not(:disabled):not(.btn-secondary):not(.title-provider-tab-btn):not(.btn-link):hover {
+button:not(:disabled):not(.btn-secondary):not(.title-source-tab-btn):not(.btn-link):hover {
   color: var(--text-contrast);
 }
 

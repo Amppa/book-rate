@@ -37,8 +37,8 @@ h2 {
 .status,
 .edition-note,
 .history-section,
-.search-provider-note,
-.search-provider-note p {
+.search-source-note,
+.search-source-note p {
   color: var(--text-muted);
   font-size: var(--fs-md);
   line-height: 1.5;

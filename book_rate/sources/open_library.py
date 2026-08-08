@@ -1,15 +1,15 @@
 import logging
 from typing import List, Optional
 
-from book_rate.models import Work, Edition, PlatformRating
-from book_rate.providers.base import BaseProvider
+from book_rate.models import Work, Edition, SourceRating
+from book_rate.sources.base import BaseSource
 from book_rate.utils.isbn import clean_isbn
 
 logger = logging.getLogger(__name__)
 
 
-class OpenLibraryProvider(BaseProvider):
-    """Provider for querying Open Library works, editions, and ratings."""
+class OpenLibrarySource(BaseSource):
+    """Source for querying Open Library works, editions, and ratings."""
 
     BASE_URL = "https://openlibrary.org"
     SEARCH_URL = "https://openlibrary.org/search.json"
@@ -68,8 +68,8 @@ class OpenLibraryProvider(BaseProvider):
             )
 
             if avg_rating is not None or rating_count is not None:
-                work.ratings[self.name] = PlatformRating(
-                    platform_name=self.name,
+                work.ratings[self.name] = SourceRating(
+                    source_name=self.name,
                     rate=float(avg_rating) if avg_rating is not None else None,
                     rating_count=int(rating_count) if rating_count is not None else 0,
                     url=f"{self.BASE_URL}{work_key}" if work_key else None
@@ -86,7 +86,7 @@ class OpenLibraryProvider(BaseProvider):
     def default_strategy(self) -> str:
         return "title_author"
 
-    def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> PlatformRating:
+    def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> SourceRating:
         """Fetch dedicated rating object from Open Library ratings endpoint or via strategy."""
         work_id = work.work_id
         strat = strategy or self.default_strategy
@@ -100,8 +100,8 @@ class OpenLibraryProvider(BaseProvider):
                     summary = data.get("summary", {})
                     avg = summary.get("average")
                     count = summary.get("count")
-                    return PlatformRating(
-                        platform_name=self.name,
+                    return SourceRating(
+                        source_name=self.name,
                         rate=float(avg) if avg is not None and avg > 0 else None,
                         rating_count=int(count) if count is not None else 0,
                         url=f"{self.BASE_URL}{full_id}",

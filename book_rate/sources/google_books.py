@@ -3,15 +3,15 @@ import os
 import re
 from typing import List, Optional
 
-from book_rate.models import Work, Edition, PlatformRating
-from book_rate.providers.base import BaseProvider
+from book_rate.models import Work, Edition, SourceRating
+from book_rate.sources.base import BaseSource
 from book_rate.utils.isbn import clean_isbn, extract_isbns_from_work
 
 logger = logging.getLogger(__name__)
 
 
-class GoogleBooksProvider(BaseProvider):
-    """Provider for querying Google Books API volumes and ratings."""
+class GoogleBooksSource(BaseSource):
+    """Source for querying Google Books API volumes and ratings."""
 
     BASE_URL = "https://www.googleapis.com/books/v1/volumes"
 
@@ -31,11 +31,11 @@ class GoogleBooksProvider(BaseProvider):
     def default_strategy(self) -> str:
         return "isbn_primary"
 
-    def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> PlatformRating:
+    def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> SourceRating:
         """Fetch Google Books rating for a Work using explicit SearchStrategy."""
         if self.quota_exceeded:
-            return PlatformRating(
-                platform_name=self.name,
+            return SourceRating(
+                source_name=self.name,
                 strategy=strategy or self.default_strategy,
                 status="QUOTA_EXCEEDED"
             )
@@ -122,8 +122,8 @@ class GoogleBooksProvider(BaseProvider):
             )
 
             if avg_rating is not None or ratings_count is not None:
-                work.ratings[self.name] = PlatformRating(
-                    platform_name=self.name,
+                work.ratings[self.name] = SourceRating(
+                    source_name=self.name,
                     rate=float(avg_rating) if avg_rating is not None else None,
                     rating_count=int(ratings_count) if ratings_count is not None else 0,
                     url=vol_info.get("infoLink"),
@@ -197,8 +197,8 @@ class GoogleBooksProvider(BaseProvider):
             )
 
             if avg_rating is not None or ratings_count is not None:
-                work.ratings[self.name] = PlatformRating(
-                    platform_name=self.name,
+                work.ratings[self.name] = SourceRating(
+                    source_name=self.name,
                     rate=float(avg_rating) if avg_rating is not None else None,
                     rating_count=int(ratings_count) if ratings_count is not None else 0,
                     url=vol_info.get("infoLink"),
@@ -219,5 +219,3 @@ class GoogleBooksProvider(BaseProvider):
         except Exception as e:
             logger.warning(f"Failed to fetch Google Books volume ID {volume_id}: {e}")
             return None
-
-

@@ -232,41 +232,41 @@
   text-align: left;
 }
 
-/* Platform Info Table */
-.platform-info-table {
+/* Source Info Table */
+.source-info-table {
   width: 100%;
   border-collapse: collapse;
   font-size: var(--fs-sm);
   table-layout: fixed;
 }
 
-.platform-info-table td {
+.source-info-table td {
   word-break: break-word;
   overflow-wrap: anywhere;
 }
 
-.platform-info-table th,
-.platform-info-table td {
+.source-info-table th,
+.source-info-table td {
   padding: var(--space-2) var(--space-2);
   vertical-align: middle;
   border-bottom: 1px solid var(--border-light);
 }
 
-.platform-info-table th {
+.source-info-table th {
   background: var(--surface-subtle);
   color: var(--text-green-gray);
   font-weight: 700;
   white-space: nowrap;
 }
 
-.platform-info-table a {
+.source-info-table a {
   color: var(--link);
   font-weight: 600;
   text-decoration: underline;
   white-space: nowrap;
 }
 
-.platform-info-table a:hover {
+.source-info-table a:hover {
   color: var(--primary);
 }
 

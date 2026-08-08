@@ -5,7 +5,7 @@ export const HISTORY_KEY = "bookrate:recent-searches";
 export const CACHE_PREFIX = "bookrate:cache:";
 export const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
-export const PROVIDERS = [
+export const SOURCES = [
   { id: "open_library", label: "Open Library", defaultStrategy: "title_list", lang: ["en"], enable_extend_editions: true },
   { id: "google_books", label: "谷歌圖書", defaultStrategy: "title_list", lang: ["en"] },
   { id: "goodreads", label: "Goodreads", defaultStrategy: "title_list", lang: ["en"] },
@@ -25,7 +25,7 @@ export const STRATEGIES = [
   { value: "isbn", label: "ISBN" },
 ];
 
-export const PROVIDER_CHECKBOX_SUFFIX = {
+export const SOURCE_CHECKBOX_SUFFIX = {
   open_library: "ol",
   google_books: "gb",
   goodreads: "gr",
@@ -36,8 +36,8 @@ export const PROVIDER_CHECKBOX_SUFFIX = {
   readmoo: "rm"
 };
 
-// provider id -> result table column prefix (共用於 selectWork / reQuerySingleProvider)
-export const PROVIDER_PREFIX = {
+// source id -> result table column prefix (共用於 selectWork / reQuerySingleSource)
+export const SOURCE_PREFIX = {
   open_library: "ol",
   google_books: "gb",
   goodreads: "gr",

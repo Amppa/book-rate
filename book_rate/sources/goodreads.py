@@ -5,15 +5,15 @@ import re
 from datetime import datetime
 from typing import List, Optional
 
-from book_rate.models import Work, Edition, PlatformRating
-from book_rate.providers.base import BaseProvider
+from book_rate.models import Work, Edition, SourceRating
+from book_rate.sources.base import BaseSource
 from book_rate.utils.isbn import clean_isbn
 
 logger = logging.getLogger(__name__)
 
 
-class GoodreadsProvider(BaseProvider):
-    """Provider for querying Goodreads ratings and books."""
+class GoodreadsSource(BaseSource):
+    """Source for querying Goodreads ratings and books."""
 
     AUTOCOMPLETE_URL = "https://www.goodreads.com/book/auto_complete"
     BOOK_SHOW_URL = "https://www.goodreads.com/book/show/{book_id}"
@@ -161,8 +161,8 @@ class GoodreadsProvider(BaseProvider):
                 isbn=details.get("isbn")
             )
 
-            work.ratings[self.name] = PlatformRating(
-                platform_name=self.name,
+            work.ratings[self.name] = SourceRating(
+                source_name=self.name,
                 rate=avg_rating,
                 rating_count=ratings_count,
                 url=book_url,
@@ -273,6 +273,6 @@ class GoodreadsProvider(BaseProvider):
     def default_strategy(self) -> str:
         return "title_author"
 
-    def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> PlatformRating:
+    def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> SourceRating:
         """Fetch Goodreads rating for a Work using explicit strategy."""
         return self._fetch_ratings(work, strategy=strategy)

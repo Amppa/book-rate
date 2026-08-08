@@ -4,8 +4,8 @@ import re
 import urllib.parse
 from typing import List, Optional
 
-from book_rate.models import Work, Edition, PlatformRating
-from book_rate.providers.base import BaseProvider
+from book_rate.models import Work, Edition, SourceRating
+from book_rate.sources.base import BaseSource
 
 logger = logging.getLogger(__name__)
 
@@ -15,8 +15,8 @@ _BOOK_ITEM_BLOCK_RE = re.compile(
 )
 
 
-class ReadmooProvider(BaseProvider):
-    """Provider for querying Readmoo (讀墨) ebook ratings and books."""
+class ReadmooSource(BaseSource):
+    """Source for querying Readmoo (讀墨) ebook ratings and books."""
 
     BASE_URL = "https://readmoo.com"
     SEARCH_URL = "https://readmoo.com/search/keyword"
@@ -82,7 +82,7 @@ class ReadmooProvider(BaseProvider):
 
     def _select_best_rating(
         self, works: List[Work], target_title: Optional[str] = None
-    ) -> Optional[PlatformRating]:
+    ) -> Optional[SourceRating]:
         """Select the best Readmoo rating by rate (search page has no rating count)."""
         if not works:
             return None
@@ -194,8 +194,8 @@ class ReadmooProvider(BaseProvider):
             is_match = (item["avg_rating"] is not None)
             status_val = ("CURL_MATCH" if getattr(self, "last_request_used_curl", False) else "MATCH") if is_match else "NO_MATCH"
 
-            work.ratings[self.name] = PlatformRating(
-                platform_name=self.name,
+            work.ratings[self.name] = SourceRating(
+                source_name=self.name,
                 rate=item["avg_rating"],
                 rating_count=None,
                 url=item["url"],
@@ -207,12 +207,12 @@ class ReadmooProvider(BaseProvider):
 
         return works
 
-    def _rating_from_page(self, page: dict, strategy: Optional[str], query: str) -> Optional[PlatformRating]:
-        """Build a PlatformRating from a book page dict when any data exists."""
+    def _rating_from_page(self, page: dict, strategy: Optional[str], query: str) -> Optional[SourceRating]:
+        """Build a SourceRating from a book page dict when any data exists."""
         if page["rate"] is None and page["count"] is None and page["title"] is None:
             return None
-        return PlatformRating(
-            platform_name=self.name,
+        return SourceRating(
+            source_name=self.name,
             rate=page["rate"],
             rating_count=page["count"],
             url=page["url"],
@@ -222,7 +222,7 @@ class ReadmooProvider(BaseProvider):
             status=("CURL_MATCH" if getattr(self, "last_request_used_curl", False) else "MATCH") if (page["rate"] is not None or page["count"] is not None) else "NO_MATCH",
         )
 
-    def _enrich_with_book_page(self, rating: PlatformRating) -> PlatformRating:
+    def _enrich_with_book_page(self, rating: SourceRating) -> SourceRating:
         """Search-page ratings lack review counts; fill in full data from the book page."""
         if not (rating and rating.url):
             return rating
@@ -243,20 +243,20 @@ class ReadmooProvider(BaseProvider):
         rating.status = "CURL_MATCH" if getattr(self, "last_request_used_curl", False) else "MATCH"
         return rating
 
-    def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> PlatformRating:
+    def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> SourceRating:
         """Fetch Readmoo rating for a Work using explicit SearchStrategy."""
         self.last_request_used_curl = False
         target_id = getattr(work, "work_id", "") or ""
         if target_id.startswith("rm:"):
             # Direct Readmoo book ID: fetch the book page directly.
             page = self._fetch_book_page(target_id[3:])
-            rating = self._rating_from_page(page, strategy or "provider_id", target_id)
+            rating = self._rating_from_page(page, strategy or "source_id", target_id)
             if rating:
                 return rating
-            return PlatformRating(
-                platform_name=self.name,
+            return SourceRating(
+                source_name=self.name,
                 url=None,
-                strategy=strategy or "provider_id",
+                strategy=strategy or "source_id",
                 query=target_id,
                 status="NO_MATCH",
             )

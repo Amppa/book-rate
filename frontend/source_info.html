@@ -1,27 +1,27 @@
-<!-- 評分平台說明 Modal (獨立模組) -->
-<div id="platform-info-modal" class="modal" hidden>
+<!-- 評分來源說明 Modal (獨立模組) -->
+<div id="source-info-modal" class="modal" hidden>
   <style>
-    /* 覆蓋全域 table 的 min-width，避免平台說明表格出現左右捲軸 */
-    #platform-info-modal .table-wrap {
+    /* 覆蓋全域 table 的 min-width，避免來源說明表格出現左右捲軸 */
+    #source-info-modal .table-wrap {
       overflow-x: visible;
     }
 
-    #platform-info-modal table {
+    #source-info-modal table {
       min-width: 0;
     }
   </style>
   <div class="modal-content modal-wide">
     <div class="modal-header">
-      <h3>評分平台說明</h3>
-      <button type="button" id="close-platform-info-btn" class="close-btn">&times;</button>
+      <h3>評分來源說明</h3>
+      <button type="button" id="close-source-info-btn" class="close-btn">&times;</button>
     </div>
     <div class="modal-body">
-      <p class="note">※ 除了 Open Library 和 Google Books，其他平台無提供 API，需用爬蟲爬分數，可能會因為網頁改版而失效。</p>
+      <p class="note">※ 除了 Open Library 和 Google Books，其他來源無提供 API，需用爬蟲爬分數，可能會因為網頁改版而失效。</p>
       <div class="table-wrap">
-        <table class="platform-info-table">
+        <table class="source-info-table">
           <thead>
             <tr>
-              <th style="width: 15%;">平台名稱</th>
+              <th style="width: 15%;">來源名稱</th>
               <th style="width: 12%;">書籍數量</th>
               <th style="width: 15%;">評分量</th>
               <th style="width: 15%;">支援找同系列</th>

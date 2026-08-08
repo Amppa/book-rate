@@ -24,8 +24,8 @@ export function setCachedData(key, data) {
   }
 }
 
-export function getRatingCache(workKey, provider, strategy) {
-  const key = `bookrate:rating:${workKey}:${provider}:${strategy}`;
+export function getRatingCache(workKey, source, strategy) {
+  const key = `bookrate:rating:${workKey}:${source}:${strategy}`;
   try {
     const cached = localStorage.getItem(key);
     if (!cached) return null;
@@ -40,8 +40,8 @@ export function getRatingCache(workKey, provider, strategy) {
   }
 }
 
-export function setRatingCache(workKey, provider, strategy, data) {
-  const key = `bookrate:rating:${workKey}:${provider}:${strategy}`;
+export function setRatingCache(workKey, source, strategy, data) {
+  const key = `bookrate:rating:${workKey}:${source}:${strategy}`;
   try {
     const record = { data, timestamp: Date.now() };
     localStorage.setItem(key, JSON.stringify(record));

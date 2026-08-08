@@ -1,7 +1,7 @@
-import { OPEN_LIBRARY_BASE_URL, MAX_CANDIDATES, HISTORY_KEY, PROVIDERS, STRATEGIES, PROVIDER_CHECKBOX_SUFFIX, PROVIDER_PREFIX, LANGUAGE_NAME_MAP } from './js/constants.js';
+import { OPEN_LIBRARY_BASE_URL, MAX_CANDIDATES, HISTORY_KEY, SOURCES, STRATEGIES, SOURCE_CHECKBOX_SUFFIX, SOURCE_PREFIX, LANGUAGE_NAME_MAP } from './js/constants.js';
 import { getCachedData, setCachedData, getRatingCache, setRatingCache, cleanExpiredCache } from './js/cache.js';
-import { fetchJson, displayRate, displayCount, getWorkExternalUrl, getProviderDisplayName } from './js/utils.js';
-import { renderProviderToggles, renderStrategySelects, updateTableVisibility, renderTableHeaders, renderTitleProviderTabs, initTableVisibilityStyles } from './js/ui.js';
+import { fetchJson, displayRate, displayCount, getWorkExternalUrl, getSourceDisplayName } from './js/utils.js';
+import { renderSourceToggles, renderStrategySelects, updateTableVisibility, renderTableHeaders, renderTitleSourceTabs, initTableVisibilityStyles } from './js/ui.js';
 
 // Clean expired cache entries on load
 cleanExpiredCache();
@@ -32,7 +32,7 @@ const ratingTable = document.querySelector("table");
 let currentQuery = "";
 let currentPage = 1;
 let currentStep = 1;
-let currentTitleProvider = "open_library";
+let currentTitleSource = "open_library";
 let currentSelectedWork = null;
 
 function goToStep(step) {
@@ -111,13 +111,13 @@ function getShortStatus(status) {
 function renderCandidates(works) {
   candidateList.replaceChildren();
 
-  // Find current provider configuration to check if enable_extend_editions is true
-  const currentProviderObj = PROVIDERS.find(p => p.id === currentTitleProvider);
+  // Find current source configuration to check if enable_extend_editions is true
+  const currentSourceObj = SOURCES.find(p => p.id === currentTitleSource);
 
   works.forEach((work) => {
-    // Only allow expansion if the provider supports it AND the work has more than 1 edition
+    // Only allow expansion if the source supports it AND the work has more than 1 edition
     const hasMultipleEditions = typeof work.edition_count === "number" && work.edition_count > 1;
-    const enableExtend = currentProviderObj && currentProviderObj.enable_extend_editions === true && hasMultipleEditions;
+    const enableExtend = currentSourceObj && currentSourceObj.enable_extend_editions === true && hasMultipleEditions;
 
     const fragment = candidateTemplate.content.cloneNode(true);
     const cardEl = fragment.querySelector(".candidate-card");
@@ -525,24 +525,24 @@ function confirmToStep3() {
 function getSelectedStrategies() {
   const strats = {};
   document.querySelectorAll(".strategy-select").forEach((sel) => {
-    const provider = sel.dataset.provider;
-    if (provider) {
-      strats[provider] = sel.value;
+    const source = sel.dataset.source;
+    if (source) {
+      strats[source] = sel.value;
     }
   });
   return strats;
 }
 
-function getActiveRateProvidersList() {
-  const rateProviders = [];
-  PROVIDERS.forEach((provider) => {
-    const suffix = PROVIDER_CHECKBOX_SUFFIX[provider.id];
+function getActiveRateSourcesList() {
+  const rateSources = [];
+  SOURCES.forEach((source) => {
+    const suffix = SOURCE_CHECKBOX_SUFFIX[source.id];
     const checkbox = document.querySelector(`#score-${suffix}`);
     if (checkbox && checkbox.checked) {
-      rateProviders.push(provider.id);
+      rateSources.push(source.id);
     }
   });
-  return rateProviders;
+  return rateSources;
 }
 
 function getStep3Metadata() {
@@ -555,8 +555,8 @@ function getStep3Metadata() {
   return { searchName, titleList, titleZhList, authorList, isbnList };
 }
 
-function getProviderDefaultStrat(provId) {
-  return PROVIDERS.find(p => p.id === provId)?.defaultStrategy || "title_list";
+function getSourceDefaultStrat(provId) {
+  return SOURCES.find(p => p.id === provId)?.defaultStrategy || "title_list";
 }
 
 async function selectWork(work) {
@@ -591,29 +591,29 @@ async function selectWork(work) {
   step3Status.classList.remove("error");
   step3Status.textContent = "";
 
-  const activeRateProvidersList = getActiveRateProvidersList();
+  const activeRateSourcesList = getActiveRateSourcesList();
   const apiKey = localStorage.getItem("bookrate:google-api-key") || "";
   const strategies = getSelectedStrategies();
 
   // 區分命中快取與未命中快取
-  const cachedRateProviders = [];
-  const pendingRateProviders = [];
+  const cachedRateSources = [];
+  const pendingRateSources = [];
 
-  activeRateProvidersList.forEach((provider) => {
-    const strategy = strategies[provider] || getProviderDefaultStrat(provider);
-    const cachedData = getRatingCache(work.key, provider, strategy);
+  activeRateSourcesList.forEach((source) => {
+    const strategy = strategies[source] || getSourceDefaultStrat(source);
+    const cachedData = getRatingCache(work.key, source, strategy);
     if (cachedData) {
-      cachedRateProviders.push({ provider, data: cachedData });
+      cachedRateSources.push({ source, data: cachedData });
     } else {
-      pendingRateProviders.push(provider);
+      pendingRateSources.push(source);
     }
   });
 
   // 立即渲染已命中的快取
-  cachedRateProviders.forEach(({ provider, data }) => {
-    const prefix = PROVIDER_PREFIX[provider] || provider;
+  cachedRateSources.forEach(({ source, data }) => {
+    const prefix = SOURCE_PREFIX[source] || source;
     const maxRate = prefix === "db" ? 10 : 5;
-    renderPlatformCell(row, prefix, data, maxRate);
+    renderSourceCell(row, prefix, data, maxRate);
   });
 
   try {
@@ -625,15 +625,15 @@ async function selectWork(work) {
       `&title_zh_list=${encodeURIComponent(JSON.stringify(meta.titleZhList))}` +
       `&author_list=${encodeURIComponent(JSON.stringify(meta.authorList))}` +
       `&isbn_list=${encodeURIComponent(JSON.stringify(meta.isbnList))}` +
-      `&engines=${encodeURIComponent(pendingRateProviders.join(","))}` +
+      `&engines=${encodeURIComponent(pendingRateSources.join(","))}` +
       `&strategies=${encodeURIComponent(strategiesStr)}`;
     if (apiKey) {
       url += `&google_key=${encodeURIComponent(apiKey)}`;
     }
 
     const collectedDetails = { work, ratings: {}, editions: {} };
-    PROVIDERS.forEach((provider) => {
-      collectedDetails[provider.id] = {};
+    SOURCES.forEach((source) => {
+      collectedDetails[source.id] = {};
     });
     const eventSource = new EventSource(url);
 
@@ -645,18 +645,18 @@ async function selectWork(work) {
           collectedDetails.editions = data.editions;
           collectedDetails.crawler_status = data.crawler_status;
           updateWorkDetailRow(row, collectedDetails, strategies);
-        } else if (data.type === "platform") {
-          const platformKey = data.platform;
-          collectedDetails[platformKey] = data.data;
+        } else if (data.type === "source") {
+          const sourceKey = data.source;
+          collectedDetails[sourceKey] = data.data;
 
-          const prefix = PROVIDER_PREFIX[platformKey] || platformKey;
+          const prefix = SOURCE_PREFIX[sourceKey] || sourceKey;
           const maxRate = prefix === "db" ? 10 : 5;
 
           // 寫入評分快取
-          const strategy = strategies[platformKey] || getProviderDefaultStrat(platformKey);
-          setRatingCache(work.key, platformKey, strategy, data.data);
+          const strategy = strategies[sourceKey] || getSourceDefaultStrat(sourceKey);
+          setRatingCache(work.key, sourceKey, strategy, data.data);
 
-          renderPlatformCell(row, prefix, data.data, maxRate);
+          renderSourceCell(row, prefix, data.data, maxRate);
         } else if (data.type === "done") {
           eventSource.close();
           step3Status.textContent = "";
@@ -678,11 +678,11 @@ async function selectWork(work) {
   }
 }
 
-function reQuerySingleProvider(work, providerKey) {
+function reQuerySingleSource(work, sourceKey) {
   const row = resultBody.querySelector(".work-row");
   if (!row) return;
 
-  const prefix = PROVIDER_PREFIX[providerKey] || providerKey;
+  const prefix = SOURCE_PREFIX[sourceKey] || sourceKey;
   const rateEl = row.querySelector(`.${prefix}-rate`);
   const countEl = row.querySelector(`.${prefix}-count`);
   if (rateEl && countEl) {
@@ -706,7 +706,7 @@ function reQuerySingleProvider(work, providerKey) {
     `&title_zh_list=${encodeURIComponent(JSON.stringify(meta.titleZhList))}` +
     `&author_list=${encodeURIComponent(JSON.stringify(meta.authorList))}` +
     `&isbn_list=${encodeURIComponent(JSON.stringify(meta.isbnList))}` +
-    `&engines=${encodeURIComponent(providerKey)}` +
+    `&engines=${encodeURIComponent(sourceKey)}` +
     `&strategies=${encodeURIComponent(strategiesStr)}`;
   if (apiKey) {
     url += `&google_key=${encodeURIComponent(apiKey)}`;
@@ -716,23 +716,23 @@ function reQuerySingleProvider(work, providerKey) {
   eventSource.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data);
-      if (data.type === "platform") {
+      if (data.type === "source") {
         const maxRate = prefix === "db" ? 10 : 5;
 
         // 重新查詢寫入評分快取並渲染
-        const strategy = strategies[providerKey] || getProviderDefaultStrat(providerKey);
-        setRatingCache(work.key, providerKey, strategy, data.data);
+        const strategy = strategies[sourceKey] || getSourceDefaultStrat(sourceKey);
+        setRatingCache(work.key, sourceKey, strategy, data.data);
 
-        renderPlatformCell(row, prefix, data.data, maxRate);
+        renderSourceCell(row, prefix, data.data, maxRate);
       } else if (data.type === "done") {
         eventSource.close();
       }
     } catch (err) {
-      console.error("Single provider re-query parse error:", err);
+      console.error("Single source re-query parse error:", err);
     }
   };
   eventSource.onerror = (err) => {
-    console.error("Single provider EventSource failed:", err);
+    console.error("Single source EventSource failed:", err);
     eventSource.close();
   };
 }
@@ -754,12 +754,12 @@ if (scoreToggleBarEl) {
 if (scoreStrategyRowEl) {
   scoreStrategyRowEl.addEventListener("change", (e) => {
     if (e.target.classList.contains("strategy-select")) {
-      const providerKey = e.target.dataset.provider;
-      if (providerKey) {
-        localStorage.setItem("bookrate:strategy:" + providerKey, e.target.value);
+      const sourceKey = e.target.dataset.source;
+      if (sourceKey) {
+        localStorage.setItem("bookrate:strategy:" + sourceKey, e.target.value);
       }
-      if (currentSelectedWork && providerKey) {
-        reQuerySingleProvider(currentSelectedWork, providerKey);
+      if (currentSelectedWork && sourceKey) {
+        reQuerySingleSource(currentSelectedWork, sourceKey);
       }
     }
   });
@@ -778,8 +778,8 @@ function renderInitialWorkRow(work) {
   const row = document.createElement("tr");
   row.className = "work-row";
 
-  PROVIDERS.forEach((provider) => {
-    const suffix = PROVIDER_CHECKBOX_SUFFIX[provider.id];
+  SOURCES.forEach((source) => {
+    const suffix = SOURCE_CHECKBOX_SUFFIX[source.id];
     const td = document.createElement("td");
     td.className = `col-${suffix}`;
 
@@ -799,7 +799,7 @@ function renderInitialWorkRow(work) {
   return row;
 }
 
-function renderPlatformCell(row, prefix, data, maxRate = 5) {
+function renderSourceCell(row, prefix, data, maxRate = 5) {
   const rateEl = row.querySelector(`.${prefix}-rate`);
   const countEl = row.querySelector(`.${prefix}-count`);
 
@@ -816,13 +816,13 @@ function renderPlatformCell(row, prefix, data, maxRate = 5) {
 
   const cell = rateEl.closest("td");
   if (cell) {
-    const oldTitle = cell.querySelector(".platform-book-title");
+    const oldTitle = cell.querySelector(".source-book-title");
     if (oldTitle) oldTitle.remove();
     
     // In single-result mode, display the title above the rating if it exists
     if (data.title && (!data.results || data.results.length === 0)) {
       const titleDiv = document.createElement("div");
-      titleDiv.className = "platform-book-title";
+      titleDiv.className = "source-book-title";
       titleDiv.textContent = data.title;
       cell.insertBefore(titleDiv, rateEl);
     }
@@ -835,7 +835,7 @@ function renderPlatformCell(row, prefix, data, maxRate = 5) {
     "title_list_full": "書名列表 (完整)",
     "title_zh_list_full": "書名列表 (亞洲) (完整)",
     "isbn": "ISBN",
-    "provider_id": "書籍ID (精確)"
+    "source_id": "書籍ID (精確)"
   };
 
   if (data.results && data.results.length > 0) {
@@ -962,11 +962,11 @@ function updateWorkDetailRow(row, { work, ratings }, strategies) {
   // 3. 渲染 Open Library 評分
   const olUrl = ratings?.url || ((work.key && work.key.startsWith("/works/")) ? `${OPEN_LIBRARY_BASE_URL}${work.key}` : null);
   const olData = { average: ratings?.average, count: ratings?.count, url: olUrl, status: (ratings?.average ? "MATCH" : "NO_MATCH") };
-  renderPlatformCell(row, "ol", olData, 5);
+  renderSourceCell(row, "ol", olData, 5);
 
   // 寫入快取
   if (strategies) {
-    const olStrategy = strategies.open_library || getProviderDefaultStrat("open_library");
+    const olStrategy = strategies.open_library || getSourceDefaultStrat("open_library");
     setRatingCache(work.key, "open_library", olStrategy, olData);
   }
 }
@@ -989,31 +989,31 @@ function updateManualSearchLinks(query) {
   }
 }
 
-function updateTitleProviderTabs(titleProvider) {
-  const tabsContainer = document.querySelector("#title-provider-tabs-container");
+function updateTitleSourceTabs(titleSource) {
+  const tabsContainer = document.querySelector("#title-source-tabs-container");
   if (tabsContainer) {
-    tabsContainer.querySelectorAll(".title-provider-tab-btn").forEach((btn) => {
-      btn.classList.toggle("active", btn.dataset.providerId === titleProvider);
+    tabsContainer.querySelectorAll(".title-source-tab-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.sourceId === titleSource);
     });
   }
 }
 
-async function searchWorks(query, page, titleProvider = "open_library") {
+async function searchWorks(query, page, titleSource = "open_library") {
   currentQuery = query;
   currentPage = page;
-  currentTitleProvider = titleProvider;
+  currentTitleSource = titleSource;
   candidateSection.hidden = false;
   candidateHeading.hidden = false;
   goToStep(2);
-  updateTitleProviderTabs(titleProvider);
+  updateTitleSourceTabs(titleSource);
 
-  const providerObj = PROVIDERS.find(p => p.id === titleProvider);
-  const titleProviderName = providerObj ? providerObj.label : "資料庫";
+  const sourceObj = SOURCES.find(p => p.id === titleSource);
+  const titleSourceName = sourceObj ? sourceObj.label : "資料庫";
 
   candidateList.replaceChildren();
   const loadingEl = document.createElement("div");
   loadingEl.className = "no-results loading";
-  loadingEl.textContent = `載入中… 正在使用 ${titleProviderName} 尋找「${query}」`;
+  loadingEl.textContent = `載入中… 正在使用 ${titleSourceName} 尋找「${query}」`;
   candidateList.append(loadingEl);
 
   updateManualSearchLinks(query);
@@ -1030,10 +1030,10 @@ async function searchWorks(query, page, titleProvider = "open_library") {
   }
 
   try {
-    const cacheKey = `search:${query}:page:${page}:engines:${titleProvider}`;
+    const cacheKey = `search:${query}:page:${page}:engines:${titleSource}`;
     let works = getCachedData(cacheKey);
     if (!works) {
-      let url = `/api/search?q=${encodeURIComponent(query)}&page=${page}&engines=${encodeURIComponent(titleProvider)}`;
+      let url = `/api/search?q=${encodeURIComponent(query)}&page=${page}&engines=${encodeURIComponent(titleSource)}`;
       const apiKey = localStorage.getItem("bookrate:google-api-key") || "";
       if (apiKey) {
         url += `&google_key=${encodeURIComponent(apiKey)}`;
@@ -1051,7 +1051,7 @@ async function searchWorks(query, page, titleProvider = "open_library") {
         candidateList.replaceChildren();
         const noResultsEl = document.createElement("div");
         noResultsEl.className = "no-results";
-        noResultsEl.textContent = `${titleProviderName} 找不到「${query}」`;
+        noResultsEl.textContent = `${titleSourceName} 找不到「${query}」`;
         candidateList.append(noResultsEl);
       } else {
         paginationControls.hidden = false;
@@ -1081,15 +1081,15 @@ searchForm.addEventListener("submit", (event) => {
   searchWorks(query, 1, "open_library");
 });
 
-const tabsContainer = document.querySelector("#title-provider-tabs-container");
+const tabsContainer = document.querySelector("#title-source-tabs-container");
 if (tabsContainer) {
   tabsContainer.addEventListener("click", (e) => {
-    const btn = e.target.closest(".title-provider-tab-btn");
+    const btn = e.target.closest(".title-source-tab-btn");
     if (btn) {
-      const providerId = btn.dataset.providerId;
+      const sourceId = btn.dataset.sourceId;
       const q = searchInput.value.trim() || currentQuery;
-      if (q && providerId) {
-        searchWorks(q, 1, providerId);
+      if (q && sourceId) {
+        searchWorks(q, 1, sourceId);
       }
     }
   });
@@ -1112,12 +1112,12 @@ function updatePagination(itemsCount) {
 
 prevPageBtn.addEventListener("click", () => {
   if (currentPage > 1) {
-    searchWorks(currentQuery, currentPage - 1, currentTitleProvider);
+    searchWorks(currentQuery, currentPage - 1, currentTitleSource);
   }
 });
 
 nextPageBtn.addEventListener("click", () => {
-  searchWorks(currentQuery, currentPage + 1, currentTitleProvider);
+  searchWorks(currentQuery, currentPage + 1, currentTitleSource);
 });
 
 renderHistory();
@@ -1165,22 +1165,22 @@ if (clearApiKeyBtn) {
 function initSettings() {
   initTableVisibilityStyles();
   renderTableHeaders(document.querySelector("#table-header-row"));
-  renderTitleProviderTabs(document.querySelector("#title-provider-tabs-container"), currentTitleProvider);
+  renderTitleSourceTabs(document.querySelector("#title-source-tabs-container"), currentTitleSource);
 
-  renderProviderToggles(scoreToggleBarEl);
+  renderSourceToggles(scoreToggleBarEl);
   renderStrategySelects(scoreStrategyRowEl);
 
-  PROVIDERS.forEach((provider) => {
-    const suffix = PROVIDER_CHECKBOX_SUFFIX[provider.id];
+  SOURCES.forEach((source) => {
+    const suffix = SOURCE_CHECKBOX_SUFFIX[source.id];
     const checkbox = document.querySelector(`#score-${suffix}`);
     if (checkbox) {
       checkbox.checked = localStorage.getItem(`bookrate:score:${suffix}`) !== "false";
     }
 
-    const select = document.querySelector(`.strategy-select[data-provider="${provider.id}"]`);
+    const select = document.querySelector(`.strategy-select[data-source="${source.id}"]`);
     if (select) {
-      const savedStrategy = localStorage.getItem("bookrate:strategy:" + provider.id);
-      select.value = savedStrategy || provider.defaultStrategy;
+      const savedStrategy = localStorage.getItem("bookrate:strategy:" + source.id);
+      select.value = savedStrategy || source.defaultStrategy;
     }
   });
 
@@ -1333,34 +1333,34 @@ if (editionsModal && closeEditionsBtn) {
   });
 }
 
-// Platform Info Modal logic (dynamic load from platform_info.html)
-const openPlatformInfoBtn = document.querySelector("#open-platform-info-btn");
+// Source Info Modal logic (dynamic load from source_info.html)
+const openSourceInfoBtn = document.querySelector("#open-source-info-btn");
 
-if (openPlatformInfoBtn) {
-  openPlatformInfoBtn.addEventListener("click", async () => {
-    let platformInfoModal = document.querySelector("#platform-info-modal");
+if (openSourceInfoBtn) {
+  openSourceInfoBtn.addEventListener("click", async () => {
+    let sourceInfoModal = document.querySelector("#source-info-modal");
 
-    if (platformInfoModal) {
-      platformInfoModal.remove();
-      platformInfoModal = null;
+    if (sourceInfoModal) {
+      sourceInfoModal.remove();
+      sourceInfoModal = null;
     }
 
-    if (!platformInfoModal) {
+    if (!sourceInfoModal) {
       try {
-        const resp = await fetch("./platform_info.html?v=" + Date.now());
+        const resp = await fetch("./source_info.html?v=" + Date.now());
         if (resp.ok) {
           const htmlText = await resp.text();
           const tempDiv = document.createElement("div");
           tempDiv.innerHTML = htmlText;
-          platformInfoModal = tempDiv.firstElementChild;
-          document.body.appendChild(platformInfoModal);
+          sourceInfoModal = tempDiv.firstElementChild;
+          document.body.appendChild(sourceInfoModal);
 
-          const closeBtn = platformInfoModal.querySelector("#close-platform-info-btn");
+          const closeBtn = sourceInfoModal.querySelector("#close-source-info-btn");
           const closeModal = () => {
-            platformInfoModal.classList.remove("open");
+            sourceInfoModal.classList.remove("open");
             setTimeout(() => {
-              if (!platformInfoModal.classList.contains("open")) {
-                platformInfoModal.hidden = true;
+              if (!sourceInfoModal.classList.contains("open")) {
+                sourceInfoModal.hidden = true;
               }
             }, 300);
           };
@@ -1368,20 +1368,20 @@ if (openPlatformInfoBtn) {
           if (closeBtn) {
             closeBtn.addEventListener("click", closeModal);
           }
-          platformInfoModal.addEventListener("click", (e) => {
-            if (e.target === platformInfoModal) {
+          sourceInfoModal.addEventListener("click", (e) => {
+            if (e.target === sourceInfoModal) {
               closeModal();
             }
           });
         }
       } catch (err) {
-        console.error("Failed to load platform_info.html:", err);
+        console.error("Failed to load source_info.html:", err);
       }
     }
 
-    if (platformInfoModal) {
-      platformInfoModal.hidden = false;
-      setTimeout(() => platformInfoModal.classList.add("open"), 10);
+    if (sourceInfoModal) {
+      sourceInfoModal.hidden = false;
+      setTimeout(() => sourceInfoModal.classList.add("open"), 10);
     }
   });
 }

@@ -38,7 +38,7 @@ export function getWorkExternalUrl(key) {
   return null;
 }
 
-export function getProviderDisplayName(key) {
+export function getSourceDisplayName(key) {
   const names = {
     open_library: "Open Library",
     ol: "Open Library",

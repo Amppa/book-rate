@@ -1,16 +1,16 @@
 import unittest
 from unittest.mock import MagicMock, patch
 from book_rate.models import Work, Edition
-from book_rate.providers.amazon import AmazonProvider
+from book_rate.sources.amazon import AmazonSource
 
 
-class TestAmazonProvider(unittest.TestCase):
+class TestAmazonSource(unittest.TestCase):
 
     def setUp(self):
-        self.provider = AmazonProvider()
+        self.source = AmazonSource()
 
-    def test_provider_name(self):
-        self.assertEqual(self.provider.name, "Amazon")
+    def test_source_name(self):
+        self.assertEqual(self.source.name, "Amazon")
 
     @patch("requests.Session.get")
     def test_search_works_parsing(self, mock_get):
@@ -26,7 +26,7 @@ class TestAmazonProvider(unittest.TestCase):
         '''
         mock_get.return_value = mock_resp
 
-        works = self.provider.search_works("Atomic Habits")
+        works = self.source.search_works("Atomic Habits")
         self.assertTrue(len(works) > 0)
         self.assertEqual(works[0].title, "Atomic Habits")
         self.assertEqual(works[0].author, "James Clear")
@@ -42,8 +42,8 @@ class TestAmazonProvider(unittest.TestCase):
         mock_get.return_value = mock_resp
 
         work = Work(work_id="ol1", title="Test Book", author="Test Author")
-        rating = self.provider.fetch_ratings(work)
-        self.assertEqual(rating.platform_name, "Amazon")
+        rating = self.source.fetch_ratings(work)
+        self.assertEqual(rating.source_name, "Amazon")
         self.assertIsNone(rating.rate)
         self.assertIsNone(rating.rating_count)
 
