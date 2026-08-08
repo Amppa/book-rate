@@ -1,0 +1,87 @@
+/* ==========================================================================
+   Search Form & Search History Components (Step 1)
+   ========================================================================== */
+/* Search Form */
+.search-form {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-4) var(--space-5) var(--space-5);
+  box-shadow: var(--shadow-lg);
+}
+
+.search-row {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.search-source-note {
+  margin-top: var(--space-4);
+}
+
+.search-source-note p {
+  margin: 0;
+}
+
+.search-source-note p+p {
+  margin-top: var(--space-1);
+}
+
+.search-source-note a {
+  color: var(--link);
+  text-decoration: underline;
+  font-weight: 500;
+}
+
+.search-source-note a:hover {
+  color: var(--accent);
+}
+
+/* History & Presets */
+.history-presets-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--space-3);
+}
+
+.history-section p {
+  display: inline;
+  margin-right: 0.6rem;
+}
+
+.history-list {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.history-item {
+  padding: var(--space-2) var(--space-3);
+  color: var(--primary);
+  background: var(--secondary);
+  font-size: 0.8rem;
+  border: 0;
+}
+
+.history-item:not(:disabled):hover {
+  filter: brightness(92%);
+  color: var(--primary);
+}
+
+.presets-link-btn {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: var(--text-muted);
+  font-size: var(--fs-md);
+  font-weight: normal;
+  cursor: pointer;
+  margin-left: auto;
+  text-decoration: underline;
+  transition: color 0.2s ease;
+}
+
+.presets-link-btn:hover {
+  background: transparent;
+  filter: brightness(92%);
+  color: var(--primary);
+}

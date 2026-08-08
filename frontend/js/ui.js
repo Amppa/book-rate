@@ -1,13 +1,13 @@
-import { PROVIDERS, STRATEGIES, PROVIDER_CHECKBOX_SUFFIX, LANGUAGE_NAME_MAP, MAX_EDITIONS } from './constants.js';
+import { SOURCES, STRATEGIES, SOURCE_PREFIX, LANGUAGE_NAME_MAP, MAX_EDITIONS } from './constants.js';
 
-export function renderProviderToggles(container) {
+export function renderSourceToggles(container) {
   if (!container) return;
   container.innerHTML = '<span class="toggle-title">來源：</span>';
 
-  PROVIDERS.forEach((provider) => {
-    const suffix = PROVIDER_CHECKBOX_SUFFIX[provider.id];
+  SOURCES.forEach((source) => {
+    const suffix = SOURCE_PREFIX[source.id];
     const item = document.createElement("div");
-    item.className = "provider-toggle-item";
+    item.className = "source-toggle-item";
 
     const label = document.createElement("label");
     label.className = "checkbox-label";
@@ -17,7 +17,7 @@ export function renderProviderToggles(container) {
     input.id = `score-${suffix}`;
 
     const span = document.createElement("span");
-    span.textContent = provider.label;
+    span.textContent = source.label;
 
     label.appendChild(input);
     label.appendChild(span);
@@ -30,14 +30,14 @@ export function renderStrategySelects(strategyRow) {
   if (!strategyRow) return;
   strategyRow.replaceChildren();
 
-  PROVIDERS.forEach((provider) => {
-    const suffix = PROVIDER_CHECKBOX_SUFFIX[provider.id];
+  SOURCES.forEach((source) => {
+    const suffix = SOURCE_PREFIX[source.id];
     const th = document.createElement("th");
     th.className = `col-${suffix}`;
 
     const select = document.createElement("select");
     select.className = "strategy-select";
-    select.dataset.provider = provider.id;
+    select.dataset.source = source.id;
 
     STRATEGIES.forEach((strat) => {
       const opt = document.createElement("option");
@@ -53,8 +53,8 @@ export function renderStrategySelects(strategyRow) {
 
 export function updateTableVisibility(ratingTable) {
   if (ratingTable) {
-    PROVIDERS.forEach((provider) => {
-      const suffix = PROVIDER_CHECKBOX_SUFFIX[provider.id];
+    SOURCES.forEach((source) => {
+      const suffix = SOURCE_PREFIX[source.id];
       const checkbox = document.querySelector(`#score-${suffix}`);
       ratingTable.classList.toggle(`hide-${suffix}-score`, checkbox ? !checkbox.checked : true);
     });
@@ -65,28 +65,28 @@ export function renderTableHeaders(headerRow) {
   if (!headerRow) return;
   headerRow.replaceChildren();
 
-  PROVIDERS.forEach((provider) => {
-    const suffix = PROVIDER_CHECKBOX_SUFFIX[provider.id];
+  SOURCES.forEach((source) => {
+    const suffix = SOURCE_PREFIX[source.id];
     const th = document.createElement("th");
     th.className = `col-${suffix}`;
-    th.textContent = provider.label;
+    th.textContent = source.label;
     headerRow.appendChild(th);
   });
 }
 
-export function renderTitleProviderTabs(container, currentTitleProvider) {
+export function renderTitleSourceTabs(container, currentTitleSource) {
   if (!container) return;
   container.replaceChildren();
 
-  PROVIDERS.forEach((provider) => {
+  SOURCES.forEach((source) => {
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "title-provider-tab-btn";
-    if (provider.id === currentTitleProvider) {
+    btn.className = "title-source-tab-btn";
+    if (source.id === currentTitleSource) {
       btn.classList.add("active");
     }
-    btn.dataset.providerId = provider.id;
-    btn.textContent = provider.label;
+    btn.dataset.sourceId = source.id;
+    btn.textContent = source.label;
     container.appendChild(btn);
   });
 }
@@ -99,8 +99,8 @@ export function initTableVisibilityStyles() {
     document.head.appendChild(styleEl);
   }
   let css = "";
-  PROVIDERS.forEach((provider) => {
-    const suffix = PROVIDER_CHECKBOX_SUFFIX[provider.id];
+  SOURCES.forEach((source) => {
+    const suffix = SOURCE_PREFIX[source.id];
     css += `
       .hide-${suffix}-score .col-${suffix} {
         display: none !important;
@@ -110,5 +110,25 @@ export function initTableVisibilityStyles() {
   styleEl.textContent = css;
 }
 
+/**
+ * Shows a modal element with the CSS "open" animation class.
+ * @param {HTMLElement|null} el
+ */
+export function openModal(el) {
+  if (!el) return;
+  el.hidden = false;
+  setTimeout(() => el.classList.add("open"), 10);
+}
 
-
+/**
+ * Hides a modal element after the CSS close animation completes.
+ * @param {HTMLElement|null} el
+ * @param {number} [delay=300] - milliseconds matching the CSS transition duration
+ */
+export function closeModal(el, delay = 300) {
+  if (!el) return;
+  el.classList.remove("open");
+  setTimeout(() => {
+    if (!el.classList.contains("open")) el.hidden = true;
+  }, delay);
+}

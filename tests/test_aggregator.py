@@ -1,5 +1,5 @@
 import unittest
-from book_rate.models import Work, PlatformRating, Edition
+from book_rate.models import Work, SourceRating, Edition
 from book_rate.formatters import format_markdown_table, format_csv, format_json
 
 
@@ -20,14 +20,14 @@ class TestModelsAndFormatters(unittest.TestCase):
                 )
             ],
             ratings={
-                "Open Library": PlatformRating(
-                    platform_name="Open Library",
+                "Open Library": SourceRating(
+                    source_name="Open Library",
                     rate=4.25,
                     rating_count=150,
                     url="https://openlibrary.org/works/OL27479W"
                 ),
-                "Google Books": PlatformRating(
-                    platform_name="Google Books",
+                "Google Books": SourceRating(
+                    source_name="Google Books",
                     rate=4.40,
                     rating_count=3200,
                     url="https://books.google.com"
@@ -36,10 +36,10 @@ class TestModelsAndFormatters(unittest.TestCase):
         )
 
     def test_platform_rating_format(self):
-        rating = PlatformRating(platform_name="Open Library", rate=4.5, rating_count=100)
+        rating = SourceRating(source_name="Open Library", rate=4.5, rating_count=100)
         self.assertEqual(rating.format_rate_count(), "4.50 / 100 reviews")
 
-        empty_rating = PlatformRating(platform_name="Google Books")
+        empty_rating = SourceRating(source_name="Google Books")
         self.assertEqual(empty_rating.format_rate_count(), "N/A")
 
     def test_markdown_formatter(self):
@@ -70,12 +70,12 @@ class TestModelsAndFormatters(unittest.TestCase):
 
 
 from unittest.mock import MagicMock, patch
-from book_rate.providers.google_books import GoogleBooksProvider
-from book_rate.providers.goodreads import GoodreadsProvider
-from book_rate.providers.douban import DoubanProvider
+from book_rate.sources.google_books import GoogleBooksSource
+from book_rate.sources.goodreads import GoodreadsSource
+from book_rate.sources.douban import DoubanSource
 
 
-class TestGoodreadsProvider(unittest.TestCase):
+class TestGoodreadsSource(unittest.TestCase):
     @patch('requests.Session.get')
     def test_search_works(self, mock_get):
         mock_response = MagicMock()
@@ -92,8 +92,8 @@ class TestGoodreadsProvider(unittest.TestCase):
         ]
         mock_get.return_value = mock_response
 
-        provider = GoodreadsProvider()
-        provider.fetch_book_details = MagicMock(return_value={
+        source = GoodreadsSource()
+        source.fetch_book_details = MagicMock(return_value={
             "isbn": "9780735211292",
             "pub_year": "2018",
             "editions_count": 256,
@@ -102,7 +102,7 @@ class TestGoodreadsProvider(unittest.TestCase):
             "author": "James Clear",
             "crawler_status": "Normal"
         })
-        works = provider.search_works("Atomic Habits", limit=1)
+        works = source.search_works("Atomic Habits", limit=1)
 
         self.assertEqual(len(works), 1)
         self.assertEqual(works[0].title, "Atomic Habits")
@@ -136,8 +136,8 @@ class TestGoodreadsProvider(unittest.TestCase):
         """
         mock_get.return_value = mock_resp
 
-        provider = GoodreadsProvider()
-        details = provider.fetch_book_details("40121378")
+        source = GoodreadsSource()
+        details = source.fetch_book_details("40121378")
 
         self.assertEqual(details["title"], "Atomic Habits")
         self.assertEqual(details["author"], "James Clear")
@@ -176,8 +176,8 @@ class TestGoodreadsProvider(unittest.TestCase):
         """
         mock_get.return_value = mock_resp
 
-        provider = GoodreadsProvider()
-        editions = provider.fetch_editions("62221762", limit=1)
+        source = GoodreadsSource()
+        editions = source.fetch_editions("62221762", limit=1)
 
         self.assertEqual(len(editions), 1)
         self.assertEqual(editions[0].edition_id, "40121378")
@@ -189,7 +189,7 @@ class TestGoodreadsProvider(unittest.TestCase):
         self.assertEqual(editions[0].isbn_10, "0735211299")
 
 
-class TestDoubanProvider(unittest.TestCase):
+class TestDoubanSource(unittest.TestCase):
     @patch('requests.Session.get')
     def test_search_works(self, mock_get):
         def side_effect(url, **kwargs):
@@ -211,8 +211,8 @@ class TestDoubanProvider(unittest.TestCase):
 
         mock_get.side_effect = side_effect
 
-        provider = DoubanProvider()
-        works = provider.search_works("快思慢想", limit=1)
+        source = DoubanSource()
+        works = source.search_works("快思慢想", limit=1)
 
         self.assertEqual(len(works), 1)
         self.assertEqual(works[0].title, "快思慢想")
@@ -220,7 +220,7 @@ class TestDoubanProvider(unittest.TestCase):
         self.assertEqual(works[0].ratings["Douban"].rate, 8.7)
         self.assertEqual(works[0].ratings["Douban"].rating_count, 208)
 
-class TestGoogleBooksProvider(unittest.TestCase):
+class TestGoogleBooksSource(unittest.TestCase):
     @patch('requests.Session.get')
     def test_fetch_volume_by_id(self, mock_get):
         mock_response = MagicMock()
@@ -243,8 +243,8 @@ class TestGoogleBooksProvider(unittest.TestCase):
         }
         mock_get.return_value = mock_response
 
-        provider = GoogleBooksProvider(api_key="fake_key")
-        work = provider.fetch_volume_by_id("test_vol_123")
+        source = GoogleBooksSource(api_key="fake_key")
+        work = source.fetch_volume_by_id("test_vol_123")
 
         self.assertIsNotNone(work)
         self.assertEqual(work.work_id, "gb:test_vol_123")
@@ -276,8 +276,8 @@ class TestGoogleBooksProvider(unittest.TestCase):
         }
         mock_get.return_value = mock_response
 
-        provider = GoogleBooksProvider(api_key="fake_key")
-        work = provider.fetch_volume_by_id("test_vol_456")
+        source = GoogleBooksSource(api_key="fake_key")
+        work = source.fetch_volume_by_id("test_vol_456")
 
         self.assertIsNotNone(work)
         self.assertEqual(work.original_title, "Atomic Habits")

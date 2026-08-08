@@ -2,7 +2,7 @@ import logging
 import re
 import subprocess
 from typing import List, Optional, Callable
-from book_rate.models import Work, PlatformRating
+from book_rate.models import Work, SourceRating
 from book_rate.utils.isbn import clean_isbn, extract_isbns_from_work
 
 logger = logging.getLogger(__name__)
@@ -15,19 +15,19 @@ class SearchStrategy:
     TITLE_LIST_FULL = "title_list_full"
     TITLE_ZH_LIST_FULL = "title_zh_list_full"
     ISBN = "isbn"
-    PROVIDER_ID = "provider_id"
+    SOURCE_ID = "source_id"
     TITLE_AUTHOR = "title_author"
 
 
-class ProviderNetworkError(Exception):
+class SourceNetworkError(Exception):
     def __init__(self, message: str, status_code: Optional[int] = None):
         super().__init__(message)
         self.message = message
         self.status_code = status_code
 
 
-class BaseProvider:
-    """Base abstract class for all book rating providers."""
+class BaseSource:
+    """Base abstract class for all book rating sources."""
 
     DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
@@ -66,28 +66,28 @@ class BaseProvider:
 
     @property
     def name(self) -> str:
-        """Name of the platform provider (e.g. 'Open Library')."""
+        """Name of the rating source (e.g. 'Open Library')."""
         raise NotImplementedError
 
     @property
     def enable_extend_editions(self) -> bool:
-        """Whether this provider supports expanding and selecting editions in step 2."""
+        """Whether this source supports expanding and selecting editions in step 2."""
         return False
 
     @property
     def default_strategy(self) -> str:
-        """Default search strategy for this provider."""
+        """Default search strategy for this source."""
         return SearchStrategy.TITLE_AUTHOR
 
     def search_works(self, query: str, limit: int = 5, page: int = 1) -> List[Work]:
         """Search for works matching query string."""
         raise NotImplementedError
 
-    def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> PlatformRating:
+    def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> SourceRating:
         """Fetch rating metrics for a given Work object with explicit strategy."""
         return self._fetch_ratings(work, strategy=strategy)
 
-    def _select_best_rating(self, works: List[Work], target_title: Optional[str] = None) -> Optional[PlatformRating]:
+    def _select_best_rating(self, works: List[Work], target_title: Optional[str] = None) -> Optional[SourceRating]:
         """Helper to select the work rating with highest rating count that is relevant to target_title."""
         if not works:
             return None
@@ -126,13 +126,18 @@ class BaseProvider:
         work: Work,
         strategy: Optional[str] = None,
         custom_search: Optional[Callable[[str], List[Work]]] = None
-    ) -> PlatformRating:
+    ) -> SourceRating:
         """
         Execute explicit SearchStrategy for the given Work object.
         No silent fallback.
         """
         self.last_request_used_curl = False
         strat = strategy or self.default_strategy
+        if strat == "isbn_primary":
+            # If work has ISBN, route to ISBN search, else fall back to TITLE_AUTHOR
+            has_valid_isbn = (work.isbn and clean_isbn(work.isbn)) or (work.isbn_list and any(clean_isbn(i) for i in work.isbn_list))
+            strat = SearchStrategy.ISBN if has_valid_isbn else SearchStrategy.TITLE_AUTHOR
+
         search = custom_search or (lambda q: self.search_works(q, limit=5))
         target_title = work.original_title or work.title
 
@@ -140,7 +145,7 @@ class BaseProvider:
         query_used = ""
         network_error_msg = None
 
-        if strat == SearchStrategy.PROVIDER_ID:
+        if strat == SearchStrategy.SOURCE_ID:
             query_used = work.work_id
             if self.name in work.ratings and work.ratings[self.name].rate is not None:
                 r = work.ratings[self.name]
@@ -149,7 +154,7 @@ class BaseProvider:
                 r.status = "MATCH"
                 return r
 
-            # Handle provider ID search if prefix matches
+            # Handle source ID search if prefix matches
             prefix_map = {
                 "Goodreads": "gr:",
                 "Google Books": "gb:",
@@ -164,7 +169,7 @@ class BaseProvider:
             if p_prefix and (work.work_id.startswith(p_prefix) or (p_prefix == "/works/" and "OL" in work.work_id)):
                 try:
                     candidate_works.extend(search(work.work_id))
-                except ProviderNetworkError as ne:
+                except SourceNetworkError as ne:
                     network_error_msg = ne.message
                 except Exception as e:
                     network_error_msg = f"Error: {e}"
@@ -174,7 +179,7 @@ class BaseProvider:
             if query_used:
                 try:
                     candidate_works.extend(search(query_used))
-                except ProviderNetworkError as ne:
+                except SourceNetworkError as ne:
                     network_error_msg = ne.message
                 except Exception as e:
                     network_error_msg = f"Error: {e}"
@@ -203,7 +208,7 @@ class BaseProvider:
                             is_match = (best_rating.rate is not None or best_rating.rating_count is not None)
                             best_rating.status = ("CURL_MATCH" if getattr(self, "last_request_used_curl", False) else "MATCH") if is_match else "NO_MATCH"
                             return best_rating
-                except ProviderNetworkError as ne:
+                except SourceNetworkError as ne:
                     network_error_msg = ne.message
                     break
                 except Exception as e:
@@ -226,7 +231,7 @@ class BaseProvider:
                             is_match = (best_rating.rate is not None or best_rating.rating_count is not None)
                             best_rating.status = ("CURL_MATCH" if getattr(self, "last_request_used_curl", False) else "MATCH") if is_match else "NO_MATCH"
                             return best_rating
-                except ProviderNetworkError as ne:
+                except SourceNetworkError as ne:
                     network_error_msg = ne.message
                     break
                 except Exception as e:
@@ -252,7 +257,7 @@ class BaseProvider:
                             is_match = (best_rating.rate is not None or best_rating.rating_count is not None)
                             best_rating.status = ("CURL_MATCH" if getattr(self, "last_request_used_curl", False) else "MATCH") if is_match else "NO_MATCH"
                             return best_rating
-                except ProviderNetworkError as ne:
+                except SourceNetworkError as ne:
                     network_error_msg = ne.message
                     break
                 except Exception as e:
@@ -327,8 +332,8 @@ class BaseProvider:
                 copied_rating.results = results_list
                 return copied_rating
             else:
-                return PlatformRating(
-                    platform_name=self.name,
+                return SourceRating(
+                    source_name=self.name,
                     rate=None,
                     rating_count=None,
                     url=None,
@@ -346,11 +351,10 @@ class BaseProvider:
             best_rating.status = ("CURL_MATCH" if getattr(self, "last_request_used_curl", False) else "MATCH") if is_match else "NO_MATCH"
             return best_rating
 
-        return PlatformRating(
-            platform_name=self.name,
+        return SourceRating(
+            source_name=self.name,
             url=None,
             strategy=strat,
             query=query_used,
             status=network_error_msg if network_error_msg else "NO_MATCH"
         )
-

@@ -1,0 +1,86 @@
+/* ==========================================================================
+   Settings Dropdown Panel Components
+   ========================================================================== */
+.settings-details {
+  position: absolute;
+  top: 150px;
+  right: 0;
+  width: auto;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  z-index: var(--z-index-dropdown);
+  font-size: var(--fs-md);
+}
+
+.settings-details[open] {
+  width: 340px;
+  padding: var(--space-5);
+  box-shadow: var(--shadow-md);
+}
+
+.settings-details[open] summary {
+  margin-bottom: var(--space-3);
+}
+
+.settings-content {
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px dashed var(--border-light);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.setting-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.setting-item label {
+  margin-bottom: 0;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.setting-item .btn-full {
+  width: 100%;
+  padding: 0.65rem;
+  font-size: var(--fs-md);
+  text-align: center;
+}
+
+.checkbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 0.2rem 0;
+  align-items: flex-start;
+}
+
+
+.api-key-input-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.api-key-input-row input {
+  width: 100%;
+  padding: 0.65rem 0.8rem;
+  font-size: var(--fs-md);
+}
+
+.api-key-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.api-key-actions button {
+  flex: 1;
+  padding: 0.55rem 0.8rem;
+  font-size: var(--fs-sm);
+}

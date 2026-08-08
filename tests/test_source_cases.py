@@ -1,15 +1,15 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
-from book_rate.models import Work, PlatformRating
-from book_rate.providers.amazon import AmazonProvider
-from book_rate.providers.douban import DoubanProvider
-from book_rate.providers.goodreads import GoodreadsProvider
-from book_rate.providers.google_books import GoogleBooksProvider
+from book_rate.models import Work, SourceRating
+from book_rate.sources.amazon import AmazonSource
+from book_rate.sources.douban import DoubanSource
+from book_rate.sources.goodreads import GoodreadsSource
+from book_rate.sources.google_books import GoogleBooksSource
 
 
 class TestNonExistentBookCase(unittest.TestCase):
-    """Test Case 1: Non-existent book across providers (url=None, rate=None)."""
+    """Test Case 1: Non-existent book across sources (url=None, rate=None)."""
 
     def setUp(self):
         self.dummy_work = Work(
@@ -25,10 +25,10 @@ class TestNonExistentBookCase(unittest.TestCase):
         mock_resp.text = "<html><body><div>No results found for your search</div></body></html>"
         mock_get.return_value = mock_resp
 
-        provider = AmazonProvider()
-        rating = provider.fetch_ratings(self.dummy_work)
+        source = AmazonSource()
+        rating = source.fetch_ratings(self.dummy_work)
 
-        self.assertEqual(rating.platform_name, "Amazon")
+        self.assertEqual(rating.source_name, "Amazon")
         self.assertIsNone(rating.url)
         self.assertIsNone(rating.rate)
         self.assertIsNone(rating.rating_count)
@@ -40,10 +40,10 @@ class TestNonExistentBookCase(unittest.TestCase):
         mock_resp.json.return_value = []
         mock_get.return_value = mock_resp
 
-        provider = DoubanProvider()
-        rating = provider.fetch_ratings(self.dummy_work)
+        source = DoubanSource()
+        rating = source.fetch_ratings(self.dummy_work)
 
-        self.assertEqual(rating.platform_name, "Douban")
+        self.assertEqual(rating.source_name, "Douban")
         self.assertIsNone(rating.url)
         self.assertIsNone(rating.rate)
         self.assertIsNone(rating.rating_count)
@@ -55,10 +55,10 @@ class TestNonExistentBookCase(unittest.TestCase):
         mock_resp.json.return_value = []
         mock_get.return_value = mock_resp
 
-        provider = GoodreadsProvider()
-        rating = provider.fetch_ratings(self.dummy_work)
+        source = GoodreadsSource()
+        rating = source.fetch_ratings(self.dummy_work)
 
-        self.assertEqual(rating.platform_name, "Goodreads")
+        self.assertEqual(rating.source_name, "Goodreads")
         self.assertIsNone(rating.url)
         self.assertIsNone(rating.rate)
         self.assertIsNone(rating.rating_count)
@@ -70,10 +70,10 @@ class TestNonExistentBookCase(unittest.TestCase):
         mock_resp.json.return_value = {"totalItems": 0, "items": []}
         mock_get.return_value = mock_resp
 
-        provider = GoogleBooksProvider()
-        rating = provider.fetch_ratings(self.dummy_work)
+        source = GoogleBooksSource()
+        rating = source.fetch_ratings(self.dummy_work)
 
-        self.assertEqual(rating.platform_name, "Google Books")
+        self.assertEqual(rating.source_name, "Google Books")
         self.assertIsNone(rating.url)
         self.assertIsNone(rating.rate)
         self.assertIsNone(rating.rating_count)
@@ -102,10 +102,10 @@ class TestUnratedBookWithUrlCase(unittest.TestCase):
         '''
         mock_get.return_value = mock_resp
 
-        provider = AmazonProvider()
-        rating = provider.fetch_ratings(self.unrated_work)
+        source = AmazonSource()
+        rating = source.fetch_ratings(self.unrated_work)
 
-        self.assertEqual(rating.platform_name, "Amazon")
+        self.assertEqual(rating.source_name, "Amazon")
         self.assertIsNotNone(rating.url)
         self.assertIn("B000000111", rating.url)
         self.assertIsNone(rating.rate)
@@ -132,10 +132,10 @@ class TestUnratedBookWithUrlCase(unittest.TestCase):
 
         mock_get.side_effect = side_effect
 
-        provider = DoubanProvider()
-        rating = provider.fetch_ratings(self.unrated_work)
+        source = DoubanSource()
+        rating = source.fetch_ratings(self.unrated_work)
 
-        self.assertEqual(rating.platform_name, "Douban")
+        self.assertEqual(rating.source_name, "Douban")
         self.assertIsNotNone(rating.url)
         self.assertEqual(rating.url, "https://book.douban.com/subject/999888777/")
         self.assertIsNone(rating.rate)

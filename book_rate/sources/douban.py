@@ -3,8 +3,8 @@ import logging
 import re
 from typing import List, Optional
 
-from book_rate.models import Work, Edition, PlatformRating
-from book_rate.providers.base import BaseProvider
+from book_rate.models import Work, Edition, SourceRating
+from book_rate.sources.base import BaseSource
 from book_rate.utils.isbn import clean_isbn
 
 logger = logging.getLogger(__name__)
@@ -60,8 +60,8 @@ def _parse_subject_html(html_str: str, url: str) -> dict:
     return res
 
 
-class DoubanProvider(BaseProvider):
-    """Provider for querying Douban (豆瓣) ratings and book subjects."""
+class DoubanSource(BaseSource):
+    """Source for querying Douban (豆瓣) ratings and book subjects."""
 
     SUGGEST_URL = "https://book.douban.com/j/subject_suggest"
     ISBN_LOOKUP_URL = "https://book.douban.com/isbn/{isbn}/"
@@ -81,7 +81,7 @@ class DoubanProvider(BaseProvider):
             logger.warning(f"Failed to fetch Douban subject details from '{url}': {e}")
             return {"rate": None, "votes": None, "isbn": None, "pub_year": None, "title": None, "url": url, "editions_count": None}
 
-    def _lookup_by_isbn(self, isbn: str) -> Optional[PlatformRating]:
+    def _lookup_by_isbn(self, isbn: str) -> Optional[SourceRating]:
         """
         Lookup a Douban subject by ISBN using /isbn/{isbn}/ redirect.
         Single HTTP GET request to avoid duplicate requests.
@@ -102,8 +102,8 @@ class DoubanProvider(BaseProvider):
             subject_url = _build_subject_url(sub_id)
             details = _parse_subject_html(resp.text, subject_url)
 
-            rating = PlatformRating(
-                platform_name=self.name,
+            rating = SourceRating(
+                source_name=self.name,
                 rate=details["rate"],
                 rating_count=details["votes"],
                 url=subject_url,
@@ -177,8 +177,8 @@ class DoubanProvider(BaseProvider):
             )
 
             if details["rate"] is not None or details["votes"] is not None or subject_url:
-                work.ratings[self.name] = PlatformRating(
-                    platform_name=self.name,
+                work.ratings[self.name] = SourceRating(
+                    source_name=self.name,
                     rate=details["rate"],
                     rating_count=details["votes"],
                     url=subject_url,
@@ -195,6 +195,6 @@ class DoubanProvider(BaseProvider):
     def default_strategy(self) -> str:
         return "isbn_primary"
 
-    def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> PlatformRating:
+    def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> SourceRating:
         """Fetch Douban rating for a Work using explicit SearchStrategy."""
         return self._fetch_ratings(work, strategy=strategy)

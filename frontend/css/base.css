@@ -37,8 +37,8 @@ h2 {
 .status,
 .edition-note,
 .history-section,
-.search-provider-note,
-.search-provider-note p {
+.search-source-note,
+.search-source-note p {
   color: var(--text-muted);
   font-size: var(--fs-md);
   line-height: 1.5;
@@ -132,3 +132,72 @@ label {
   font-size: var(--fs-lg);
   font-weight: 700;
 }
+
+/* ==========================================================================
+   Interactive & Disabled States
+   ========================================================================== */
+button:not(:disabled):hover,
+.settings-details summary:hover,
+a:hover {
+  filter: brightness(92%);
+  color: var(--primary);
+}
+
+button:not(:disabled):not(.btn-secondary):not(.title-source-tab-btn):not(.btn-link):hover {
+  color: var(--text-contrast);
+}
+
+.checkbox-label:hover span {
+  color: var(--primary);
+}
+
+button:disabled,
+button:disabled:hover {
+  background: var(--btn-disabled-bg);
+  color: var(--btn-disabled-text);
+  cursor: not-allowed;
+  filter: none;
+}
+
+/* ==========================================================================
+   Global Utilities & Modifiers
+   ========================================================================== */
+/* Checkbox Label Utility */
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-md);
+  font-weight: normal;
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--primary);
+  cursor: pointer;
+  flex: none;
+  margin: 0;
+  padding: 0;
+}
+
+.checkbox-label span {
+  color: var(--text-green-gray);
+  transition: color 0.2s ease;
+}
+
+/* Button Size Utilities */
+.btn-xs {
+  padding: 2px var(--space-2);
+  font-size: 0.75rem;
+  border-radius: var(--radius-sm);
+}
+
+.btn-sm {
+  padding: 4px var(--space-3);
+  font-size: 0.8rem;
+  border-radius: var(--radius-sm);
+}
+

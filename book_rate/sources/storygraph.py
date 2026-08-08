@@ -5,14 +5,14 @@ import subprocess
 import urllib.parse
 from typing import List, Optional
 
-from book_rate.models import Work, Edition, PlatformRating
-from book_rate.providers.base import BaseProvider
+from book_rate.models import Work, Edition, SourceRating
+from book_rate.sources.base import BaseSource
 
 logger = logging.getLogger(__name__)
 
 
-class StoryGraphProvider(BaseProvider):
-    """Provider for querying The StoryGraph (app.thestorygraph.com) ratings and books."""
+class StoryGraphSource(BaseSource):
+    """Source for querying The StoryGraph (app.thestorygraph.com) ratings and books."""
 
     BASE_URL = "https://app.thestorygraph.com"
     BROWSE_URL = "https://app.thestorygraph.com/browse"
@@ -178,8 +178,8 @@ class StoryGraphProvider(BaseProvider):
             is_match = (rate is not None or votes is not None)
             status_val = ("CURL_MATCH" if getattr(self, "last_request_used_curl", False) else "MATCH") if is_match else (details.get("crawler_status") or "Normal")
 
-            work.ratings[self.name] = PlatformRating(
-                platform_name=self.name,
+            work.ratings[self.name] = SourceRating(
+                source_name=self.name,
                 rate=rate,
                 rating_count=votes,
                 url=subject_url,
@@ -203,7 +203,7 @@ class StoryGraphProvider(BaseProvider):
     def default_strategy(self) -> str:
         return "title_author"
 
-    def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> PlatformRating:
+    def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> SourceRating:
         """Fetch StoryGraph rating for a Work using explicit SearchStrategy."""
         self.last_request_used_curl = False
         return self._fetch_ratings(work, strategy=strategy)

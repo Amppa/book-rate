@@ -43,7 +43,7 @@ def print_rich_table(works: List[Work], console: Optional[Console] = None) -> No
     if console is None:
         console = Console()
 
-    table = Table(title="📚 圖書跨平台版本與評分整合 (Books Score MVP)", show_header=True, header_style="bold cyan")
+    table = Table(title="📚 圖書跨來源版本與評分整合 (Books Score MVP)", show_header=True, header_style="bold cyan")
     table.add_column("書名", style="bold white", width=25)
     table.add_column("原作者", style="green", width=18)
     table.add_column("work (ID)", style="dim magenta", width=22)

@@ -1,0 +1,136 @@
+/* ==========================================================================
+   Layout & Page Shell Components
+   ========================================================================== */
+.page-shell {
+  width: min(1060px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 72px 0;
+  position: relative;
+}
+
+header {
+  max-width: 700px;
+}
+
+.header-line {
+  border: 0;
+  height: 1px;
+  background: var(--border-light);
+  margin: var(--space-6) 0 var(--space-2);
+}
+
+/* Wizard */
+.wizard-container {
+  width: 100%;
+  position: relative;
+  margin-top: var(--space-2);
+}
+
+.wizard-track {
+  position: relative;
+  width: 100%;
+}
+
+.wizard-step {
+  width: 100%;
+  padding: 0 4px;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.wizard-step.active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  position: relative;
+}
+
+.step-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.8rem;
+  margin: var(--space-6) 0;
+}
+
+.step-header .section-heading {
+  margin: 0;
+  width: 100%;
+}
+
+.step-header button {
+  position: absolute;
+  left: 0;
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--fs-md);
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+  z-index: var(--z-index-header-btn);
+}
+
+.section-heading {
+  text-align: center;
+  margin: var(--space-6) 0;
+}
+
+#step-1 .section-heading {
+  margin-top: var(--space-2);
+}
+
+.section-heading h2 {
+  margin: 0;
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.section-heading .step-num {
+  font-size: 0.65em;
+  font-weight: 800;
+  color: var(--accent);
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+/* Card / Panel Primitive */
+.search-form,
+.candidate-list,
+.table-wrap,
+.settings-details[open],
+.modal-content {
+  background: var(--surface-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+}
+
+/* Pagination */
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-5);
+  margin-top: var(--space-6);
+}
+
+.pagination-controls span {
+  font-weight: 700;
+  color: var(--text-primary);
+  font-size: var(--fs-lg);
+}
+
+.pagination-controls button {
+  padding: var(--space-2) var(--space-4);
+}
+
+/* Application Footer */
+.app-footer {
+  margin-top: var(--space-7);
+  text-align: center;
+}

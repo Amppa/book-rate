@@ -5,7 +5,7 @@ export const HISTORY_KEY = "bookrate:recent-searches";
 export const CACHE_PREFIX = "bookrate:cache:";
 export const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
-export const PROVIDERS = [
+export const SOURCES = [
   { id: "open_library", label: "Open Library", defaultStrategy: "title_list", lang: ["en"], enable_extend_editions: true },
   { id: "google_books", label: "谷歌圖書", defaultStrategy: "title_list", lang: ["en"] },
   { id: "goodreads", label: "Goodreads", defaultStrategy: "title_list", lang: ["en"] },
@@ -25,19 +25,8 @@ export const STRATEGIES = [
   { value: "isbn", label: "ISBN" },
 ];
 
-export const PROVIDER_CHECKBOX_SUFFIX = {
-  open_library: "ol",
-  google_books: "gb",
-  goodreads: "gr",
-  storygraph: "sg",
-  amazon: "am",
-  amazon_jp: "amjp",
-  douban: "db",
-  readmoo: "rm"
-};
-
-// provider id -> result table column prefix (共用於 selectWork / reQuerySingleProvider)
-export const PROVIDER_PREFIX = {
+// source id -> result table column prefix (共用於 selectWork / reQuerySingleSource)
+export const SOURCE_PREFIX = {
   open_library: "ol",
   google_books: "gb",
   goodreads: "gr",
@@ -97,4 +86,15 @@ export const LANGUAGE_NAME_MAP = {
   th: "Thai",
   ind: "Indonesian",
   id: "Indonesian"
+};
+
+// Friendly display names for search strategies — centralised here to avoid duplication.
+export const STRATEGY_LABEL_MAP = {
+  "search_name": "搜尋名稱",
+  "title_list": "書名列表 (短路)",
+  "title_zh_list": "書名列表 (亞洲) (短路)",
+  "title_list_full": "書名列表 (完整)",
+  "title_zh_list_full": "書名列表 (亞洲) (完整)",
+  "isbn": "ISBN",
+  "source_id": "書籍ID (精確)"
 };

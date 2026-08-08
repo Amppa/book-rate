@@ -12,7 +12,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: var(--z-index-modal);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.3s ease;
@@ -30,6 +30,15 @@
   overflow: hidden;
   transform: translateY(20px);
   transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.modal.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal.open .modal-content {
+  transform: translateY(0);
 }
 
 .modal-header {
@@ -61,6 +70,7 @@
 
 .close-btn:hover {
   background: transparent;
+  color: var(--error);
 }
 
 .modal-body {
@@ -103,6 +113,11 @@
 .clickable-preset {
   cursor: pointer;
   transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.clickable-preset:hover {
+  filter: brightness(92%);
+  color: var(--primary);
 }
 
 /* Editions Modal Specifics */
@@ -232,41 +247,41 @@
   text-align: left;
 }
 
-/* Platform Info Table */
-.platform-info-table {
+/* Source Info Table */
+.source-info-table {
   width: 100%;
   border-collapse: collapse;
   font-size: var(--fs-sm);
   table-layout: fixed;
 }
 
-.platform-info-table td {
+.source-info-table td {
   word-break: break-word;
   overflow-wrap: anywhere;
 }
 
-.platform-info-table th,
-.platform-info-table td {
+.source-info-table th,
+.source-info-table td {
   padding: var(--space-2) var(--space-2);
   vertical-align: middle;
   border-bottom: 1px solid var(--border-light);
 }
 
-.platform-info-table th {
+.source-info-table th {
   background: var(--surface-subtle);
   color: var(--text-green-gray);
   font-weight: 700;
   white-space: nowrap;
 }
 
-.platform-info-table a {
+.source-info-table a {
   color: var(--link);
   font-weight: 600;
   text-decoration: underline;
   white-space: nowrap;
 }
 
-.platform-info-table a:hover {
+.source-info-table a:hover {
   color: var(--primary);
 }
 

@@ -3,9 +3,9 @@ from typing import List, Dict, Optional
 
 
 @dataclass
-class PlatformRating:
-    """Represents rating info from a specific platform (e.g. Open Library, Google Books)."""
-    platform_name: str
+class SourceRating:
+    """Represents rating info from a specific source (e.g. Open Library, Google Books)."""
+    source_name: str
     rate: Optional[float] = None
     rating_count: Optional[int] = None
     url: Optional[str] = None
@@ -39,14 +39,14 @@ class Edition:
 
 @dataclass
 class Work:
-    """Represents the abstract concept of a Work containing multiple editions and ratings across platforms."""
+    """Represents the abstract concept of a Work containing multiple editions and ratings across sources."""
     work_id: str
     title: str
     author: str
     first_publish_year: Optional[int] = None
     edition_count: Optional[int] = None
     editions: List[Edition] = field(default_factory=list)
-    ratings: Dict[str, PlatformRating] = field(default_factory=dict)
+    ratings: Dict[str, SourceRating] = field(default_factory=dict)
     original_title: Optional[str] = None
     isbn: Optional[str] = None
     search_name: Optional[str] = None
@@ -55,8 +55,8 @@ class Work:
     author_list: List[str] = field(default_factory=list)
     isbn_list: List[str] = field(default_factory=list)
 
-    def get_rating_summary(self, platform_name: str) -> str:
-        """Get formatted rating for a platform or return N/A."""
-        if platform_name in self.ratings:
-            return self.ratings[platform_name].format_rate_count()
+    def get_rating_summary(self, source_name: str) -> str:
+        """Get formatted rating for a source or return N/A."""
+        if source_name in self.ratings:
+            return self.ratings[source_name].format_rate_count()
         return "N/A"

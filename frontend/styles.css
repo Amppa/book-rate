@@ -3,6 +3,11 @@
    ========================================================================== */
 @import "./css/tokens.css";
 @import "./css/base.css";
-@import "./css/components.css";
+@import "./css/layout.css";
+@import "./css/search-history.css";
+@import "./css/candidates.css";
+@import "./css/metadata.css";
+@import "./css/ratings.css";
+@import "./css/settings.css";
 @import "./css/modals.css";
 @import "./css/responsive.css";

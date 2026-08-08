@@ -1,0 +1,223 @@
+/* ==========================================================================
+   Ratings Comparison Table & Strategies Components (Step 3)
+   ========================================================================== */
+/* Score Display Toggles in Step 3 */
+.score-display-toggles {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+  margin-bottom: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.score-display-toggles .toggle-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+}
+
+.source-toggle-item {
+  display: inline-flex;
+  align-items: center;
+  background: var(--surface-subtle);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-light);
+}
+
+.score-display-toggles .checkbox-label {
+  display: inline-flex;
+  font-size: var(--fs-sm);
+  color: var(--text-primary);
+  margin-bottom: 0;
+}
+
+/* Strategy Dropdowns & Selects */
+.thead-strategy-row th {
+  vertical-align: top;
+  padding: var(--space-2) var(--space-3);
+  font-weight: normal;
+  border-top: 1px dashed var(--border-light);
+}
+
+.strategy-select {
+  font-size: 0.75rem;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-card);
+  color: var(--text-primary);
+  cursor: pointer;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.strategy-select:hover {
+  border-color: var(--primary);
+}
+
+/* Search Status Tags */
+.search-status-tag {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  margin-top: 6px;
+}
+
+.search-status-tag.status-match,
+.search-status-tag.status-curl_match {
+  background: #e6f4ea;
+  color: #137333;
+}
+
+.search-status-tag.status-no_match {
+  background: #f1f3f4;
+  color: #5f6368;
+}
+
+.search-status-tag.status-quota_exceeded,
+.search-status-tag.status-error,
+.search-status-tag[class*="status-http-"],
+.search-status-tag[class*="status-error-"] {
+  background: #fce8e6;
+  color: #c5221f;
+}
+
+/* Rating Comparison Table */
+.table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  margin-top: var(--space-4);
+}
+
+.table-wrap table {
+  width: 100%;
+  min-width: 960px;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.table-wrap th,
+.table-wrap td {
+  padding: var(--space-3) var(--space-4);
+  vertical-align: top;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.table-wrap th {
+  background: var(--surface-subtle);
+  font-size: var(--fs-xs);
+  color: var(--text-green-gray);
+  letter-spacing: .04em;
+  white-space: nowrap;
+}
+
+.table-wrap td strong {
+  display: block;
+  font-size: var(--fs-md);
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.table-wrap tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.work-info-cell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-items: flex-start;
+  font-size: var(--fs-md);
+  color: var(--text-muted);
+}
+
+.work-title {
+  font-weight: 800;
+}
+
+.author {
+  color: var(--text-muted);
+}
+
+/* Multi-result lists styles for Strategy 4/5 */
+.multi-result-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--fs-xs);
+  text-align: left;
+  margin-top: var(--space-1);
+}
+
+.multi-result-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  padding: 2px 0;
+  border-bottom: 1px dashed var(--border-light);
+}
+
+.multi-result-item:last-child {
+  border-bottom: none;
+}
+
+.multi-result-index {
+  color: var(--text-muted);
+  font-weight: bold;
+  min-width: 14px;
+}
+
+.multi-result-value {
+  flex-grow: 1;
+  white-space: nowrap;
+}
+
+.multi-result-link {
+  color: var(--link);
+  text-decoration: none;
+}
+
+.multi-result-link:hover {
+  text-decoration: underline;
+}
+
+.source-book-title {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+  line-height: 1.25;
+}
+
+.multi-result-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-grow: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.multi-result-title {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 130px;
+  line-height: 1.25;
+}
