@@ -1,11 +1,11 @@
-import { SOURCES, STRATEGIES, SOURCE_CHECKBOX_SUFFIX, LANGUAGE_NAME_MAP, MAX_EDITIONS } from './constants.js';
+import { SOURCES, STRATEGIES, SOURCE_PREFIX, LANGUAGE_NAME_MAP, MAX_EDITIONS } from './constants.js';
 
 export function renderSourceToggles(container) {
   if (!container) return;
   container.innerHTML = '<span class="toggle-title">來源：</span>';
 
   SOURCES.forEach((source) => {
-    const suffix = SOURCE_CHECKBOX_SUFFIX[source.id];
+    const suffix = SOURCE_PREFIX[source.id];
     const item = document.createElement("div");
     item.className = "source-toggle-item";
 
@@ -31,7 +31,7 @@ export function renderStrategySelects(strategyRow) {
   strategyRow.replaceChildren();
 
   SOURCES.forEach((source) => {
-    const suffix = SOURCE_CHECKBOX_SUFFIX[source.id];
+    const suffix = SOURCE_PREFIX[source.id];
     const th = document.createElement("th");
     th.className = `col-${suffix}`;
 
@@ -54,7 +54,7 @@ export function renderStrategySelects(strategyRow) {
 export function updateTableVisibility(ratingTable) {
   if (ratingTable) {
     SOURCES.forEach((source) => {
-      const suffix = SOURCE_CHECKBOX_SUFFIX[source.id];
+      const suffix = SOURCE_PREFIX[source.id];
       const checkbox = document.querySelector(`#score-${suffix}`);
       ratingTable.classList.toggle(`hide-${suffix}-score`, checkbox ? !checkbox.checked : true);
     });
@@ -66,7 +66,7 @@ export function renderTableHeaders(headerRow) {
   headerRow.replaceChildren();
 
   SOURCES.forEach((source) => {
-    const suffix = SOURCE_CHECKBOX_SUFFIX[source.id];
+    const suffix = SOURCE_PREFIX[source.id];
     const th = document.createElement("th");
     th.className = `col-${suffix}`;
     th.textContent = source.label;
@@ -100,7 +100,7 @@ export function initTableVisibilityStyles() {
   }
   let css = "";
   SOURCES.forEach((source) => {
-    const suffix = SOURCE_CHECKBOX_SUFFIX[source.id];
+    const suffix = SOURCE_PREFIX[source.id];
     css += `
       .hide-${suffix}-score .col-${suffix} {
         display: none !important;

@@ -1,4 +1,4 @@
-import { OPEN_LIBRARY_BASE_URL, MAX_CANDIDATES, HISTORY_KEY, SOURCES, STRATEGIES, SOURCE_CHECKBOX_SUFFIX, SOURCE_PREFIX, LANGUAGE_NAME_MAP } from './js/constants.js';
+import { OPEN_LIBRARY_BASE_URL, MAX_CANDIDATES, HISTORY_KEY, SOURCES, STRATEGIES, SOURCE_PREFIX, LANGUAGE_NAME_MAP } from './js/constants.js';
 import { getCachedData, setCachedData, getRatingCache, setRatingCache, cleanExpiredCache } from './js/cache.js';
 import { fetchJson, displayRate, displayCount, getWorkExternalUrl, getSourceDisplayName } from './js/utils.js';
 import { renderSourceToggles, renderStrategySelects, updateTableVisibility, renderTableHeaders, renderTitleSourceTabs, initTableVisibilityStyles } from './js/ui.js';
@@ -536,7 +536,7 @@ function getSelectedStrategies() {
 function getActiveRateSourcesList() {
   const rateSources = [];
   SOURCES.forEach((source) => {
-    const suffix = SOURCE_CHECKBOX_SUFFIX[source.id];
+    const suffix = SOURCE_PREFIX[source.id];
     const checkbox = document.querySelector(`#score-${suffix}`);
     if (checkbox && checkbox.checked) {
       rateSources.push(source.id);
@@ -779,7 +779,7 @@ function renderInitialWorkRow(work) {
   row.className = "work-row";
 
   SOURCES.forEach((source) => {
-    const suffix = SOURCE_CHECKBOX_SUFFIX[source.id];
+    const suffix = SOURCE_PREFIX[source.id];
     const td = document.createElement("td");
     td.className = `col-${suffix}`;
 
@@ -1171,7 +1171,7 @@ function initSettings() {
   renderStrategySelects(scoreStrategyRowEl);
 
   SOURCES.forEach((source) => {
-    const suffix = SOURCE_CHECKBOX_SUFFIX[source.id];
+    const suffix = SOURCE_PREFIX[source.id];
     const checkbox = document.querySelector(`#score-${suffix}`);
     if (checkbox) {
       checkbox.checked = localStorage.getItem(`bookrate:score:${suffix}`) !== "false";

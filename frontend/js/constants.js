@@ -25,17 +25,6 @@ export const STRATEGIES = [
   { value: "isbn", label: "ISBN" },
 ];
 
-export const SOURCE_CHECKBOX_SUFFIX = {
-  open_library: "ol",
-  google_books: "gb",
-  goodreads: "gr",
-  storygraph: "sg",
-  amazon: "am",
-  amazon_jp: "amjp",
-  douban: "db",
-  readmoo: "rm"
-};
-
 // source id -> result table column prefix (共用於 selectWork / reQuerySingleSource)
 export const SOURCE_PREFIX = {
   open_library: "ol",
