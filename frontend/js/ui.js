@@ -109,3 +109,26 @@ export function initTableVisibilityStyles() {
   });
   styleEl.textContent = css;
 }
+
+/**
+ * Shows a modal element with the CSS "open" animation class.
+ * @param {HTMLElement|null} el
+ */
+export function openModal(el) {
+  if (!el) return;
+  el.hidden = false;
+  setTimeout(() => el.classList.add("open"), 10);
+}
+
+/**
+ * Hides a modal element after the CSS close animation completes.
+ * @param {HTMLElement|null} el
+ * @param {number} [delay=300] - milliseconds matching the CSS transition duration
+ */
+export function closeModal(el, delay = 300) {
+  if (!el) return;
+  el.classList.remove("open");
+  setTimeout(() => {
+    if (!el.classList.contains("open")) el.hidden = true;
+  }, delay);
+}
