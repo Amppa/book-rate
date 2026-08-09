@@ -16,7 +16,6 @@ A Python tool and framework for searching books by title (including Chinese titl
   5. **Asian book list title (Full)**: Queries all Asian titles, displaying all results in a vertical list inside the cell (1-second query delay).
   6. **ISBN**: Sequentially tries cleaned ISBNs, stops on first match.
 - **Wizard-Style Web UI**: Features a 3-step search, review (metadata editing card), and rating comparison flow.
-- **Flexible CLI & Table Formatting**: Outputs formatted Markdown tables, colored terminal tables (powered by `rich`), CSV, or JSON exports.
 - **Rating Cache Flow**: Locally caches fetched ratings based on work key, platform, and selected strategy to prevent duplicate queries and optimize page speed.
 
 ---
@@ -67,48 +66,6 @@ You can configure a Google Books API Key in two ways to avoid hitting rate limit
   ```
 
 
-### Basic CLI Search
-
-Search for a book by title:
-```bash
-python main.py "快思慢想"
-```
-
-Output:
-```markdown
-| 書名 | 原作者 | work | Open Library 分數／人數 | Google Books 分數／人數 |
-| --- | --- | --- | --- | --- |
-| 快思慢想 | 丹尼爾·卡內曼 (Daniel Kahneman) | /works/OL27479W | 4.15 / 2200 reviews | 4.30 / 350 reviews |
-```
-
-### Detailed Edition Breakdown
-
-Use `--editions` flag to display all cataloged editions for each work:
-```bash
-python main.py "Atomic Habits" --editions
-```
-
-### Output Formats
-
-Export output to Markdown, JSON, or CSV:
-```bash
-python main.py "原子習慣" -f markdown
-python main.py "原子習慣" -f json
-python main.py "原子習慣" -f csv
-```
-
-### Passing Google Books API Key
-
-To bypass default IP rate limits on Google Books API, provide an API key via environment variable or CLI argument:
-```bash
-export GOOGLE_BOOKS_API_KEY="your_api_key_here"
-python main.py "快思慢想"
-```
-Or directly:
-```bash
-python main.py "快思慢想" --google-key "your_api_key_here"
-```
-
 ---
 
 ## Project Architecture
@@ -119,7 +76,6 @@ bookrate/
 │   ├── __init__.py
 │   ├── models.py        # Dataclasses: Work, Edition, PlatformRating
 │   ├── aggregator.py    # BookAggregator class combining provider data
-│   ├── formatters.py    # Markdown, Rich Table, CSV, JSON formatters
 │   └── providers/
 │       ├── __init__.py
 │       ├── base.py      # Abstract BaseProvider interface
@@ -128,7 +84,6 @@ bookrate/
 ├── frontend/            # Web frontend files (HTML, CSS, JS)
 ├── tests/
 │   └── test_aggregator.py # Unit tests
-├── main.py              # CLI entry point
 ├── server.py            # FastAPI Web Server entry point
 └── requirements.txt     # Python dependencies (requests, rich, fastapi, uvicorn)
 ```

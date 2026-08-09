@@ -1,9 +1,8 @@
 import unittest
 from book_rate.models import Work, SourceRating, Edition
-from book_rate.formatters import format_markdown_table, format_csv, format_json
 
 
-class TestModelsAndFormatters(unittest.TestCase):
+class TestModels(unittest.TestCase):
 
     def setUp(self):
         self.sample_work = Work(
@@ -41,32 +40,6 @@ class TestModelsAndFormatters(unittest.TestCase):
 
         empty_rating = SourceRating(source_name="Google Books")
         self.assertEqual(empty_rating.format_rate_count(), "N/A")
-
-    def test_markdown_formatter(self):
-        md = format_markdown_table([self.sample_work])
-        self.assertIn("書名", md)
-        self.assertIn("原作者", md)
-        self.assertIn("work", md)
-        self.assertIn("Open Library 分數／人數", md)
-        self.assertIn("Google Books 分數／人數", md)
-        self.assertIn("Goodreads 分數／人數", md)
-        self.assertIn("豆瓣 分數／人數", md)
-        self.assertIn("快思慢想", md)
-        self.assertIn("丹尼爾·卡內曼", md)
-        self.assertIn("/works/OL27479W", md)
-        self.assertIn("4.25 / 150 reviews", md)
-        self.assertIn("4.40 / 3200 reviews", md)
-
-    def test_csv_formatter(self):
-        csv_out = format_csv([self.sample_work])
-        self.assertIn("快思慢想", csv_out)
-        self.assertIn("丹尼爾·卡內曼", csv_out)
-        self.assertIn("4.25 / 150 reviews", csv_out)
-
-    def test_json_formatter(self):
-        json_out = format_json([self.sample_work])
-        self.assertIn("/works/OL27479W", json_out)
-        self.assertIn("快思慢想", json_out)
 
 
 from unittest.mock import MagicMock, patch
