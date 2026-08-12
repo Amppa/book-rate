@@ -1,6 +1,7 @@
 import { state } from './state.js';
 import { SOURCES, SOURCE_PREFIX } from './constants.js';
 import { markCandidateSelected } from './candidates.js';
+import { removeBrackets } from './utils.js';
 
 // Injected dependency: avoids a circular import between wizard ↔ ratings.
 let _onSelectWork = null;
@@ -11,6 +12,28 @@ let _onSelectWork = null;
  */
 export function initWizard({ onSelectWork }) {
   _onSelectWork = onSelectWork;
+
+  // Monitor the bracket removal checkbox and clean existing fields when checked
+  const removeBracketsCb = document.querySelector("#bm-remove-brackets");
+  if (removeBracketsCb) {
+    removeBracketsCb.addEventListener("change", (e) => {
+      if (e.target.checked) {
+        const titleEl = document.querySelector("#bm-title");
+        const titleZhEl = document.querySelector("#bm-title-zh");
+        const authorEl = document.querySelector("#bm-author");
+
+        if (titleEl && titleEl.value) {
+          titleEl.value = titleEl.value.split('\n').map(removeBrackets).filter(Boolean).join('\n');
+        }
+        if (titleZhEl && titleZhEl.value) {
+          titleZhEl.value = titleZhEl.value.split('\n').map(removeBrackets).filter(Boolean).join('\n');
+        }
+        if (authorEl && authorEl.value) {
+          authorEl.value = authorEl.value.split('\n').map(removeBrackets).filter(Boolean).join('\n');
+        }
+      }
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -74,18 +97,25 @@ export function chooseCandidate(work) {
   const publishDateEl = document.querySelector("#bm-publish-date");
   const isbnEl = document.querySelector("#bm-isbn");
 
+  const removeBracketsActive = document.querySelector("#bm-remove-brackets")?.checked ?? false;
+
   if (work.title) {
-    if (hasCjk(work.title)) {
-      appendAndLimitTextarea(titleZhEl, work.title, 4);
+    let titleVal = work.title;
+    if (removeBracketsActive) titleVal = removeBrackets(titleVal);
+    if (hasCjk(titleVal)) {
+      appendAndLimitTextarea(titleZhEl, titleVal, 4);
     } else {
-      appendAndLimitTextarea(titleEl, work.title, 4);
+      appendAndLimitTextarea(titleEl, titleVal, 4);
     }
   }
 
   if (work.author_name && work.author_name.length > 0) {
-    const validAuthors = work.author_name
+    let validAuthors = work.author_name
       .map(name => name.trim())
       .filter(name => name && name.toLowerCase() !== 'unknown');
+    if (removeBracketsActive) {
+      validAuthors = validAuthors.map(name => removeBrackets(name)).filter(Boolean);
+    }
     appendAndLimitTextarea(authorEl, validAuthors, 8);
   }
 
@@ -109,12 +139,16 @@ export function chooseEdition(work, edition, itemEl) {
   const publishDateEl = document.querySelector("#bm-publish-date");
   const isbnEl = document.querySelector("#bm-isbn");
 
+  const removeBracketsActive = document.querySelector("#bm-remove-brackets")?.checked ?? false;
+
   const titleVal = edition.title || work.title;
   if (titleVal) {
-    if (hasCjk(titleVal)) {
-      appendAndLimitTextarea(titleZhEl, titleVal, 4);
+    let finalTitle = titleVal;
+    if (removeBracketsActive) finalTitle = removeBrackets(finalTitle);
+    if (hasCjk(finalTitle)) {
+      appendAndLimitTextarea(titleZhEl, finalTitle, 4);
     } else {
-      appendAndLimitTextarea(titleEl, titleVal, 4);
+      appendAndLimitTextarea(titleEl, finalTitle, 4);
     }
   }
 

@@ -82,3 +82,22 @@ export function buildStreamUrl(workKey, meta, engines, strategies, apiKey) {
   if (apiKey) url += `&google_key=${encodeURIComponent(apiKey)}`;
   return url;
 }
+
+/**
+ * Remove parenthesis content (both half-width and full-width) from a string.
+ * @param {string} str
+ * @returns {string}
+ */
+export function removeBrackets(str) {
+  if (!str) return "";
+  let res = str;
+  let prev;
+  do {
+    prev = res;
+    res = res
+      .replace(/（[^（）]*）/g, '')
+      .replace(/\([^()]*\)/g, '');
+  } while (res !== prev);
+  return res.replace(/\s+/g, ' ').trim();
+}
+
