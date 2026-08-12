@@ -243,6 +243,36 @@ btnPrevTo2.addEventListener("click", () => {
 const btnConfirmTo3 = document.querySelector("#btn-confirm-to-3");
 if (btnConfirmTo3) btnConfirmTo3.addEventListener("click", confirmToStep3);
 
+// Local cache refresh buttons
+const btnRefreshStep2 = document.querySelector("#btn-refresh-step-2");
+if (btnRefreshStep2) {
+  btnRefreshStep2.addEventListener("click", () => {
+    if (state.currentQuery) {
+      const cacheKey = `bookrate:cache:search:${state.currentQuery}:page:${state.currentPage}:engines:${state.currentTitleSource}`;
+      localStorage.removeItem(cacheKey);
+      searchWorks(state.currentQuery, state.currentPage, state.currentTitleSource);
+    }
+  });
+}
+
+const btnRefreshStep3 = document.querySelector("#btn-refresh-step-3");
+if (btnRefreshStep3) {
+  btnRefreshStep3.addEventListener("click", () => {
+    if (state.currentSelectedWork) {
+      const prefix = `bookrate:rating:${state.currentSelectedWork.key}:`;
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(prefix)) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach((k) => localStorage.removeItem(k));
+      selectWork(state.currentSelectedWork);
+    }
+  });
+}
+
 // Score toggles
 if (scoreToggleBarEl) {
   scoreToggleBarEl.addEventListener("change", (e) => {
