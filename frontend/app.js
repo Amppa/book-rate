@@ -154,7 +154,7 @@ async function searchWorks(query, page, titleSource = "open_library") {
       const apiKey = localStorage.getItem("bookrate:google-api-key") || "";
       if (apiKey) url += `&google_key=${encodeURIComponent(apiKey)}`;
       works = await fetchJson(url);
-      if (works && works.length > 0) setCachedData(cacheKey, works);
+      if (works) setCachedData(cacheKey, works);
     }
 
     if (!works || !works.length) {
