@@ -64,8 +64,10 @@
 
         <!-- 步驟 1 面板 -->
         <div class="wizard-step active" id="step-1">
-          <div class="section-heading">
-            <h2><small class="step-num">第 1 步</small>搜尋書籍</h2>
+          <div class="step-header">
+            <div class="section-heading">
+              <h2><small class="step-num">第 1 步</small>搜尋書名</h2>
+            </div>
           </div>
           <form id="search-form" class="search-form">
             <label for="title">輸入書名或 ISBN</label>
@@ -90,7 +92,7 @@
             <button type="button" id="btn-prev-to-1" class="btn-secondary">← 上一步</button>
             <div id="candidate-heading" class="section-heading" hidden>
               <h2>
-                <small class="step-num">第 2 步</small>選取書籍
+                <small class="step-num">第 2 步</small>選取書籍版本
                 <button type="button" id="btn-refresh-step-2" class="btn-icon-only" title="清除此搜尋快取並重新整理">↻</button>
               </h2>
             </div>
