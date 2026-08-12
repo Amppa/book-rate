@@ -14,15 +14,33 @@
     <details class="settings-details">
       <summary>⚙️設定</summary>
       <div class="settings-content">
-        <!-- 1. 清除快取 -->
+        <!-- 1. 搜尋模式 -->
         <div class="setting-item">
-          <label>1. 系統快取</label>
-          <button type="button" id="clear-cache-btn" class="btn-secondary btn-full">清除本地快取</button>
+          <label>搜尋模式</label>
+          <div class="search-mode-selector">
+            <button type="button" class="mode-tab-btn active" data-mode="quick_search">
+              <span class="mode-label">Quick Mode</span>
+            </button>
+            <button type="button" class="mode-tab-btn" data-mode="edition_search">
+              <span class="mode-label">Edition Search Mode</span>
+            </button>
+          </div>
+          <p class="setting-desc">Quick Mode 直接以書名搜尋評分；Edition Search Mode 會先讓使用者查尋一本書的多重版本、中英文名</p>
         </div>
 
-        <!-- 2. Google API Key 設定 -->
+        <!-- 2. 清除快取 -->
         <div class="setting-item">
-          <label for="google-api-key">2. Google Books API Key</label>
+          <label>清除系統快取</label>
+          <div class="cache-buttons-row">
+            <button type="button" id="clear-step2-cache-btn" class="btn-secondary">書籍版本快取</button>
+            <button type="button" id="clear-step3-cache-btn" class="btn-secondary">評分數據快取</button>
+          </div>
+          <p class="setting-desc">清除本地儲存的搜尋結果與評分快取，以獲取最新即時數據。</p>
+        </div>
+
+        <!-- 3. Google API Key 設定 -->
+        <div class="setting-item">
+          <label for="google-api-key">Google Books API Key (選用)</label>
           <div class="api-key-input-row">
             <input type="password" id="google-api-key" placeholder="輸入 API 金鑰 (例如 AIzaSy...)" />
             <div class="api-key-actions">
@@ -30,6 +48,7 @@
               <button type="button" id="clear-api-key-btn" class="btn-secondary">清除</button>
             </div>
           </div>
+          <p class="setting-desc">Google Books查書會需要API Key</p>
         </div>
       </div>
     </details>
@@ -37,7 +56,6 @@
     <header>
       <p class="eyebrow">BOOK RATE · MVP</p>
       <h1>書譽<span class="subtitle"> 跨平台書籍風評查詢</span></h1>
-      <p class="lede">輸入書名或 ISBN，選擇書籍，顯示網友評分。</p>
     </header>
     <hr class="header-line" />
 
@@ -50,14 +68,6 @@
             <h2><small class="step-num">第 1 步</small>搜尋書籍</h2>
           </div>
           <form id="search-form" class="search-form">
-            <div class="search-mode-selector">
-              <button type="button" class="mode-tab-btn active" data-mode="quick_search">
-                <span class="mode-label">Quick Search</span>
-              </button>
-              <button type="button" class="mode-tab-btn" data-mode="edition_search">
-                <span class="mode-label">Edition Search</span>
-              </button>
-            </div>
             <label for="title">輸入書名或 ISBN</label>
             <div class="search-row">
               <input id="title" name="title" type="search" placeholder="例如：原子習慣、Atomic Habits、9780735211292" required
@@ -128,11 +138,10 @@
                     <button type="button" id="btn-confirm-to-3" class="btn-confirm-next" title="確認並進入 Step 3">➜ Step
                       3</button>
                   </div>
-                  <p class="bm-card-subtitle">按 Choose 填入資料，確認後點擊右上角按鈕前往 Step 3</p>
                   <div class="bm-checkbox-container">
                     <label class="checkbox-label bm-checkbox-label">
                       <input type="checkbox" id="bm-remove-brackets" checked />
-                      <span>自動刪除括弧內容 (例如譯名、版本說明)</span>
+                      <span>自動移除括弧內容</span>
                     </label>
                   </div>
 

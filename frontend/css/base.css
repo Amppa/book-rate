@@ -28,11 +28,6 @@ h2 {
   font-size: var(--fs-title);
 }
 
-.lede {
-  color: var(--text-light);
-  font-size: 1.05rem;
-  line-height: 1.7;
-}
 
 .status,
 .edition-note,

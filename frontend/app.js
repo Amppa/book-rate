@@ -334,19 +334,60 @@ if (scoreStrategyRowEl) {
   });
 }
 
-// Cache clear
-const clearCacheBtn = document.querySelector("#clear-cache-btn");
-if (clearCacheBtn) {
-  clearCacheBtn.addEventListener("click", () => {
+// ---------------------------------------------------------------------------
+// Cache Management
+// ---------------------------------------------------------------------------
+function updateCacheButtonsState() {
+  const clearStep2Btn = document.querySelector("#clear-step2-cache-btn");
+  const clearStep3Btn = document.querySelector("#clear-step3-cache-btn");
+  if (!clearStep2Btn || !clearStep3Btn) return;
+
+  let hasStep2 = false;
+  let hasStep3 = false;
+
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key) continue;
+    if (key.startsWith("bookrate:cache:")) {
+      hasStep2 = true;
+    } else if (key.startsWith("bookrate:rating:")) {
+      hasStep3 = true;
+    }
+  }
+
+  clearStep2Btn.disabled = !hasStep2;
+  clearStep3Btn.disabled = !hasStep3;
+}
+
+const clearStep2CacheBtn = document.querySelector("#clear-step2-cache-btn");
+if (clearStep2CacheBtn) {
+  clearStep2CacheBtn.addEventListener("click", () => {
     const keysToRemove = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && (key.startsWith("bookrate:cache:") || key.startsWith("bookrate:rating:"))) {
+      if (key && key.startsWith("bookrate:cache:")) {
         keysToRemove.push(key);
       }
     }
     keysToRemove.forEach((k) => localStorage.removeItem(k));
-    alert("快取已清除！");
+    alert("Step 2 搜尋結果快取已清除！");
+    updateCacheButtonsState();
+  });
+}
+
+const clearStep3CacheBtn = document.querySelector("#clear-step3-cache-btn");
+if (clearStep3CacheBtn) {
+  clearStep3CacheBtn.addEventListener("click", () => {
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("bookrate:rating:")) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((k) => localStorage.removeItem(k));
+    alert("Step 3 評分數據快取已清除！");
+    updateCacheButtonsState();
   });
 }
 
@@ -384,9 +425,15 @@ if (clearApiKeyBtn) {
   });
 }
 
-// Settings auto-close on outside click
+// Settings auto-close on outside click and cache status update
 const settingsDetails = document.querySelector(".settings-details");
 if (settingsDetails) {
+  settingsDetails.addEventListener("toggle", () => {
+    if (settingsDetails.open) {
+      updateCacheButtonsState();
+    }
+  });
+
   document.addEventListener("click", (event) => {
     if (settingsDetails.open && !settingsDetails.contains(event.target)) {
       settingsDetails.removeAttribute("open");

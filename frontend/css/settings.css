@@ -84,3 +84,37 @@
   padding: 0.55rem 0.8rem;
   font-size: var(--fs-sm);
 }
+
+/* Style adjustments for search-mode-selector inside setting-item */
+.setting-item .search-mode-selector {
+  margin-bottom: 0;
+  width: 100%;
+  display: flex;
+}
+
+.setting-item .search-mode-selector .mode-tab-btn {
+  flex: 1;
+  justify-content: center;
+}
+
+.setting-desc {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  margin: 0;
+  margin-top: calc(-1 * var(--space-1));
+  line-height: 1.4;
+}
+
+.cache-buttons-row {
+  display: flex;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.cache-buttons-row button {
+  flex: 1;
+  padding: 0.65rem 0.2rem;
+  font-size: var(--fs-sm);
+  text-align: center;
+  white-space: nowrap;
+}
