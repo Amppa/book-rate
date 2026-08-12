@@ -333,6 +333,23 @@ export function reQuerySingleSource(work, sourceKey) {
   if (!row) return;
 
   const prefix = SOURCE_PREFIX[sourceKey] || sourceKey;
+  let strategies = getSelectedStrategies();
+  if (state.searchMode === "quick_search") {
+    strategies = {};
+    SOURCES.forEach((source) => {
+      strategies[source.id] = "search_name";
+    });
+  }
+  const strategy = strategies[sourceKey] || getSourceDefaultStrat(sourceKey);
+
+  // Check cache first
+  const cachedData = getRatingCache(work.key, sourceKey, strategy);
+  if (cachedData) {
+    const maxRate = prefix === "db" ? 10 : 5;
+    renderSourceCell(row, prefix, cachedData, maxRate);
+    return;
+  }
+
   const rateEl = row.querySelector(`.${prefix}-rate`);
   const countEl = row.querySelector(`.${prefix}-count`);
   if (rateEl && countEl) {
@@ -346,13 +363,6 @@ export function reQuerySingleSource(work, sourceKey) {
   }
 
   const apiKey = localStorage.getItem("bookrate:google-api-key") || "";
-  let strategies = getSelectedStrategies();
-  if (state.searchMode === "quick_search") {
-    strategies = {};
-    SOURCES.forEach((source) => {
-      strategies[source.id] = "search_name";
-    });
-  }
   const meta = getStep3Metadata();
   const url = buildStreamUrl(work.key, meta, sourceKey, strategies, apiKey);
 
