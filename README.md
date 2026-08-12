@@ -1,113 +1,47 @@
 # BookRate 📚
 
-A Python tool and framework for searching books by title (including Chinese titles), discovering abstract **Works** and their specific language **Editions**, and aggregating ratings and review counts across multiple platforms (Open Library, Google Books).
+使用者輸入書名，跨平臺的查尋網友評分。
 
 ---
 
-## Key Features
-
-- **Work & Edition Modeling**: Maps specific book editions (ISBNs, published languages, publishers) to abstract **Works** (Open Library `/works/OL...W` architecture).
-- **Multi-Provider Aggregation**: Fetches and aggregates score ratings and rating counts across 8 different platforms: Open Library, Google Books, Goodreads, Douban, Amazon, Amazon JP, StoryGraph, and Readmoo.
-- **Granular Search Strategy Configuration**: Allows selecting from 6 distinct search strategies for each platform in the comparison table:
-  1. **User input title**: Search exactly by Step 1 query.
-  2. **Book list title (Short-circuit)**: Sequentially tries English/main titles, stops on first match.
-  3. **Asian book list title (Short-circuit)**: Sequentially tries CJK/Asian titles, stops on first match.
-  4. **Book list title (Full)**: Queries all book titles, displaying all results in a vertical list inside the cell (1-second query delay).
-  5. **Asian book list title (Full)**: Queries all Asian titles, displaying all results in a vertical list inside the cell (1-second query delay).
-  6. **ISBN**: Sequentially tries cleaned ISBNs, stops on first match.
-- **Wizard-Style Web UI**: Features a 3-step search, review (metadata editing card), and rating comparison flow.
-- **Rating Cache Flow**: Locally caches fetched ratings based on work key, platform, and selected strategy to prevent duplicate queries and optimize page speed.
+## 功能
+- **直接查尋 (Quick Mode)**：使用者的書名，直接去多個書評平台取得評分。
+  - 來源: Open Library、Google Books、Goodreads、豆瓣、Amazon、Amazon JP、StoryGraph 與 Readmoo
+- **網頁爬蟲**：大部分的平台都不支援公開API，需用網頁爬蟲。
+- **版本建模 (Edition Search Mode)**：一本書可能有多個譯名、作者譯名，需處理 work-edition 結構。
+- **搜尋結果快取**：在瀏覽器本機快取已查詢的評分。
 
 ---
 
-## Installation
+## 安裝步驟
 
-1. **Clone the repository**:
+1. **複製儲存庫**：
    ```bash
    git clone https://github.com/your-username/bookrate.git
    cd bookrate
    ```
 
-2. **Install dependencies**:
+2. **安裝依賴套件**：
    ```bash
    pip install -r requirements.txt
    ```
 
 ---
 
-## Quick Start
+## 快速開始
 
-### Running the Web Interface
+### 啟動網頁界面
 
-Start the local FastAPI server hosting the web application:
+1. 啟動 FastAPI 本地伺服器：
 ```bash
 python server.py
 ```
-Then open your browser and navigate to `http://127.0.0.1:8000`.
+2. 瀏覽器中開啟 `http://127.0.0.1:8000`。
 
-#### Setting Google Books API Key
+3. 右上角"設定"，可以切換Quick Mode或Edition Search Mode
+- QM: step1 -> step3
+- ESM: 多一個step2，可以編輯中英文書名、作者、ISBN等資訊
 
-You can configure a Google Books API Key in two ways to avoid hitting rate limits:
-
-**1. Directly on the Web UI (Stored in Browser)**
-- Expand the **⚙️ Google Books API Key Settings** details panel at the top-right corner.
-- Input your key and click **Save**. It will be saved locally in your browser's `localStorage` and sent with requests.
-
-**2. Via Server-side Environment Variables**
-- Set the API key before running `server.py`:
-  ```bash
-  # Windows (PowerShell)
-  $env:GOOGLE_BOOKS_API_KEY="your_api_key"
-  python server.py
-
-  # macOS / Linux
-  export GOOGLE_BOOKS_API_KEY="your_api_key"
-  python server.py
-  ```
-
-
----
-
-## Project Architecture
-
-```
-bookrate/
-├── book_rate/           # Core python package
-│   ├── __init__.py
-│   ├── models.py        # Dataclasses: Work, Edition, PlatformRating
-│   ├── aggregator.py    # BookAggregator class combining provider data
-│   └── providers/
-│       ├── __init__.py
-│       ├── base.py      # Abstract BaseProvider interface
-│       ├── open_library.py # Open Library API provider
-│       └── google_books.py # Google Books API provider
-├── frontend/            # Web frontend files (HTML, CSS, JS)
-├── tests/
-│   └── test_aggregator.py # Unit tests
-├── server.py            # FastAPI Web Server entry point
-└── requirements.txt     # Python dependencies (requests, rich, fastapi, uvicorn)
-```
-
----
-
-## Running Tests
-
-### Standard Fast Unit Tests (Offline, ~0.04s)
-
-Run standard unit tests and edge cases (mocked HTTP requests):
-```bash
-python -m unittest discover tests
-```
-
-### Live Network Integration Tests (Optional, Real HTTP Requests)
-
-To test live HTTP requests against actual external provider APIs (Open Library, Google Books, Goodreads, Douban, Amazon):
-```bash
-python -m unittest tests/live_test_network.py
-```
-
----
-
-## License
+## 授權條款
 
 MIT License
