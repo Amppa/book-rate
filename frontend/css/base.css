@@ -171,6 +171,7 @@ button:disabled:hover {
   font-weight: normal;
   cursor: pointer;
   user-select: none;
+  margin: 0;
 }
 
 .checkbox-label input[type="checkbox"] {
