@@ -370,7 +370,6 @@ if (clearStep2CacheBtn) {
       }
     }
     keysToRemove.forEach((k) => localStorage.removeItem(k));
-    alert("Step 2 搜尋結果快取已清除！");
     updateCacheButtonsState();
   });
 }
@@ -386,7 +385,6 @@ if (clearStep3CacheBtn) {
       }
     }
     keysToRemove.forEach((k) => localStorage.removeItem(k));
-    alert("Step 3 評分數據快取已清除！");
     updateCacheButtonsState();
   });
 }
