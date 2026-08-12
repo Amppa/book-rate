@@ -1,5 +1,8 @@
 import { MAX_CANDIDATES, SOURCES, SOURCE_PREFIX } from './js/constants.js';
-import { getCachedData, setCachedData, cleanExpiredCache } from './js/cache.js';
+import {
+  getCachedData, setCachedData, cleanExpiredCache,
+  clearAllStep2Cache, clearAllStep3Cache, clearEditionsCache, clearWorkRatingsCache
+} from './js/cache.js';
 import { fetchJson } from './js/utils.js';
 import {
   renderSourceToggles, renderStrategySelects, updateTableVisibility,
@@ -289,17 +292,7 @@ if (btnRefreshStep2) {
     if (state.currentQuery) {
       const cacheKey = `bookrate:cache:search:${state.currentQuery}:page:${state.currentPage}:engines:${state.currentTitleSource}`;
       localStorage.removeItem(cacheKey);
-
-      // Also clear all edition caches in localStorage
-      const keysToRemove = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith("bookrate:cache:editions:")) {
-          keysToRemove.push(key);
-        }
-      }
-      keysToRemove.forEach((k) => localStorage.removeItem(k));
-
+      clearEditionsCache();
       searchWorks(state.currentQuery, state.currentPage, state.currentTitleSource);
     }
   });
@@ -309,15 +302,7 @@ const btnRefreshStep3 = document.querySelector("#btn-refresh-step-3");
 if (btnRefreshStep3) {
   btnRefreshStep3.addEventListener("click", () => {
     if (state.currentSelectedWork) {
-      const prefix = `bookrate:rating:${state.currentSelectedWork.key}:`;
-      const keysToRemove = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith(prefix)) {
-          keysToRemove.push(key);
-        }
-      }
-      keysToRemove.forEach((k) => localStorage.removeItem(k));
+      clearWorkRatingsCache(state.currentSelectedWork.key);
       selectWork(state.currentSelectedWork);
     }
   });
@@ -373,14 +358,7 @@ function updateCacheButtonsState() {
 const clearStep2CacheBtn = document.querySelector("#clear-step2-cache-btn");
 if (clearStep2CacheBtn) {
   clearStep2CacheBtn.addEventListener("click", () => {
-    const keysToRemove = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith("bookrate:cache:")) {
-        keysToRemove.push(key);
-      }
-    }
-    keysToRemove.forEach((k) => localStorage.removeItem(k));
+    clearAllStep2Cache();
     updateCacheButtonsState();
   });
 }
@@ -388,14 +366,7 @@ if (clearStep2CacheBtn) {
 const clearStep3CacheBtn = document.querySelector("#clear-step3-cache-btn");
 if (clearStep3CacheBtn) {
   clearStep3CacheBtn.addEventListener("click", () => {
-    const keysToRemove = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith("bookrate:rating:")) {
-        keysToRemove.push(key);
-      }
-    }
-    keysToRemove.forEach((k) => localStorage.removeItem(k));
+    clearAllStep3Cache();
     updateCacheButtonsState();
   });
 }

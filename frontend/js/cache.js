@@ -78,3 +78,66 @@ export function cleanExpiredCache() {
     keysToRemove.forEach((key) => localStorage.removeItem(key));
   } catch (e) { }
 }
+
+export function clearAllStep2Cache() {
+  try {
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(CACHE_PREFIX)) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((k) => localStorage.removeItem(k));
+  } catch (e) {
+    console.warn("Failed to clear Step 2 cache:", e);
+  }
+}
+
+export function clearAllStep3Cache() {
+  try {
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("bookrate:rating:")) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((k) => localStorage.removeItem(k));
+  } catch (e) {
+    console.warn("Failed to clear Step 3 cache:", e);
+  }
+}
+
+export function clearEditionsCache() {
+  try {
+    const prefix = CACHE_PREFIX + "editions:";
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(prefix)) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((k) => localStorage.removeItem(k));
+  } catch (e) {
+    console.warn("Failed to clear editions cache:", e);
+  }
+}
+
+export function clearWorkRatingsCache(workKey) {
+  try {
+    const prefix = `bookrate:rating:${workKey}:`;
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(prefix)) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((k) => localStorage.removeItem(k));
+  } catch (e) {
+    console.warn("Failed to clear work ratings cache:", e);
+  }
+}
+
