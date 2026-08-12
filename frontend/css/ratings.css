@@ -193,9 +193,8 @@
   font-size: 0.72rem;
   color: var(--text-muted);
   margin-bottom: 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  word-break: break-word;
   max-width: 140px;
   line-height: 1.25;
 }
@@ -212,9 +211,8 @@
 .multi-result-title {
   font-size: 0.7rem;
   color: var(--text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  word-break: break-word;
   max-width: 130px;
   line-height: 1.25;
 }
