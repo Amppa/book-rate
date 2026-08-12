@@ -117,7 +117,7 @@ button.btn-link {
 }
 
 /* Input Primitive */
-input {
+input:not([type="checkbox"]):not([type="radio"]) {
   min-width: 0;
   flex: 1;
   padding: .85rem 1rem;
