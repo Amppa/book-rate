@@ -83,8 +83,20 @@ export function buildStreamUrl(workKey, meta, engines, strategies, apiKey) {
   return url;
 }
 
+const BRACKETS = [
+  ['【', '】'],
+  ['\\[', '\\]'],
+  ['\\(', '\\)'],
+  ['（', '）']
+];
+
+const bracketPattern = new RegExp(
+  BRACKETS.map(([open, close]) => `${open}[^${open}${close}]*${close}`).join('|'),
+  'g'
+);
+
 /**
- * Remove parenthesis content (both half-width and full-width) from a string.
+ * Remove parenthesis and bracket content from a string.
  * @param {string} str
  * @returns {string}
  */
@@ -94,9 +106,7 @@ export function removeBrackets(str) {
   let prev;
   do {
     prev = res;
-    res = res
-      .replace(/（[^（）]*）/g, '')
-      .replace(/\([^()]*\)/g, '');
+    res = res.replace(bracketPattern, '');
   } while (res !== prev);
   return res.replace(/\s+/g, ' ').trim();
 }
