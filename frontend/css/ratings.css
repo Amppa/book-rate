@@ -1,15 +1,14 @@
 /* ==========================================================================
    Ratings Comparison Table & Strategies Components (Step 3)
    ========================================================================== */
-/* Score Display Toggles in Step 3 */
+
+/* 1. Score Display Toggles in Step 3 */
 .score-display-toggles {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: var(--space-4);
   margin-top: var(--space-4);
-  /* margin-bottom: var(--space-2); */
-  /* padding: var(--space-2) 0; */
 }
 
 .score-display-toggles .toggle-title {
@@ -25,6 +24,11 @@
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-light);
+  transition: var(--transition-fast);
+}
+
+.source-toggle-item:hover {
+  background: var(--border-light);
 }
 
 .score-display-toggles .checkbox-label {
@@ -32,9 +36,10 @@
   font-size: var(--fs-sm);
   color: var(--text-primary);
   margin-bottom: 0;
+  cursor: pointer;
 }
 
-/* Strategy Dropdowns & Selects */
+/* 2. Strategy Dropdowns & Selects */
 .thead-strategy-row th {
   vertical-align: top;
   padding: var(--space-2) var(--space-3);
@@ -52,43 +57,49 @@
   cursor: pointer;
   width: 100%;
   box-sizing: border-box;
+  transition: var(--transition-fast);
 }
 
 .strategy-select:hover {
   border-color: var(--primary);
+  background: var(--surface-subtle);
 }
 
-/* Search Status Tags */
+/* 3. Search Status Tags */
 .search-status-tag {
   display: inline-block;
   padding: 2px 6px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.03em;
-  margin-top: 6px;
+  margin-top: var(--space-2);
+  border: 1px solid transparent;
 }
 
 .search-status-tag.status-match,
 .search-status-tag.status-curl_match {
-  background: #e6f4ea;
-  color: #137333;
+  background: var(--status-success-bg);
+  color: var(--status-success-text);
+  border-color: var(--status-success-border);
 }
 
 .search-status-tag.status-no_match {
-  background: #f1f3f4;
-  color: #5f6368;
+  background: var(--status-info-bg);
+  color: var(--status-info-text);
+  border-color: var(--status-info-border);
 }
 
 .search-status-tag.status-quota_exceeded,
 .search-status-tag.status-error,
 .search-status-tag[class*="status-http-"],
 .search-status-tag[class*="status-error-"] {
-  background: #fce8e6;
-  color: #c5221f;
+  background: var(--status-error-bg);
+  color: var(--status-error-text);
+  border-color: var(--status-error-border);
 }
 
-/* Rating Comparison Table */
+/* 4. Rating Comparison Table */
 .table-wrap {
   width: 100%;
   max-width: 100%;
@@ -147,7 +158,7 @@
   color: var(--text-muted);
 }
 
-/* Multi-result lists styles for Strategy 4/5 */
+/* 5. Multi-result lists styles for Strategy 4/5 */
 .multi-result-list {
   display: flex;
   flex-direction: column;
@@ -171,7 +182,7 @@
 .source-book-title {
   font-size: 0.72rem;
   color: var(--text-muted);
-  margin-bottom: 4px;
+  margin-bottom: var(--space-1);
   white-space: normal;
   word-break: break-word;
   max-width: 140px;

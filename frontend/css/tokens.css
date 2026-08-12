@@ -19,6 +19,24 @@
   --error: #9d321d;
   --link: #17634a;
 
+  /* Semantic Status Colors (Background, Text, Border) */
+  --status-success-bg: #e6f4ea;
+  --status-success-text: #137333;
+  --status-success-border: #c4eed0;
+
+  --status-info-bg: #f1f3f4;
+  --status-info-text: #5f6368;
+  --status-info-border: #dadce0;
+
+  --status-warning-bg: #fef7e0;
+  --status-warning-text: #b06000;
+  --status-warning-border: #f0b000;
+
+  --status-error-bg: #fce8e6;
+  --status-error-text: #c5221f;
+  --status-error-border: #fad2cf;
+
+
   /* Backgrounds & Surface Colors */
   --surface-bg: #f7f4ed;
   --surface-card: #fffdfa;

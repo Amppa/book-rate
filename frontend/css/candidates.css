@@ -160,21 +160,21 @@ a.candidate-meta:hover {
 }
 
 .status-tag-info {
-  background-color: var(--surface-subtle);
-  color: var(--primary);
-  border: 1px solid var(--border);
+  background-color: var(--status-info-bg);
+  color: var(--status-info-text);
+  border: 1px solid var(--status-info-border);
 }
 
 .status-tag-warning {
-  background-color: #fef7e0;
-  color: #b06000;
-  border: 1px solid #f0b000;
+  background-color: var(--status-warning-bg);
+  color: var(--status-warning-text);
+  border: 1px solid var(--status-warning-border);
 }
 
 .status-tag-error {
-  background-color: #fce8e6;
-  color: var(--error);
-  border: 1px solid var(--error);
+  background-color: var(--status-error-bg);
+  color: var(--status-error-text);
+  border: 1px solid var(--status-error-border);
 }
 
 /* Candidate Editions Expandable Section */
