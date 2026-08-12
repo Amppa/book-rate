@@ -6,4 +6,5 @@ export const state = {
   currentStep: 1,
   currentTitleSource: "open_library",
   currentSelectedWork: null,
+  searchMode: "quick_search",
 };

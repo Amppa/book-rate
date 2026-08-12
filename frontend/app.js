@@ -10,7 +10,7 @@ import {
   initWizard, goToStep,
   chooseCandidate, chooseEdition,
   resetMetadataPanel, confirmToStep3,
-  getSourceDefaultStrat
+  getSourceDefaultStrat, directToStep3
 } from './js/wizard.js';
 import { renderCandidates } from './js/candidates.js';
 import { initRatings, selectWork, reQuerySingleSource } from './js/ratings.js';
@@ -75,6 +75,36 @@ function initSettings() {
   updateTableVisibility(ratingTable);
 }
 initSettings();
+
+// ---------------------------------------------------------------------------
+// Search Mode Configuration
+// ---------------------------------------------------------------------------
+function initSearchMode() {
+  const STORAGE_KEY = "bookrate:searchMode";
+  const savedMode = localStorage.getItem(STORAGE_KEY);
+  if (savedMode === "quick_search" || savedMode === "edition_search") {
+    state.searchMode = savedMode;
+  } else {
+    state.searchMode = "quick_search"; // Default is quick_search
+  }
+
+  // Update UI selector buttons active class
+  const modeButtons = document.querySelectorAll(".mode-tab-btn");
+  modeButtons.forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.mode === state.searchMode);
+    
+    // Bind click event
+    btn.addEventListener("click", () => {
+      const mode = btn.dataset.mode;
+      if (mode) {
+        state.searchMode = mode;
+        localStorage.setItem(STORAGE_KEY, mode);
+        modeButtons.forEach((b) => b.classList.toggle("active", b.dataset.mode === mode));
+      }
+    });
+  });
+}
+initSearchMode();
 
 // ---------------------------------------------------------------------------
 // Search helpers
@@ -203,8 +233,13 @@ searchForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const query = searchInput.value.trim();
   if (!query) return;
-  resetMetadataPanel(query);
-  searchWorks(query, 1, "open_library");
+
+  if (state.searchMode === "quick_search") {
+    directToStep3(query);
+  } else {
+    resetMetadataPanel(query);
+    searchWorks(query, 1, "open_library");
+  }
 });
 
 // Source tabs
@@ -235,7 +270,11 @@ btnPrevTo1.addEventListener("click", () => {
   step2Status.classList.remove("error");
 });
 btnPrevTo2.addEventListener("click", () => {
-  goToStep(2);
+  if (state.searchMode === "quick_search") {
+    goToStep(1);
+  } else {
+    goToStep(2);
+  }
   step3Status.textContent = "";
   step3Status.classList.remove("error");
 });

@@ -49,6 +49,17 @@ export function goToStep(step) {
       el.classList.remove("active");
     }
   });
+
+  if (step === 3) {
+    const strategyRow = document.querySelector("#score-strategy-row");
+    if (strategyRow) {
+      strategyRow.hidden = (state.searchMode === "quick_search");
+    }
+    const metadataCard = document.querySelector("#step3-metadata-card");
+    if (metadataCard) {
+      metadataCard.hidden = (state.searchMode === "quick_search");
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -175,6 +186,33 @@ export function resetMetadataPanel(query) {
   if (publishDateEl) publishDateEl.value = "";
   if (isbnEl) isbnEl.value = "";
   state.currentSelectedWork = null;
+}
+
+/**
+ * Programmatically populates Step 2 metadata fields and transitions
+ * directly to Step 3 for Quick Search mode.
+ */
+export function directToStep3(query) {
+  resetMetadataPanel(query);
+
+  const titleEl = document.querySelector("#bm-title");
+  const titleZhEl = document.querySelector("#bm-title-zh");
+  const isbnEl = document.querySelector("#bm-isbn");
+
+  const clean = query.replace(/[- ]/g, '');
+  const isIsbn = /^\d{10}$|^\d{13}$/.test(clean);
+
+  if (isIsbn) {
+    if (isbnEl) isbnEl.value = clean;
+  } else {
+    if (hasCjk(query)) {
+      if (titleZhEl) titleZhEl.value = query;
+    } else {
+      if (titleEl) titleEl.value = query;
+    }
+  }
+
+  confirmToStep3();
 }
 
 // ---------------------------------------------------------------------------

@@ -50,6 +50,14 @@
             <h2><small class="step-num">第 1 步</small>搜尋書籍</h2>
           </div>
           <form id="search-form" class="search-form">
+            <div class="search-mode-selector">
+              <button type="button" class="mode-tab-btn active" data-mode="quick_search">
+                <span class="mode-label">Quick Search</span>
+              </button>
+              <button type="button" class="mode-tab-btn" data-mode="edition_search">
+                <span class="mode-label">Edition Search</span>
+              </button>
+            </div>
             <label for="title">輸入書名或 ISBN</label>
             <div class="search-row">
               <input id="title" name="title" type="search" placeholder="例如：原子習慣、Atomic Habits、9780735211292" required
@@ -248,7 +256,8 @@
         <div>
           <h3 class="candidate-title"></h3>
           <div style="display: flex; gap: var(--space-2); align-items: center; margin-top: var(--space-1);">
-            <a class="candidate-meta candidate-link" target="_blank" rel="noopener noreferrer" style="margin-top: 0;"></a>
+            <a class="candidate-meta candidate-link" target="_blank" rel="noopener noreferrer"
+              style="margin-top: 0;"></a>
             <span class="candidate-chevron" hidden>▼</span>
             <span class="candidate-status-tag" hidden></span>
           </div>

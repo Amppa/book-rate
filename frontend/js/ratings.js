@@ -246,7 +246,14 @@ export async function selectWork(work) {
 
   const activeRateSourcesList = getActiveRateSourcesList();
   const apiKey = localStorage.getItem("bookrate:google-api-key") || "";
-  const strategies = getSelectedStrategies();
+  let strategies = getSelectedStrategies();
+
+  if (state.searchMode === "quick_search") {
+    strategies = {};
+    activeRateSourcesList.forEach((source) => {
+      strategies[source] = "search_name";
+    });
+  }
 
   // Separate cached vs pending sources
   const cachedRateSources = [];
@@ -333,7 +340,13 @@ export function reQuerySingleSource(work, sourceKey) {
   }
 
   const apiKey = localStorage.getItem("bookrate:google-api-key") || "";
-  const strategies = getSelectedStrategies();
+  let strategies = getSelectedStrategies();
+  if (state.searchMode === "quick_search") {
+    strategies = {};
+    SOURCES.forEach((source) => {
+      strategies[source.id] = "search_name";
+    });
+  }
   const meta = getStep3Metadata();
   const url = buildStreamUrl(work.key, meta, sourceKey, strategies, apiKey);
 
