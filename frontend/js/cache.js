@@ -5,7 +5,7 @@ export function getCachedData(key) {
     const cached = localStorage.getItem(CACHE_PREFIX + key);
     if (!cached) return null;
     const { data, timestamp } = JSON.parse(cached);
-    if (Date.now() - timestamp > ONE_DAY_MS) {
+    if (Date.now() - timestamp > 7 * ONE_DAY_MS) {
       localStorage.removeItem(CACHE_PREFIX + key);
       return null;
     }

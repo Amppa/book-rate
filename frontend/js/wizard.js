@@ -289,8 +289,9 @@ export function confirmToStep3() {
 
   let workToUse = state.currentSelectedWork;
   if (!workToUse) {
+    const keyIdentifier = (isbnVal || searchNameVal || Date.now().toString()).trim().replace(/\s+/g, '_');
     workToUse = {
-      key: "custom:" + Date.now(),
+      key: "custom:" + keyIdentifier,
       title: titleVal || (titleZhVal ? titleZhVal.split("\n")[0] : ""),
       author_name: authorVal ? [authorVal] : ["Unknown"],
       first_publish_year: publishDateVal,
