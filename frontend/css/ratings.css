@@ -8,11 +8,8 @@
   flex-wrap: wrap;
   gap: var(--space-4);
   margin-top: var(--space-4);
-  margin-bottom: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  background: var(--surface-card);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
+  /* margin-bottom: var(--space-2); */
+  /* padding: var(--space-2) 0; */
 }
 
 .score-display-toggles .toggle-title {
