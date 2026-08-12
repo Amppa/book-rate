@@ -1,6 +1,7 @@
 import { state } from './state.js';
 import { SOURCES, LANGUAGE_NAME_MAP } from './constants.js';
 import { getWorkExternalUrl } from './utils.js';
+import { getCachedData, setCachedData } from './cache.js';
 
 // ---------------------------------------------------------------------------
 // Status tag helpers
@@ -238,9 +239,17 @@ export function renderCandidates(works, { onChooseCandidate, onChooseEdition } =
           return;
         }
 
-        // Use cached editions if available
+        // Use memory-cached editions if available
         if (work.fetched_editions) {
           renderEditionsList(editionsArea, work, work.fetched_editions, false, onChooseEdition);
+          return;
+        }
+
+        // Use localStorage cached editions if available
+        const cachedEditions = getCachedData("editions:" + work.key);
+        if (cachedEditions) {
+          work.fetched_editions = cachedEditions;
+          renderEditionsList(editionsArea, work, cachedEditions, false, onChooseEdition);
           return;
         }
 
@@ -249,8 +258,10 @@ export function renderCandidates(works, { onChooseCandidate, onChooseEdition } =
           const resp = await fetch(`/api/work-editions?work_id=${encodeURIComponent(work.key)}`);
           if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
           const data = await resp.json();
-          work.fetched_editions = data.entries || [];
-          renderEditionsList(editionsArea, work, work.fetched_editions, false, onChooseEdition);
+          const editionsList = data.entries || [];
+          work.fetched_editions = editionsList;
+          setCachedData("editions:" + work.key, editionsList);
+          renderEditionsList(editionsArea, work, editionsList, false, onChooseEdition);
         } catch (err) {
           console.error("Failed to load editions:", err);
           editionsArea.innerHTML = '<div class="error-editions">無法載入版本資訊 ⚠️</div>';

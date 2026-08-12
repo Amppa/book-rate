@@ -289,6 +289,17 @@ if (btnRefreshStep2) {
     if (state.currentQuery) {
       const cacheKey = `bookrate:cache:search:${state.currentQuery}:page:${state.currentPage}:engines:${state.currentTitleSource}`;
       localStorage.removeItem(cacheKey);
+
+      // Also clear all edition caches in localStorage
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith("bookrate:cache:editions:")) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach((k) => localStorage.removeItem(k));
+
       searchWorks(state.currentQuery, state.currentPage, state.currentTitleSource);
     }
   });
