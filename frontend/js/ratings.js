@@ -106,48 +106,53 @@ export function renderSourceCell(row, prefix, data, maxRate = 5) {
     const listContainer = document.createElement("div");
     listContainer.className = "multi-result-list";
 
-    data.results.forEach((res, index) => {
+    data.results.forEach((res) => {
       const item = document.createElement("div");
       item.className = "multi-result-item";
       item.title = `查詢: ${res.query || "N/A"}\n書名: ${res.title || "N/A"}`;
 
-      const numSpan = document.createElement("span");
-      numSpan.className = "multi-result-index";
-      numSpan.textContent = `${index + 1}.`;
-      item.appendChild(numSpan);
-
-      const detailContainer = document.createElement("div");
-      detailContainer.className = "multi-result-details";
-
       if (res.title) {
         const titleDiv = document.createElement("div");
-        titleDiv.className = "multi-result-title";
+        titleDiv.className = "source-book-title";
         titleDiv.textContent = res.title;
-        detailContainer.appendChild(titleDiv);
+        item.appendChild(titleDiv);
       }
 
-      const valSpan = document.createElement("span");
-      valSpan.className = "multi-result-value";
-      const rScore = typeof res.average === "number" && res.average > 0;
+      const strong = document.createElement("strong");
+      const small = document.createElement("small");
 
-      if (res.status && res.status.startsWith("Error")) {
-        valSpan.innerHTML = '<span class="error">錯誤 ⚠️</span>';
+      const rScore = typeof res.average === "number" && res.average > 0;
+      const resStatus = res.status || (rScore ? "MATCH" : "NO_MATCH");
+      const isResNetworkError = resStatus
+        && resStatus !== "MATCH"
+        && resStatus !== "CURL_MATCH"
+        && resStatus !== "NO_MATCH"
+        && resStatus !== "QUOTA_EXCEEDED"
+        && resStatus !== "ERROR";
+
+      if (resStatus === "QUOTA_EXCEEDED") {
+        strong.innerHTML = '<span class="error">額度超限 (429) ⚠️</span>';
+        small.textContent = "請在上方設定個人 API Key。";
+      } else if (resStatus === "ERROR") {
+        strong.innerHTML = '<span class="error">讀取錯誤 ⚠️</span>';
+        small.textContent = "請檢查主機連線。";
+      } else if (isResNetworkError) {
+        strong.innerHTML = '<span class="error">連線異常 ⚠️</span>';
+        small.textContent = resStatus;
       } else if (rScore) {
         const rateText = displayRate(res.average, res.count, maxRate);
-        if (res.url) {
-          valSpan.innerHTML = `<a href="${res.url}" target="_blank" rel="noreferrer" class="multi-result-link">${rateText} (${displayCount(res.count)}) ↗</a>`;
-        } else {
-          valSpan.textContent = `${rateText} (${displayCount(res.count)})`;
-        }
+        strong.textContent = rateText;
+        renderCountCell(small, res.count, res.url);
       } else if (res.url) {
-        valSpan.innerHTML = `<a href="${res.url}" target="_blank" rel="noreferrer" class="multi-result-link">暫無評分 ↗</a>`;
+        strong.textContent = "暫無評分";
+        small.innerHTML = `<a href="${res.url}" target="_blank" rel="noreferrer">連結 ↗</a>`;
       } else {
-        valSpan.textContent = "無此書籍";
-        valSpan.style.color = "var(--text-muted)";
+        strong.textContent = "無此書籍";
+        small.textContent = "-";
       }
 
-      detailContainer.appendChild(valSpan);
-      item.appendChild(detailContainer);
+      item.appendChild(strong);
+      item.appendChild(small);
       listContainer.appendChild(item);
     });
 
@@ -162,6 +167,7 @@ export function renderSourceCell(row, prefix, data, maxRate = 5) {
     }
     return;
   }
+
 
   // --- Single-result mode ---
   if (data.quota_exceeded || status === "QUOTA_EXCEEDED") {
