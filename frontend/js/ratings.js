@@ -1,6 +1,6 @@
 import { state } from './state.js';
 import { SOURCES, SOURCE_PREFIX, OPEN_LIBRARY_BASE_URL, STRATEGY_LABEL_MAP } from './constants.js';
-import { displayRate, displayCount, buildStreamUrl } from './utils.js';
+import { displayRate, displayCount, buildStreamUrl, calculateTitleConfidence } from './utils.js';
 import { getRatingCache, setRatingCache } from './cache.js';
 import {
   getStep3Metadata,
@@ -87,10 +87,23 @@ export function renderSourceCell(row, prefix, data, maxRate = 5) {
 
   rateEl.replaceChildren();
 
+  // Get all target reference titles for title confidence score calculation
+  const refTitles = [];
+  if (state.currentSelectedWork?.title) {
+    refTitles.push(state.currentSelectedWork.title);
+  }
+  const meta = getStep3Metadata();
+  if (meta) {
+    if (meta.searchName) refTitles.push(meta.searchName);
+    if (meta.titleList) refTitles.push(...meta.titleList);
+    if (meta.titleZhList) refTitles.push(...meta.titleZhList);
+  }
+  const uniqueRefTitles = [...new Set(refTitles.map(t => t.trim()).filter(Boolean))];
+
   const cell = rateEl.closest("td");
   if (cell) {
-    const oldTitle = cell.querySelector(".source-book-title");
-    if (oldTitle) oldTitle.remove();
+    const oldTitles = cell.querySelectorAll(".source-book-title");
+    oldTitles.forEach(el => el.remove());
 
     // In single-result mode, display the matched title above the rating
     if (data.title && (!data.results || data.results.length === 0)) {
@@ -98,6 +111,12 @@ export function renderSourceCell(row, prefix, data, maxRate = 5) {
       titleDiv.className = "source-book-title";
       titleDiv.textContent = data.title;
       cell.insertBefore(titleDiv, rateEl);
+
+      const score = calculateTitleConfidence(data.title, uniqueRefTitles);
+      const scoreDiv = document.createElement("div");
+      scoreDiv.className = "source-book-title";
+      scoreDiv.textContent = `Match: ${score}%`;
+      cell.insertBefore(scoreDiv, rateEl);
     }
   }
 
@@ -116,6 +135,12 @@ export function renderSourceCell(row, prefix, data, maxRate = 5) {
         titleDiv.className = "source-book-title";
         titleDiv.textContent = res.title;
         item.appendChild(titleDiv);
+
+        const score = calculateTitleConfidence(res.title, uniqueRefTitles);
+        const scoreDiv = document.createElement("div");
+        scoreDiv.className = "source-book-title";
+        scoreDiv.textContent = `score:(${score}%)`;
+        item.appendChild(scoreDiv);
       }
 
       const strong = document.createElement("strong");
