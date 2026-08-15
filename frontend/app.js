@@ -147,16 +147,7 @@ function updatePagination(itemsCount) {
   nextPageBtn.disabled = itemsCount < MAX_CANDIDATES;
 }
 
-async function searchWorks(query, page, titleSource = "open_library") {
-  state.currentQuery = query;
-  state.currentPage = page;
-  state.currentTitleSource = titleSource;
-
-  candidateSection.hidden = false;
-  candidateHeading.hidden = false;
-  goToStep(2);
-  updateTitleSourceTabs(titleSource);
-
+function renderSearchLoading(titleSource, query) {
   const sourceObj = SOURCES.find(p => p.id === titleSource);
   const titleSourceName = sourceObj ? sourceObj.label : "資料庫";
 
@@ -166,62 +157,126 @@ async function searchWorks(query, page, titleSource = "open_library") {
   loadingEl.textContent = `正從 「${titleSourceName}」 尋找「${query}」…`;
   candidateList.append(loadingEl);
 
-  updateManualSearchLinks(query);
   paginationControls.hidden = true;
-  detailsHeading.hidden = true;
-  tableWrap.hidden = true;
-  resultBody.replaceChildren();
+}
 
+function renderSearchResults(titleSource, query, page, works) {
+  const sourceObj = SOURCES.find(p => p.id === titleSource);
+  const titleSourceName = sourceObj ? sourceObj.label : "資料庫";
+
+  if (!works || !works.length) {
+    if (page === 1) {
+      paginationControls.hidden = true;
+      candidateList.replaceChildren();
+      const noResultsEl = document.createElement("div");
+      noResultsEl.className = "no-results";
+      noResultsEl.textContent = `${titleSourceName} 找不到「${query}」`;
+      candidateList.append(noResultsEl);
+    } else {
+      paginationControls.hidden = false;
+      pageIndicator.textContent = `第 ${page} 頁`;
+      prevPageBtn.disabled = false;
+      nextPageBtn.disabled = true;
+    }
+    return;
+  }
+
+  renderCandidates(works, {
+    onChooseCandidate: chooseCandidate,
+    onChooseEdition: chooseEdition
+  });
+  candidateHeading.hidden = false;
+  updatePagination(works.length);
+}
+
+function renderSearchError(titleSource, query, page, errorMsg) {
+  candidateList.replaceChildren();
+  const errorEl = document.createElement("div");
+  errorEl.className = "no-results error";
+  errorEl.textContent = errorMsg || "查詢失敗。";
+  candidateList.append(errorEl);
+}
+
+async function searchWorks(query, page, titleSource = "open_library") {
+  if (state.currentQuery !== query || state.currentPage !== page) {
+    state.sourceStates = {};
+    detailsHeading.hidden = true;
+    tableWrap.hidden = true;
+    resultBody.replaceChildren();
+  }
+
+  state.currentQuery = query;
+  state.currentPage = page;
+  state.currentTitleSource = titleSource;
+
+  candidateSection.hidden = false;
+  candidateHeading.hidden = false;
+  goToStep(2);
+  updateTitleSourceTabs(titleSource);
+  updateManualSearchLinks(query);
 
   if (page === 1) {
     saveHistory(query);
     renderHistory((q) => { searchInput.value = q; });
   }
 
-  try {
-    const cacheKey = `search:${query}:page:${page}:engines:${titleSource}`;
-    let works = getCachedData(cacheKey);
-    if (!works) {
+  const cacheKey = `search:${query}:page:${page}:engines:${titleSource}`;
+
+  // 1. Prioritize LocalStorage check for instantaneous, synchronous loading
+  const cachedWorks = getCachedData(cacheKey);
+  if (cachedWorks) {
+    state.sourceStates[titleSource] = {
+      status: 'success',
+      works: cachedWorks,
+      error: null,
+      promise: Promise.resolve(cachedWorks)
+    };
+    renderSearchResults(titleSource, query, page, cachedWorks);
+    return;
+  }
+
+  // 2. Retrieve or create async background search state
+  let sourceState = state.sourceStates[titleSource];
+  if (!sourceState) {
+    sourceState = {
+      status: 'loading',
+      works: null,
+      error: null,
+      promise: null
+    };
+    state.sourceStates[titleSource] = sourceState;
+
+    sourceState.promise = (async () => {
       let url = `/api/search?q=${encodeURIComponent(query)}&page=${page}&engines=${encodeURIComponent(titleSource)}`;
       const apiKey = localStorage.getItem(STORAGE_KEYS.GOOGLE_API_KEY) || "";
       if (apiKey) url += `&google_key=${encodeURIComponent(apiKey)}`;
-      works = await fetchJson(url);
+      const works = await fetchJson(url);
       if (works) setCachedData(cacheKey, works);
-    }
+      return works;
+    })();
 
-    if (!works || !works.length) {
-
-      if (page === 1) {
-        paginationControls.hidden = true;
-        candidateList.replaceChildren();
-        const noResultsEl = document.createElement("div");
-        noResultsEl.className = "no-results";
-        noResultsEl.textContent = `${titleSourceName} 找不到「${query}」`;
-        candidateList.append(noResultsEl);
-      } else {
-        paginationControls.hidden = false;
-        pageIndicator.textContent = `第 ${state.currentPage} 頁`;
-        prevPageBtn.disabled = false;
-        nextPageBtn.disabled = true;
+    sourceState.promise.then((works) => {
+      sourceState.status = 'success';
+      sourceState.works = works;
+      if (state.currentTitleSource === titleSource && state.currentQuery === query && state.currentPage === page) {
+        renderSearchResults(titleSource, query, page, works);
       }
-      return;
-    }
-
-    renderCandidates(works, {
-      onChooseCandidate: chooseCandidate,
-      onChooseEdition: chooseEdition
+    }).catch((err) => {
+      sourceState.status = 'error';
+      sourceState.error = err.message || "查詢失敗。";
+      if (state.currentTitleSource === titleSource && state.currentQuery === query && state.currentPage === page) {
+        renderSearchError(titleSource, query, page, sourceState.error);
+      }
     });
-    candidateHeading.hidden = false;
-    updatePagination(works.length);
+  }
 
-  } catch (error) {
-    console.error(error);
-
-    if (loadingEl) {
-      loadingEl.classList.remove("loading");
-      loadingEl.classList.add("error");
-      loadingEl.textContent = "查詢失敗。";
-    }
+  // 3. Render immediate UI view based on currently locked memory state
+  if (sourceState.status === 'loading') {
+    renderSearchLoading(titleSource, query);
+  } else if (sourceState.status === 'success') {
+    renderSearchResults(titleSource, query, page, sourceState.works);
+  } else if (sourceState.status === 'error') {
+    renderSearchError(titleSource, query, page, sourceState.error);
   }
 }
 
@@ -292,10 +347,14 @@ const btnRefreshStep2 = document.querySelector("#btn-refresh-step-2");
 if (btnRefreshStep2) {
   btnRefreshStep2.addEventListener("click", () => {
     if (state.currentQuery) {
-      const cacheKey = `${STORAGE_KEYS.CACHE_PREFIX}search:${state.currentQuery}:page:${state.currentPage}:engines:${state.currentTitleSource}`;
+      const sourceId = state.currentTitleSource;
+      const cacheKey = `${STORAGE_KEYS.CACHE_PREFIX}search:${state.currentQuery}:page:${state.currentPage}:engines:${sourceId}`;
       localStorage.removeItem(cacheKey);
       clearEditionsCache();
-      searchWorks(state.currentQuery, state.currentPage, state.currentTitleSource);
+      if (state.sourceStates && state.sourceStates[sourceId]) {
+        delete state.sourceStates[sourceId];
+      }
+      searchWorks(state.currentQuery, state.currentPage, sourceId);
     }
   });
 }
