@@ -152,8 +152,9 @@ class GoodreadsSource(BaseSource):
                 except Exception:
                     pass
 
+            work_key = f"gr:{details.get('work_id')}" if details.get('work_id') else (f"gr:{book_id}" if book_id else f"gr:{title}")
             work = Work(
-                work_id=f"gr:{book_id}" if book_id else f"gr:{title}",
+                work_id=work_key,
                 title=title,
                 author=author_name,
                 edition_count=details.get("editions_count"),
@@ -199,6 +200,11 @@ class GoodreadsSource(BaseSource):
         try:
             url = f"https://www.goodreads.com/work/editions/{work_id}"
             resp = self.session.get(url, timeout=self.timeout)
+            if resp.status_code != 200 or "bookTitle" not in resp.text:
+                alt_url = f"https://www.goodreads.com/book/editions/{work_id}"
+                alt_resp = self.session.get(alt_url, timeout=self.timeout)
+                if alt_resp.status_code == 200 and "bookTitle" in alt_resp.text:
+                    resp = alt_resp
             resp.raise_for_status()
             html_str = resp.text
 

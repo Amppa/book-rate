@@ -490,8 +490,11 @@ def api_work_editions(
     work_id: str = Query(..., description="Work ID e.g. OL17267881W"),
 ):
     print(f"\n[Editions API] User requested editions for work: '{work_id}'")
-    full_work_id = work_id if work_id.startswith("/works/") else f"/works/{work_id}"
-    editions = open_library.fetch_editions(full_work_id, limit=100)
+    if work_id.startswith("gr:"):
+        editions = goodreads.fetch_editions(work_id, limit=100)
+    else:
+        full_work_id = work_id if work_id.startswith("/works/") else f"/works/{work_id}"
+        editions = open_library.fetch_editions(full_work_id, limit=100)
     return _format_editions(editions)
 
 
