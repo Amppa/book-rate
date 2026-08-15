@@ -62,7 +62,6 @@
 
 .strategy-select:hover {
   border-color: var(--primary);
-  background: var(--surface-subtle);
 }
 
 /* 3. Search Status Tags */
