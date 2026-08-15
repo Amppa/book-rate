@@ -212,7 +212,7 @@ class GoodreadsSource(BaseSource):
 
         editions: List[Edition] = []
         page = 1
-        max_pages = 5
+        max_pages = 20
         resolved_work_id = work_id
 
         while len(editions) < limit and page <= max_pages:

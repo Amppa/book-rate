@@ -23,6 +23,7 @@ class BookAggregator:
     """Aggregates book works, editions, and ratings across multiple sources."""
 
     TITLE_SOURCES = ["goodreads", "storygraph", "amazon", "amazon_jp", "douban", "readmoo"]
+    DEFAULT_EDITION_LIMIT = 2000
 
     def __init__(self, google_api_key: Optional[str] = None):
         self.open_library = OpenLibrarySource()
@@ -180,11 +181,11 @@ class BookAggregator:
         }
         for prefix, source in prefix_map.items():
             if work_id.startswith(prefix):
-                return source, work_id, 1000
+                return source, work_id, self.DEFAULT_EDITION_LIMIT
 
         if work_id.startswith(("/works/", "OL")) or ":" not in work_id:
             full_id = work_id if work_id.startswith("/works/") else f"/works/{work_id}"
-            return self.open_library, full_id, 2000
+            return self.open_library, full_id, self.DEFAULT_EDITION_LIMIT
 
         return None, work_id, 0
 
@@ -232,7 +233,7 @@ class BookAggregator:
         ol_work_mapped = self._find_ol_work(isbn, title, author, active_title_sources)
         if ol_work_mapped:
             ol_rating = self.open_library.fetch_ratings(ol_work_mapped)
-            return ol_rating, self.open_library.fetch_editions(ol_work_mapped.work_id, limit=1000)
+            return ol_rating, self.open_library.fetch_editions(ol_work_mapped.work_id, limit=self.DEFAULT_EDITION_LIMIT)
         return SourceRating("Open Library"), []
 
     def resolve_work_editions_and_ol_rating(
@@ -326,7 +327,7 @@ class BookAggregator:
             details = {}
 
             if is_work:
-                gr_editions = self.goodreads.fetch_editions(numeric_id, limit=100)
+                gr_editions = self.goodreads.fetch_editions(numeric_id, limit=self.DEFAULT_EDITION_LIMIT)
                 crawler_status["goodreads"] = "Normal" if gr_editions else "No editions found"
                 if gr_editions:
                     first_isbn_ed = next((ed for ed in gr_editions if ed.isbn_13 or ed.isbn_10), gr_editions[0])
@@ -354,7 +355,7 @@ class BookAggregator:
                 else:
                     gr_work_id = details.get("work_id")
                     if gr_work_id:
-                        editions = self.goodreads.fetch_editions(gr_work_id, limit=100)
+                        editions = self.goodreads.fetch_editions(gr_work_id, limit=self.DEFAULT_EDITION_LIMIT)
 
             if not editions:
                 editions = self._fallback_edition_list(
@@ -424,7 +425,7 @@ class BookAggregator:
             ol_rating = self.open_library.fetch_ratings(Work(work_id=full_work_id, title="", author=""))
         else:
             ol_rating = SourceRating(source_name="Open Library")
-        editions = self.open_library.fetch_editions(full_work_id, limit=1000)
+        editions = self.open_library.fetch_editions(full_work_id, limit=self.DEFAULT_EDITION_LIMIT)
         if editions:
             for ed in editions:
                 if ed.isbn_13 or ed.isbn_10:
