@@ -195,55 +195,65 @@
           </div>
           <div id="step-3-status" class="status" aria-live="polite"></div>
           <section id="results" aria-live="polite">
-            <div class="step3-metadata-card" id="step3-metadata-card" style="margin-bottom: var(--space-4);">
-              <h3 class="bm-card-title" style="margin-bottom: var(--space-2); font-size: var(--fs-md);">Book Metadata
-              </h3>
-              <div class="step3-metadata-grid">
-                <div class="meta-col">
+            <div class="step3-split-layout">
+              <!-- 左欄：Book Metadata -->
+              <aside class="step3-left-panel" id="step3-metadata-card">
+                <div class="book-metadata-card">
+                  <div class="bm-card-header">
+                    <h3 class="bm-card-title">Book Metadata</h3>
+                    <button type="button" id="btn-collapse-s3-meta" class="btn-icon-only" title="收起邊欄">◀</button>
+                  </div>
+
                   <div class="bm-field-group">
                     <label for="s3-search-name">搜尋名稱 (User input title)</label>
                     <input type="text" id="s3-search-name" class="bm-input" readonly />
                   </div>
-                  <div class="bm-field-group" style="margin-top: var(--space-2);">
-                    <label for="s3-author">作者列表 (not support yet)</label>
-                    <textarea id="s3-author" class="bm-input" readonly></textarea>
-                  </div>
-                  <div class="bm-field-group" style="margin-top: var(--space-2);">
-                    <label for="s3-publish-date">出版日期 (not support yet)</label>
-                    <input type="text" id="s3-publish-date" class="bm-input" readonly />
-                  </div>
-                </div>
-                <div class="meta-col">
+
                   <div class="bm-field-group">
-                    <label for="s3-title">書名列表</label>
+                    <label for="s3-title">建議書名列表 (Titles from Source)</label>
                     <textarea id="s3-title" class="bm-input" readonly></textarea>
                   </div>
-                  <div class="bm-field-group" style="margin-top: var(--space-2);">
-                    <label for="s3-title-zh">書名列表 (亞洲)</label>
+
+                  <div class="bm-field-group">
+                    <label for="s3-title-zh">建議書名列表 (CJK中日韓字母)</label>
                     <textarea id="s3-title-zh" class="bm-input" readonly></textarea>
                   </div>
-                </div>
-                <div class="meta-col">
-                  <div class="bm-field-group" style="height: 100%;">
-                    <label for="s3-isbn">ISBN 列表</label>
-                    <textarea id="s3-isbn" class="bm-input" readonly
-                      style="height: calc(100% - 1.5rem); min-height: 120px;"></textarea>
+
+                  <div class="bm-field-group">
+                    <label for="s3-author">作者列表</label>
+                    <textarea id="s3-author" class="bm-input" readonly></textarea>
+                  </div>
+
+                  <div class="bm-field-group">
+                    <label for="s3-publish-date">出版日期</label>
+                    <input type="text" id="s3-publish-date" class="bm-input" readonly />
+                  </div>
+
+                  <div class="bm-field-group">
+                    <label for="s3-isbn">ISBN</label>
+                    <textarea id="s3-isbn" class="bm-input" readonly></textarea>
                   </div>
                 </div>
-              </div>
-            </div>
+              </aside>
 
-            <div class="score-display-toggles" id="score-toggle-bar">
-              <span class="toggle-title">來源：</span>
-            </div>
-            <div class="table-wrap" hidden>
-              <table>
-                <thead>
-                  <tr id="table-header-row"></tr>
-                  <tr id="score-strategy-row" class="thead-strategy-row"></tr>
-                </thead>
-                <tbody id="result-body"></tbody>
-              </table>
+              <!-- 右欄：搜尋結果 -->
+              <div class="step3-right-panel">
+                <button type="button" id="btn-expand-s3-meta" class="btn-secondary btn-sm"
+                  style="margin-bottom: var(--space-3);" title="展開邊欄">展開 Book Metadata ▶</button>
+
+                <div class="score-display-toggles" id="score-toggle-bar">
+                  <span class="toggle-title">來源：</span>
+                </div>
+                <div class="table-wrap" hidden>
+                  <table>
+                    <thead>
+                      <tr id="table-header-row"></tr>
+                      <tr id="score-strategy-row" class="thead-strategy-row"></tr>
+                    </thead>
+                    <tbody id="result-body"></tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </section>
         </div>

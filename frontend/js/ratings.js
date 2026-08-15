@@ -24,6 +24,20 @@ export function initRatings({ resultBody, step3Status, tableWrap, detailsHeading
   _tableWrap = tableWrap;
   _detailsHeading = detailsHeading;
   _candidateList = candidateList;
+
+  // Collapse/Expand functionality for Step 3 Metadata
+  const btnCollapse = document.querySelector("#btn-collapse-s3-meta");
+  const btnExpand = document.querySelector("#btn-expand-s3-meta");
+  const splitLayout = document.querySelector(".step3-split-layout");
+
+  if (btnCollapse && btnExpand && splitLayout) {
+    btnCollapse.addEventListener("click", () => {
+      splitLayout.classList.add("s3-meta-collapsed");
+    });
+    btnExpand.addEventListener("click", () => {
+      splitLayout.classList.remove("s3-meta-collapsed");
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------

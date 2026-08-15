@@ -121,45 +121,53 @@ textarea.bm-input:focus {
   box-shadow: 0 0 0 2px rgba(23, 79, 60, 0.15);
 }
 
-/* Step 3 Book Metadata Grid */
-.step3-metadata-card {
-  background: var(--surface-card);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-lg);
-  padding: var(--space-4) var(--space-5);
-  box-shadow: var(--shadow-sm);
+/* Step 3 Split Layout & Collapse */
+.step3-split-layout {
+  display: flex;
+  gap: var(--space-5);
+  align-items: flex-start;
+  transition: gap 0.3s ease;
 }
 
-.step3-metadata-grid .bm-field-group {
-  gap: 0px;
+.step3-split-layout.s3-meta-collapsed {
+  gap: 0;
 }
 
-.step3-metadata-grid {
-  display: grid;
-  grid-template-columns: 3fr 3fr 1fr;
-  gap: var(--space-3);
+.step3-left-panel {
+  width: 300px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 20px;
+  align-self: flex-start;
+  transition: width 0.3s ease, opacity 0.2s ease;
 }
 
-.step3-metadata-grid .bm-input[readonly] {
+.step3-split-layout.s3-meta-collapsed .step3-left-panel {
+  width: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.step3-right-panel {
+  flex: 1;
+  min-width: 0;
+}
+
+#btn-expand-s3-meta {
+  display: none;
+}
+
+.s3-meta-collapsed #btn-expand-s3-meta {
+  display: inline-block;
+}
+
+/* Global style for readonly bm-input (e.g. in Step 3) */
+input.bm-input:not([type="checkbox"]):not([type="radio"])[readonly],
+textarea.bm-input[readonly] {
   background: var(--surface-subtle);
   border-color: var(--border-light);
   color: var(--text-muted);
   cursor: default;
-}
-
-.step3-metadata-grid textarea.bm-input {
-  min-height: 80px;
-}
-
-#s3-title,
-#s3-title-zh {
-  height: 95px;
-}
-
-@media (max-width: 768px) {
-  .step3-metadata-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* Metadata table details block (Step 2/3) */

@@ -186,6 +186,11 @@ export function resetMetadataPanel(query) {
   if (publishDateEl) publishDateEl.value = "";
   if (isbnEl) isbnEl.value = "";
   state.currentSelectedWork = null;
+
+  const splitLayout = document.querySelector(".step3-split-layout");
+  if (splitLayout) {
+    splitLayout.classList.remove("s3-meta-collapsed");
+  }
 }
 
 /**
