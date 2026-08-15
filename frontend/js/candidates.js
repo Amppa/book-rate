@@ -263,7 +263,7 @@ export function renderCandidates(works, { onChooseCandidate, onChooseEdition } =
       const mainRow = fragment.querySelector(".candidate-main-row");
       const editionsArea = fragment.querySelector(".candidate-editions-area");
 
-      mainRow.addEventListener("click", async (e) => {
+      mainRow.addEventListener("click", (e) => {
         if (e.target.closest(".select-work") || e.target.closest(".candidate-link")) return;
 
         const isCurrentlyHidden = editionsArea.hidden;
@@ -284,33 +284,68 @@ export function renderCandidates(works, { onChooseCandidate, onChooseEdition } =
           return;
         }
 
-        // Use memory-cached editions if available
+        // 1. Use memory-cached editions if available
         if (work.fetched_editions) {
           renderEditionsList(editionsArea, work, work.fetched_editions, false, onChooseEdition);
           return;
         }
 
-        // Use localStorage cached editions if available
+        // 2. Use localStorage cached editions if available
         const cachedEditions = getCachedData("editions:" + work.key);
         if (cachedEditions) {
           work.fetched_editions = cachedEditions;
+          work.editions_state = {
+            status: 'success',
+            promise: Promise.resolve(cachedEditions)
+          };
           renderEditionsList(editionsArea, work, cachedEditions, false, onChooseEdition);
           return;
         }
 
-        editionsArea.innerHTML = '<div class="loading-editions">載入版本資訊中...</div>';
-        try {
-          const resp = await fetch(`/api/work-editions?work_id=${encodeURIComponent(work.key)}`);
-          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-          const data = await resp.json();
-          const editionsList = data.entries || [];
-          work.fetched_editions = editionsList;
-          setCachedData("editions:" + work.key, editionsList);
-          renderEditionsList(editionsArea, work, editionsList, false, onChooseEdition);
-        } catch (err) {
-          console.error("Failed to load editions:", err);
-          editionsArea.innerHTML = '<div class="error-editions">無法載入版本資訊 ⚠️</div>';
+        // 3. Check memory state (to prevent duplicate queries if clicked repeatedly during loading)
+        let editionsState = work.editions_state;
+        if (editionsState && editionsState.status === 'loading') {
+          editionsArea.innerHTML = '<div class="loading-editions">載入版本資訊中...</div>';
+          editionsState.promise.then((editionsList) => {
+            if (!editionsArea.hidden) {
+              renderEditionsList(editionsArea, work, editionsList, false, onChooseEdition);
+            }
+          }).catch((err) => {
+            if (!editionsArea.hidden) {
+              editionsArea.innerHTML = '<div class="error-editions">無法載入版本資訊 ⚠️</div>';
+            }
+          });
+          return;
         }
+
+        // 4. Trigger fetch and store promise
+        editionsState = {
+          status: 'loading',
+          promise: (async () => {
+            const resp = await fetch(`/api/work-editions?work_id=${encodeURIComponent(work.key)}`);
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const data = await resp.json();
+            const editionsList = data.entries || [];
+            work.fetched_editions = editionsList;
+            setCachedData("editions:" + work.key, editionsList);
+            return editionsList;
+          })()
+        };
+        work.editions_state = editionsState;
+
+        editionsArea.innerHTML = '<div class="loading-editions">載入版本資訊中...</div>';
+        editionsState.promise.then((editionsList) => {
+          editionsState.status = 'success';
+          if (!editionsArea.hidden) {
+            renderEditionsList(editionsArea, work, editionsList, false, onChooseEdition);
+          }
+        }).catch((err) => {
+          editionsState.status = 'error';
+          console.error("Failed to load editions:", err);
+          if (!editionsArea.hidden) {
+            editionsArea.innerHTML = '<div class="error-editions">無法載入版本資訊 ⚠️</div>';
+          }
+        });
       });
     }
 
