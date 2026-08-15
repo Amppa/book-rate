@@ -150,14 +150,14 @@ export function renderEditionsList(container, work, editions, showAll = false, o
     const headerBtn = document.createElement("button");
     headerBtn.type = "button";
     headerBtn.className = "edition-group-header";
-    
+
     const labelSpan = document.createElement("span");
     labelSpan.textContent = `${titleText} (${groupEditions.length})`;
-    
+
     const chevronSpan = document.createElement("span");
     chevronSpan.className = "group-chevron";
     chevronSpan.textContent = "▼";
-    
+
     headerBtn.appendChild(labelSpan);
     headerBtn.appendChild(chevronSpan);
 
@@ -183,9 +183,9 @@ export function renderEditionsList(container, work, editions, showAll = false, o
 
   const hasZhOrEn = zhEditions.length > 0 || enEditions.length > 0;
 
-  const zhGroup = createGroup("中文版本", zhEditions, false);
-  const enGroup = createGroup("英文版本", enEditions, false);
-  const otherGroup = createGroup("其他語言", otherEditions, false);
+  const zhGroup = createGroup("Chinese editions", zhEditions, false);
+  const enGroup = createGroup("English editions", enEditions, false);
+  const otherGroup = createGroup("Other editions", otherEditions, false);
 
   if (zhGroup) listDiv.appendChild(zhGroup);
   if (enGroup) listDiv.appendChild(enGroup);
