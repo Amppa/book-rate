@@ -81,20 +81,35 @@ export function renderEditionsList(container, work, editions, showAll = false, o
     return;
   }
 
-  // Determine whether edition language matches English or Chinese
-  const isEnOrZh = (ed) => {
+  const isZh = (ed) => {
     if (!ed.languages || ed.languages.length === 0) return false;
     return ed.languages.some((lang) => {
       const code = (lang.key || "").replace("/languages/", "").toLowerCase();
-      const resolvedName = LANGUAGE_NAME_MAP[code] || "";
-      return resolvedName.includes("English") || resolvedName.includes("Chinese");
+      const resolvedName = LANGUAGE_NAME_MAP[code] || code;
+      return resolvedName.toLowerCase().includes("chinese");
     });
   };
 
-  const matchEditions = [];
+  const isEn = (ed) => {
+    if (!ed.languages || ed.languages.length === 0) return false;
+    return ed.languages.some((lang) => {
+      const code = (lang.key || "").replace("/languages/", "").toLowerCase();
+      const resolvedName = LANGUAGE_NAME_MAP[code] || code;
+      return resolvedName.toLowerCase().includes("english");
+    });
+  };
+
+  const zhEditions = [];
+  const enEditions = [];
   const otherEditions = [];
   editions.forEach((ed) => {
-    if (isEnOrZh(ed)) { matchEditions.push(ed); } else { otherEditions.push(ed); }
+    if (isZh(ed)) {
+      zhEditions.push(ed);
+    } else if (isEn(ed)) {
+      enEditions.push(ed);
+    } else {
+      otherEditions.push(ed);
+    }
   });
 
   const listDiv = document.createElement("div");
@@ -123,27 +138,31 @@ export function renderEditionsList(container, work, editions, showAll = false, o
     listDiv.appendChild(itemEl);
   };
 
-  const hasEnZh = matchEditions.length > 0;
+  const hasZhOrEn = zhEditions.length > 0 || enEditions.length > 0;
   const hasOthers = otherEditions.length > 0;
-  const shouldSplit = hasEnZh && hasOthers;
 
-  if (showAll || !shouldSplit) {
-    editions.forEach(renderSingleEdition);
+  const toRender = [];
+  if (showAll) {
+    toRender.push(...zhEditions, ...enEditions, ...otherEditions);
   } else {
-    matchEditions.forEach(renderSingleEdition);
-    if (otherEditions.length > 0) {
-      const moreBtn = document.createElement("div");
-      moreBtn.className = "edition-more-btn";
-      moreBtn.textContent = "[other language]";
-      moreBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        renderEditionsList(container, work, editions, true, onChooseEdition);
-      });
-      listDiv.appendChild(moreBtn);
-    } else if (matchEditions.length === 0) {
-      container.innerHTML = '<div class="empty-editions">無符合中/英文語言之版本</div>';
-      return;
+    if (hasZhOrEn) {
+      toRender.push(...zhEditions, ...enEditions);
+    } else {
+      toRender.push(...otherEditions);
     }
+  }
+
+  toRender.forEach(renderSingleEdition);
+
+  if (!showAll && hasZhOrEn && hasOthers) {
+    const moreBtn = document.createElement("div");
+    moreBtn.className = "edition-more-btn";
+    moreBtn.textContent = "[other language]";
+    moreBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      renderEditionsList(container, work, editions, true, onChooseEdition);
+    });
+    listDiv.appendChild(moreBtn);
   }
 
   container.appendChild(listDiv);
