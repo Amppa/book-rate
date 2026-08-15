@@ -338,3 +338,36 @@ export function calculateTitleConfidence(sourceTitle, refTitles) {
   return Math.round(maxSim * 100);
 }
 
+/**
+ * Retrieves or creates a tracked asynchronous task.
+ * Encapsulates status tracking (loading, success, error) and wraps the original promise.
+ *
+ * @param {Object} container - Object/container holding the task
+ * @param {string} key - Key of the task within the container
+ * @param {function(): Promise} promiseFactory - Function returning the promise to execute if task doesn't exist
+ * @returns {{status: string, data: *, error: *, promise: Promise}} Tracked task object
+ */
+export function getOrCreateTask(container, key, promiseFactory) {
+  if (!container[key]) {
+    const task = {
+      status: 'loading',
+      data: null,
+      error: null,
+      promise: null
+    };
+    container[key] = task;
+    task.promise = promiseFactory()
+      .then((data) => {
+        task.status = 'success';
+        task.data = data;
+        return data;
+      })
+      .catch((err) => {
+        task.status = 'error';
+        task.error = err.message || String(err);
+        throw err;
+      });
+  }
+  return container[key];
+}
+

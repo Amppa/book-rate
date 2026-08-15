@@ -3,7 +3,7 @@ import {
   getCachedData, setCachedData, cleanExpiredCache,
   clearAllStep2Cache, clearAllStep3Cache, clearEditionsCache, clearWorkRatingsCache
 } from './js/cache.js';
-import { fetchJson } from './js/utils.js';
+import { fetchJson, getOrCreateTask } from './js/utils.js';
 import {
   renderSourceToggles, renderStrategySelects, updateTableVisibility,
   renderTableHeaders, renderTitleSourceTabs, initTableVisibilityStyles
@@ -227,7 +227,7 @@ async function searchWorks(query, page, titleSource = "open_library") {
   if (cachedWorks) {
     state.sourceStates[titleSource] = {
       status: 'success',
-      works: cachedWorks,
+      data: cachedWorks,
       error: null,
       promise: Promise.resolve(cachedWorks)
     };
@@ -236,17 +236,8 @@ async function searchWorks(query, page, titleSource = "open_library") {
   }
 
   // 2. Retrieve or create async background search state
-  let sourceState = state.sourceStates[titleSource];
-  if (!sourceState) {
-    sourceState = {
-      status: 'loading',
-      works: null,
-      error: null,
-      promise: null
-    };
-    state.sourceStates[titleSource] = sourceState;
-
-    sourceState.promise = (async () => {
+  const sourceState = getOrCreateTask(state.sourceStates, titleSource, () => {
+    return (async () => {
       let url = `/api/search?q=${encodeURIComponent(query)}&page=${page}&engines=${encodeURIComponent(titleSource)}`;
       const apiKey = localStorage.getItem(STORAGE_KEYS.GOOGLE_API_KEY) || "";
       if (apiKey) url += `&google_key=${encodeURIComponent(apiKey)}`;
@@ -254,27 +245,23 @@ async function searchWorks(query, page, titleSource = "open_library") {
       if (works) setCachedData(cacheKey, works);
       return works;
     })();
+  });
 
-    sourceState.promise.then((works) => {
-      sourceState.status = 'success';
-      sourceState.works = works;
-      if (state.currentTitleSource === titleSource && state.currentQuery === query && state.currentPage === page) {
-        renderSearchResults(titleSource, query, page, works);
-      }
-    }).catch((err) => {
-      sourceState.status = 'error';
-      sourceState.error = err.message || "查詢失敗。";
-      if (state.currentTitleSource === titleSource && state.currentQuery === query && state.currentPage === page) {
-        renderSearchError(titleSource, query, page, sourceState.error);
-      }
-    });
-  }
+  sourceState.promise.then((works) => {
+    if (state.currentTitleSource === titleSource && state.currentQuery === query && state.currentPage === page) {
+      renderSearchResults(titleSource, query, page, works);
+    }
+  }).catch((err) => {
+    if (state.currentTitleSource === titleSource && state.currentQuery === query && state.currentPage === page) {
+      renderSearchError(titleSource, query, page, sourceState.error);
+    }
+  });
 
   // 3. Render immediate UI view based on currently locked memory state
   if (sourceState.status === 'loading') {
     renderSearchLoading(titleSource, query);
   } else if (sourceState.status === 'success') {
-    renderSearchResults(titleSource, query, page, sourceState.works);
+    renderSearchResults(titleSource, query, page, sourceState.data);
   } else if (sourceState.status === 'error') {
     renderSearchError(titleSource, query, page, sourceState.error);
   }

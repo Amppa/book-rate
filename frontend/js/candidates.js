@@ -1,6 +1,6 @@
 import { state } from './state.js';
 import { SOURCES, LANGUAGE_NAME_MAP } from './constants.js';
-import { getWorkExternalUrl } from './utils.js';
+import { getWorkExternalUrl, getOrCreateTask } from './utils.js';
 import { getCachedData, setCachedData } from './cache.js';
 
 // ---------------------------------------------------------------------------
@@ -296,32 +296,17 @@ export function renderCandidates(works, { onChooseCandidate, onChooseEdition } =
           work.fetched_editions = cachedEditions;
           work.editions_state = {
             status: 'success',
+            data: cachedEditions,
+            error: null,
             promise: Promise.resolve(cachedEditions)
           };
           renderEditionsList(editionsArea, work, cachedEditions, false, onChooseEdition);
           return;
         }
 
-        // 3. Check memory state (to prevent duplicate queries if clicked repeatedly during loading)
-        let editionsState = work.editions_state;
-        if (editionsState && editionsState.status === 'loading') {
-          editionsArea.innerHTML = '<div class="loading-editions">載入版本資訊中...</div>';
-          editionsState.promise.then((editionsList) => {
-            if (!editionsArea.hidden) {
-              renderEditionsList(editionsArea, work, editionsList, false, onChooseEdition);
-            }
-          }).catch((err) => {
-            if (!editionsArea.hidden) {
-              editionsArea.innerHTML = '<div class="error-editions">無法載入版本資訊 ⚠️</div>';
-            }
-          });
-          return;
-        }
-
-        // 4. Trigger fetch and store promise
-        editionsState = {
-          status: 'loading',
-          promise: (async () => {
+        // 3. Retrieve or create async background search state using getOrCreateTask
+        const editionsState = getOrCreateTask(work, "editions_state", () => {
+          return (async () => {
             const resp = await fetch(`/api/work-editions?work_id=${encodeURIComponent(work.key)}`);
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             const data = await resp.json();
@@ -329,18 +314,24 @@ export function renderCandidates(works, { onChooseCandidate, onChooseEdition } =
             work.fetched_editions = editionsList;
             setCachedData("editions:" + work.key, editionsList);
             return editionsList;
-          })()
-        };
-        work.editions_state = editionsState;
+          })();
+        });
 
-        editionsArea.innerHTML = '<div class="loading-editions">載入版本資訊中...</div>';
+        // Setup immediate or deferred rendering based on status
+        if (editionsState.status === 'loading') {
+          editionsArea.innerHTML = '<div class="loading-editions">載入版本資訊中...</div>';
+        } else if (editionsState.status === 'error') {
+          editionsArea.innerHTML = '<div class="error-editions">無法載入版本資訊 ⚠️</div>';
+        } else if (editionsState.status === 'success') {
+          renderEditionsList(editionsArea, work, editionsState.data, false, onChooseEdition);
+          return;
+        }
+
         editionsState.promise.then((editionsList) => {
-          editionsState.status = 'success';
           if (!editionsArea.hidden) {
             renderEditionsList(editionsArea, work, editionsList, false, onChooseEdition);
           }
         }).catch((err) => {
-          editionsState.status = 'error';
           console.error("Failed to load editions:", err);
           if (!editionsArea.hidden) {
             editionsArea.innerHTML = '<div class="error-editions">無法載入版本資訊 ⚠️</div>';
