@@ -252,3 +252,47 @@ a.candidate-meta:hover {
   font-size: var(--fs-xs);
   color: var(--text-muted);
 }
+
+/* Edition Accordion Group Styles */
+.edition-group {
+  border-bottom: 1px solid var(--border-light);
+}
+.edition-group:last-child {
+  border-bottom: none;
+}
+
+.edition-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: var(--space-2) var(--space-4);
+  background: var(--surface-bg);
+  border: none;
+  border-bottom: 1px solid var(--border-light);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: left;
+  transition: var(--transition-fast);
+}
+
+.edition-group-header:hover {
+  background: var(--surface-subtle);
+  color: var(--primary);
+}
+
+.edition-group-header .group-chevron {
+  font-size: var(--fs-xs);
+  transition: transform var(--transition-fast);
+}
+
+.edition-group.expanded .edition-group-header .group-chevron {
+  transform: rotate(180deg);
+}
+
+.edition-group-content {
+  padding: var(--space-1) 0;
+  background: var(--surface-card);
+}

@@ -115,7 +115,7 @@ export function renderEditionsList(container, work, editions, showAll = false, o
   const listDiv = document.createElement("div");
   listDiv.className = "edition-list";
 
-  const renderSingleEdition = (ed) => {
+  const renderSingleEdition = (ed, targetContainer) => {
     const title = ed.title || work.title || "Unknown Title";
     const author = (work.author_name || []).join(", ") || "Unknown Author";
     const year = ed.publish_date || "Unknown Year";
@@ -135,35 +135,61 @@ export function renderEditionsList(container, work, editions, showAll = false, o
       e.stopPropagation();
       if (onChooseEdition) onChooseEdition(work, ed, itemEl);
     });
-    listDiv.appendChild(itemEl);
+    targetContainer.appendChild(itemEl);
+  };
+
+  const createGroup = (titleText, groupEditions, defaultExpanded) => {
+    if (groupEditions.length === 0) return null;
+
+    const groupEl = document.createElement("div");
+    groupEl.className = "edition-group";
+    if (defaultExpanded) {
+      groupEl.classList.add("expanded");
+    }
+
+    const headerBtn = document.createElement("button");
+    headerBtn.type = "button";
+    headerBtn.className = "edition-group-header";
+    
+    const labelSpan = document.createElement("span");
+    labelSpan.textContent = `${titleText} (${groupEditions.length})`;
+    
+    const chevronSpan = document.createElement("span");
+    chevronSpan.className = "group-chevron";
+    chevronSpan.textContent = "▼";
+    
+    headerBtn.appendChild(labelSpan);
+    headerBtn.appendChild(chevronSpan);
+
+    const contentDiv = document.createElement("div");
+    contentDiv.className = "edition-group-content";
+    contentDiv.hidden = !defaultExpanded;
+
+    groupEditions.forEach((ed) => {
+      renderSingleEdition(ed, contentDiv);
+    });
+
+    headerBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isHidden = contentDiv.hidden;
+      contentDiv.hidden = !isHidden;
+      groupEl.classList.toggle("expanded", isHidden);
+    });
+
+    groupEl.appendChild(headerBtn);
+    groupEl.appendChild(contentDiv);
+    return groupEl;
   };
 
   const hasZhOrEn = zhEditions.length > 0 || enEditions.length > 0;
-  const hasOthers = otherEditions.length > 0;
 
-  const toRender = [];
-  if (showAll) {
-    toRender.push(...zhEditions, ...enEditions, ...otherEditions);
-  } else {
-    if (hasZhOrEn) {
-      toRender.push(...zhEditions, ...enEditions);
-    } else {
-      toRender.push(...otherEditions);
-    }
-  }
+  const zhGroup = createGroup("中文版本", zhEditions, false);
+  const enGroup = createGroup("英文版本", enEditions, false);
+  const otherGroup = createGroup("其他語言", otherEditions, false);
 
-  toRender.forEach(renderSingleEdition);
-
-  if (!showAll && hasZhOrEn && hasOthers) {
-    const moreBtn = document.createElement("div");
-    moreBtn.className = "edition-more-btn";
-    moreBtn.textContent = "[other language]";
-    moreBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      renderEditionsList(container, work, editions, true, onChooseEdition);
-    });
-    listDiv.appendChild(moreBtn);
-  }
+  if (zhGroup) listDiv.appendChild(zhGroup);
+  if (enGroup) listDiv.appendChild(enGroup);
+  if (otherGroup) listDiv.appendChild(otherGroup);
 
   container.appendChild(listDiv);
 }
