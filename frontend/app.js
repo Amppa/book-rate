@@ -28,7 +28,7 @@ cleanExpiredCache();
 // ---------------------------------------------------------------------------
 const searchForm = document.querySelector("#search-form");
 const searchInput = document.querySelector("#title");
-const step2Status = document.querySelector("#step-2-status");
+
 const step3Status = document.querySelector("#step-3-status");
 const candidateSection = document.querySelector("#candidate-section");
 const candidateList = document.querySelector("#candidate-list");
@@ -171,8 +171,7 @@ async function searchWorks(query, page, titleSource = "open_library") {
   detailsHeading.hidden = true;
   tableWrap.hidden = true;
   resultBody.replaceChildren();
-  step2Status.classList.remove("error");
-  step2Status.textContent = "";
+
 
   if (page === 1) {
     saveHistory(query);
@@ -191,7 +190,7 @@ async function searchWorks(query, page, titleSource = "open_library") {
     }
 
     if (!works || !works.length) {
-      step2Status.textContent = "";
+
       if (page === 1) {
         paginationControls.hidden = true;
         candidateList.replaceChildren();
@@ -214,11 +213,15 @@ async function searchWorks(query, page, titleSource = "open_library") {
     });
     candidateHeading.hidden = false;
     updatePagination(works.length);
-    step2Status.textContent = "";
+
   } catch (error) {
     console.error(error);
-    step2Status.classList.add("error");
-    step2Status.textContent = "查詢失敗，請確認網路連線後再試一次。";
+
+    if (loadingEl) {
+      loadingEl.classList.remove("loading");
+      loadingEl.classList.add("error");
+      loadingEl.textContent = "查詢失敗。";
+    }
   }
 }
 
@@ -269,8 +272,7 @@ nextPageBtn.addEventListener("click", () => {
 // Wizard navigation
 btnPrevTo1.addEventListener("click", () => {
   goToStep(1);
-  step2Status.textContent = "";
-  step2Status.classList.remove("error");
+
 });
 btnPrevTo2.addEventListener("click", () => {
   if (state.searchMode === "quick_search") {
