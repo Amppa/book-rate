@@ -31,7 +31,20 @@ export function getWorkExternalUrl(key) {
   if (!key) return null;
   if (key.startsWith("/works/")) return `${OPEN_LIBRARY_BASE_URL}${key}`;
   if (key.startsWith("gb:")) return `https://books.google.com/books?id=${key.slice(3)}`;
-  if (key.startsWith("gr:")) return `https://www.goodreads.com/book/show/${key.slice(3)}`;
+  if (key.startsWith("gr:")) {
+    const rawId = key.slice(3);
+    const bookIndex = rawId.indexOf("/book/");
+    if (bookIndex !== -1) {
+      const bookSlug = rawId.substring(bookIndex + 6);
+      return `https://www.goodreads.com/book/show/${bookSlug}`;
+    }
+    if (rawId.startsWith("work/")) {
+      return `https://www.goodreads.com/work/editions/${rawId.slice(5)}`;
+    } else if (rawId.startsWith("book/")) {
+      return `https://www.goodreads.com/book/show/${rawId.slice(5)}`;
+    }
+    return `https://www.goodreads.com/book/show/${rawId}`;
+  }
   if (key.startsWith("db:")) return `https://book.douban.com/subject/${key.slice(3)}/`;
   if (key.startsWith("amjp:")) return `https://www.amazon.co.jp/dp/${key.slice(5)}`;
   if (key.startsWith("sg:")) return `https://app.thestorygraph.com/books/${key.slice(3)}`;

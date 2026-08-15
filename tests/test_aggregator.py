@@ -78,6 +78,7 @@ class TestGoodreadsSource(unittest.TestCase):
         works = source.search_works("Atomic Habits", limit=1)
 
         self.assertEqual(len(works), 1)
+        self.assertEqual(works[0].work_id, "gr:work/62221762/book/40121378-atomic-habits")
         self.assertEqual(works[0].title, "Atomic Habits")
         self.assertEqual(works[0].author, "James Clear")
         self.assertEqual(works[0].first_publish_year, 2018)

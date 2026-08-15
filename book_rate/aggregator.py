@@ -320,27 +320,53 @@ class BookAggregator:
             return ol_rating, editions, target_work, crawler_status
 
         if work_id.startswith("gr:"):
-            book_id = work_id[3:]
-            details = self.goodreads.fetch_book_details(book_id)
-            crawler_status["goodreads"] = details.get("crawler_status") or "Normal"
-            resolved_isbn = details.get("isbn")
-            pub_year = details.get("pub_year")
+            raw_id = work_id[3:]
+            is_work = raw_id.startswith("work/")
+            if is_work:
+                parts = raw_id.split("/")
+                numeric_id = parts[1] if len(parts) > 1 else raw_id
+            else:
+                numeric_id = raw_id.split("/")[-1] if "/" in raw_id else raw_id
 
-            if details.get("title") and not resolved_title:
-                resolved_title = details.get("title")
-            if details.get("author") and not resolved_author:
-                resolved_author = details.get("author")
+            resolved_isbn = None
+            pub_year = None
+            gr_editions = []
+            details = {}
 
-            ol_rating, editions = self._apply_ol_mapping(resolved_isbn, resolved_title, resolved_author, active_title_sources)
+            if is_work:
+                gr_editions = self.goodreads.fetch_editions(numeric_id, limit=100)
+                crawler_status["goodreads"] = "Normal" if gr_editions else "No editions found"
+                if gr_editions:
+                    first_isbn_ed = next((ed for ed in gr_editions if ed.isbn_13 or ed.isbn_10), gr_editions[0])
+                    resolved_isbn = first_isbn_ed.isbn_13 or first_isbn_ed.isbn_10
+                    pub_year = first_isbn_ed.publish_year
+                    if not resolved_title:
+                        resolved_title = first_isbn_ed.title
+            else:
+                details = self.goodreads.fetch_book_details(numeric_id)
+                crawler_status["goodreads"] = details.get("crawler_status") or "Normal"
+                resolved_isbn = details.get("isbn")
+                pub_year = details.get("pub_year")
+                if details.get("title") and not resolved_title:
+                    resolved_title = details.get("title")
+                if details.get("author") and not resolved_author:
+                    resolved_author = details.get("author")
 
-            if not editions:
-                gr_work_id = details.get("work_id")
-                if gr_work_id:
-                    editions = self.goodreads.fetch_editions(gr_work_id, limit=100)
+            ol_rating, ol_editions = self._apply_ol_mapping(resolved_isbn, resolved_title, resolved_author, active_title_sources)
+
+            if ol_editions:
+                editions = ol_editions
+            else:
+                if is_work:
+                    editions = gr_editions
+                else:
+                    gr_work_id = details.get("work_id")
+                    if gr_work_id:
+                        editions = self.goodreads.fetch_editions(gr_work_id, limit=100)
 
             if not editions:
                 editions = self._fallback_edition_list(
-                    book_id, resolved_title or "Unknown", isbn=resolved_isbn, pub_year=pub_year
+                    numeric_id, resolved_title or "Unknown", isbn=resolved_isbn, pub_year=pub_year
                 )
 
             target_work = Work(

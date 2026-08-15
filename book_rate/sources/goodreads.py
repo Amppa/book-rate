@@ -144,6 +144,7 @@ class GoodreadsSource(BaseSource):
 
             book_url_rel = item.get("bookUrl", "")
             book_url = f"https://www.goodreads.com{book_url_rel}" if book_url_rel else None
+            book_slug = book_url_rel.split("/book/show/")[-1] if "/book/show/" in book_url_rel else (book_id or "")
 
             # Fetch details concurrently to get actual editions count and status
             details = {"isbn": None, "pub_year": None, "editions_count": None, "crawler_status": "Normal"}
@@ -153,7 +154,12 @@ class GoodreadsSource(BaseSource):
                 except Exception:
                     pass
 
-            work_key = f"gr:{details.get('work_id')}" if details.get('work_id') else (f"gr:{book_id}" if book_id else f"gr:{title}")
+            if details.get('work_id'):
+                work_key = f"gr:work/{details.get('work_id')}/book/{book_slug}"
+            elif book_id:
+                work_key = f"gr:book/{book_slug}"
+            else:
+                work_key = f"gr:{title}"
             work = Work(
                 work_id=work_key,
                 title=title,
@@ -196,6 +202,13 @@ class GoodreadsSource(BaseSource):
 
         if ":" in work_id:
             work_id = work_id.split(":", 1)[1]
+
+        work_id_m = re.search(r'work/(\d+)', work_id)
+        if work_id_m:
+            work_id = work_id_m.group(1)
+        else:
+            if "/" in work_id:
+                work_id = work_id.split("/")[-1]
 
         editions: List[Edition] = []
         page = 1
