@@ -95,7 +95,7 @@ function initSearchMode() {
   const modeButtons = document.querySelectorAll(".mode-tab-btn");
   modeButtons.forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.mode === state.searchMode);
-    
+
     // Bind click event
     btn.addEventListener("click", () => {
       const mode = btn.dataset.mode;
@@ -163,7 +163,7 @@ async function searchWorks(query, page, titleSource = "open_library") {
   candidateList.replaceChildren();
   const loadingEl = document.createElement("div");
   loadingEl.className = "no-results loading";
-  loadingEl.textContent = `載入中… 正在使用 ${titleSourceName} 尋找「${query}」`;
+  loadingEl.textContent = `正從 「${titleSourceName}」 尋找「${query}」…`;
   candidateList.append(loadingEl);
 
   updateManualSearchLinks(query);
