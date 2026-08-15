@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { SOURCES, SOURCE_PREFIX, OPEN_LIBRARY_BASE_URL, STRATEGY_LABEL_MAP } from './constants.js';
+import { STORAGE_KEYS, SOURCES, SOURCE_PREFIX, OPEN_LIBRARY_BASE_URL, STRATEGY_LABEL_MAP } from './constants.js';
 import { displayRate, displayCount, buildStreamUrl, calculateTitleConfidence } from './utils.js';
 import { getRatingCache, setRatingCache } from './cache.js';
 import {
@@ -290,7 +290,7 @@ export async function selectWork(work) {
   _step3Status.textContent = "";
 
   const activeRateSourcesList = getActiveRateSourcesList();
-  const apiKey = localStorage.getItem("bookrate:google-api-key") || "";
+  const apiKey = localStorage.getItem(STORAGE_KEYS.GOOGLE_API_KEY) || "";
   let strategies = getSelectedStrategies();
 
   if (state.searchMode === "quick_search") {
@@ -401,7 +401,7 @@ export function reQuerySingleSource(work, sourceKey) {
     }
   }
 
-  const apiKey = localStorage.getItem("bookrate:google-api-key") || "";
+  const apiKey = localStorage.getItem(STORAGE_KEYS.GOOGLE_API_KEY) || "";
   const meta = getStep3Metadata();
   const url = buildStreamUrl(work.key, meta, sourceKey, strategies, apiKey);
 

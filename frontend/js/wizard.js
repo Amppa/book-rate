@@ -1,7 +1,7 @@
 import { state } from './state.js';
 import { SOURCES, SOURCE_PREFIX } from './constants.js';
 import { markCandidateSelected } from './candidates.js';
-import { removeBrackets } from './utils.js';
+import { removeBrackets, hasCjk } from './utils.js';
 
 // Injected dependency: avoids a circular import between wizard ↔ ratings.
 let _onSelectWork = null;
@@ -88,7 +88,7 @@ export function appendAndLimitTextarea(textareaEl, newItems, maxLimit) {
   textareaEl.value = lines.join('\n');
 }
 
-const hasCjk = (str) => /[\u4e00-\u9fa5\u3040-\u309f\u30a0-\u30ff\uac00-\ud7a3]/.test(str);
+
 
 // ---------------------------------------------------------------------------
 // Candidate / edition selection (fills Step-2 metadata panel)

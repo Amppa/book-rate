@@ -1,4 +1,4 @@
-import { MAX_CANDIDATES, SOURCES, SOURCE_PREFIX } from './js/constants.js';
+import { MAX_CANDIDATES, SOURCES, SOURCE_PREFIX, STORAGE_KEYS } from './js/constants.js';
 import {
   getCachedData, setCachedData, cleanExpiredCache,
   clearAllStep2Cache, clearAllStep3Cache, clearEditionsCache, clearWorkRatingsCache
@@ -66,11 +66,11 @@ function initSettings() {
   SOURCES.forEach((source) => {
     const suffix = SOURCE_PREFIX[source.id];
     const checkbox = document.querySelector(`#score-${suffix}`);
-    if (checkbox) checkbox.checked = localStorage.getItem(`bookrate:score:${suffix}`) !== "false";
+    if (checkbox) checkbox.checked = localStorage.getItem(`${STORAGE_KEYS.SCORE_TOGGLE_PREFIX}${suffix}`) !== "false";
 
     const select = document.querySelector(`.strategy-select[data-source="${source.id}"]`);
     if (select) {
-      const savedStrategy = localStorage.getItem("bookrate:strategy:" + source.id);
+      const savedStrategy = localStorage.getItem(STORAGE_KEYS.STRATEGY_PREFIX + source.id);
       select.value = savedStrategy || source.defaultStrategy;
     }
   });
@@ -83,7 +83,7 @@ initSettings();
 // Search Mode Configuration
 // ---------------------------------------------------------------------------
 function initSearchMode() {
-  const STORAGE_KEY = "bookrate:searchMode";
+  const STORAGE_KEY = STORAGE_KEYS.SEARCH_MODE;
   const savedMode = localStorage.getItem(STORAGE_KEY);
   if (savedMode === "quick_search" || savedMode === "edition_search") {
     state.searchMode = savedMode;
@@ -184,7 +184,7 @@ async function searchWorks(query, page, titleSource = "open_library") {
     let works = getCachedData(cacheKey);
     if (!works) {
       let url = `/api/search?q=${encodeURIComponent(query)}&page=${page}&engines=${encodeURIComponent(titleSource)}`;
-      const apiKey = localStorage.getItem("bookrate:google-api-key") || "";
+      const apiKey = localStorage.getItem(STORAGE_KEYS.GOOGLE_API_KEY) || "";
       if (apiKey) url += `&google_key=${encodeURIComponent(apiKey)}`;
       works = await fetchJson(url);
       if (works) setCachedData(cacheKey, works);
@@ -290,7 +290,7 @@ const btnRefreshStep2 = document.querySelector("#btn-refresh-step-2");
 if (btnRefreshStep2) {
   btnRefreshStep2.addEventListener("click", () => {
     if (state.currentQuery) {
-      const cacheKey = `bookrate:cache:search:${state.currentQuery}:page:${state.currentPage}:engines:${state.currentTitleSource}`;
+      const cacheKey = `${STORAGE_KEYS.CACHE_PREFIX}search:${state.currentQuery}:page:${state.currentPage}:engines:${state.currentTitleSource}`;
       localStorage.removeItem(cacheKey);
       clearEditionsCache();
       searchWorks(state.currentQuery, state.currentPage, state.currentTitleSource);
@@ -313,7 +313,7 @@ if (scoreToggleBarEl) {
   scoreToggleBarEl.addEventListener("change", (e) => {
     if (e.target.type === "checkbox") {
       const id = e.target.id.replace("score-", "");
-      localStorage.setItem(`bookrate:score:${id}`, e.target.checked);
+      localStorage.setItem(`${STORAGE_KEYS.SCORE_TOGGLE_PREFIX}${id}`, e.target.checked);
       updateTableVisibility(ratingTable);
     }
   });
@@ -324,7 +324,7 @@ if (scoreStrategyRowEl) {
   scoreStrategyRowEl.addEventListener("change", (e) => {
     if (e.target.classList.contains("strategy-select")) {
       const sourceKey = e.target.dataset.source;
-      if (sourceKey) localStorage.setItem("bookrate:strategy:" + sourceKey, e.target.value);
+      if (sourceKey) localStorage.setItem(STORAGE_KEYS.STRATEGY_PREFIX + sourceKey, e.target.value);
       if (state.currentSelectedWork && sourceKey) reQuerySingleSource(state.currentSelectedWork, sourceKey);
     }
   });
@@ -344,9 +344,9 @@ function updateCacheButtonsState() {
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
     if (!key) continue;
-    if (key.startsWith("bookrate:cache:")) {
+    if (key.startsWith(STORAGE_KEYS.CACHE_PREFIX)) {
       hasStep2 = true;
-    } else if (key.startsWith("bookrate:rating:")) {
+    } else if (key.startsWith(STORAGE_KEYS.RATING_PREFIX)) {
       hasStep3 = true;
     }
   }
@@ -375,7 +375,7 @@ if (clearStep3CacheBtn) {
 const apiKeyInput = document.querySelector("#google-api-key");
 const saveApiKeyBtn = document.querySelector("#save-api-key-btn");
 const clearApiKeyBtn = document.querySelector("#clear-api-key-btn");
-const GOOGLE_KEY_STORAGE_KEY = "bookrate:google-api-key";
+const GOOGLE_KEY_STORAGE_KEY = STORAGE_KEYS.GOOGLE_API_KEY;
 
 const savedKey = localStorage.getItem(GOOGLE_KEY_STORAGE_KEY) || "";
 if (apiKeyInput) {

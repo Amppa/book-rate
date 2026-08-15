@@ -1,8 +1,18 @@
 export const OPEN_LIBRARY_BASE_URL = "https://openlibrary.org";
 export const MAX_CANDIDATES = 10;
 export const MAX_EDITIONS = 100;
-export const HISTORY_KEY = "bookrate:recent-searches";
-export const CACHE_PREFIX = "bookrate:cache:";
+export const STORAGE_KEYS = {
+  GOOGLE_API_KEY: "bookrate:google-api-key",
+  SEARCH_MODE: "bookrate:searchMode",
+  SCORE_TOGGLE_PREFIX: "bookrate:score:",
+  STRATEGY_PREFIX: "bookrate:strategy:",
+  CACHE_PREFIX: "bookrate:cache:",
+  RATING_PREFIX: "bookrate:rating:",
+  HISTORY: "bookrate:recent-searches"
+};
+
+export const HISTORY_KEY = STORAGE_KEYS.HISTORY;
+export const CACHE_PREFIX = STORAGE_KEYS.CACHE_PREFIX;
 export const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 export const SOURCES = [

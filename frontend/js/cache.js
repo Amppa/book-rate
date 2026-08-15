@@ -1,4 +1,4 @@
-import { CACHE_PREFIX, ONE_DAY_MS } from './constants.js';
+import { STORAGE_KEYS, CACHE_PREFIX, ONE_DAY_MS } from './constants.js';
 
 export function getCachedData(key) {
   try {
@@ -25,7 +25,7 @@ export function setCachedData(key, data) {
 }
 
 export function getRatingCache(workKey, source, strategy) {
-  const key = `bookrate:rating:${workKey}:${source}:${strategy}`;
+  const key = `${STORAGE_KEYS.RATING_PREFIX}${workKey}:${source}:${strategy}`;
   try {
     const cached = localStorage.getItem(key);
     if (!cached) return null;
@@ -41,7 +41,7 @@ export function getRatingCache(workKey, source, strategy) {
 }
 
 export function setRatingCache(workKey, source, strategy, data) {
-  const key = `bookrate:rating:${workKey}:${source}:${strategy}`;
+  const key = `${STORAGE_KEYS.RATING_PREFIX}${workKey}:${source}:${strategy}`;
   try {
     const record = { data, timestamp: Date.now() };
     localStorage.setItem(key, JSON.stringify(record));
@@ -51,12 +51,12 @@ export function setRatingCache(workKey, source, strategy, data) {
 }
 
 export function cleanExpiredCache() {
-  try {
-    const keysToRemove = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (!key) continue;
-      
+  const keysToRemove = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key) continue;
+
+    try {
       if (key.startsWith(CACHE_PREFIX)) {
         const cached = localStorage.getItem(key);
         if (cached) {
@@ -65,7 +65,7 @@ export function cleanExpiredCache() {
             keysToRemove.push(key);
           }
         }
-      } else if (key.startsWith("bookrate:rating:")) {
+      } else if (key.startsWith(STORAGE_KEYS.RATING_PREFIX)) {
         const cached = localStorage.getItem(key);
         if (cached) {
           const { timestamp } = JSON.parse(cached);
@@ -74,9 +74,17 @@ export function cleanExpiredCache() {
           }
         }
       }
+    } catch (e) {
+      console.warn(`Failed to parse cached item for key ${key}:`, e);
     }
-    keysToRemove.forEach((key) => localStorage.removeItem(key));
-  } catch (e) { }
+  }
+  keysToRemove.forEach((key) => {
+    try {
+      localStorage.removeItem(key);
+    } catch (e) {
+      console.warn(`Failed to remove expired key ${key}:`, e);
+    }
+  });
 }
 
 export function clearAllStep2Cache() {
@@ -99,7 +107,7 @@ export function clearAllStep3Cache() {
     const keysToRemove = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && key.startsWith("bookrate:rating:")) {
+      if (key && key.startsWith(STORAGE_KEYS.RATING_PREFIX)) {
         keysToRemove.push(key);
       }
     }
@@ -127,7 +135,7 @@ export function clearEditionsCache() {
 
 export function clearWorkRatingsCache(workKey) {
   try {
-    const prefix = `bookrate:rating:${workKey}:`;
+    const prefix = `${STORAGE_KEYS.RATING_PREFIX}${workKey}:`;
     const keysToRemove = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
