@@ -38,9 +38,10 @@ class GoodreadsSource(BaseSource):
                     res["crawler_status"] = "Normal"
                     
                     # 1. Extract work_id from final redirected URL
-                    work_id_m = re.search(r'/work/editions/(\d+)', ed_resp.url)
-                    if work_id_m:
-                        res["work_id"] = work_id_m.group(1)
+                    if ed_resp.url and isinstance(ed_resp.url, str):
+                        work_id_m = re.search(r'/work/editions/(\d+)', ed_resp.url)
+                        if work_id_m:
+                            res["work_id"] = work_id_m.group(1)
 
                     # 2. Extract editions count from page HTML
                     count_m = re.search(r'showing\s+\d+.*?of\s+(\d+[,.\d]*)', ed_resp.text, re.IGNORECASE)
@@ -211,9 +212,10 @@ class GoodreadsSource(BaseSource):
                     if alt_resp.status_code == 200 and "bookTitle" in alt_resp.text:
                         resp = alt_resp
 
-                work_id_m = re.search(r'/work/editions/(\d+)', resp.url)
-                if work_id_m:
-                    resolved_work_id = work_id_m.group(1)
+                if resp.url and isinstance(resp.url, str):
+                    work_id_m = re.search(r'/work/editions/(\d+)', resp.url)
+                    if work_id_m:
+                        resolved_work_id = work_id_m.group(1)
 
                 resp.raise_for_status()
                 html_str = resp.text

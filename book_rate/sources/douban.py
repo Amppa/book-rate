@@ -93,7 +93,9 @@ class DoubanSource(BaseSource):
         url = self.ISBN_LOOKUP_URL.format(isbn=isbn_str)
         try:
             resp = self.session.get(url, timeout=self.timeout, allow_redirects=True)
-            subject_match = re.search(r"book\.douban\.com/subject/(\d+)/?", resp.url)
+            subject_match = None
+            if resp.url and isinstance(resp.url, str):
+                subject_match = re.search(r"book\.douban\.com/subject/(\d+)/?", resp.url)
             if not subject_match:
                 logger.debug(f"Douban ISBN lookup: no subject found for ISBN {isbn_str}")
                 return None
