@@ -197,81 +197,98 @@ class GoodreadsSource(BaseSource):
             work_id = work_id.split(":", 1)[1]
 
         editions: List[Edition] = []
-        try:
-            url = f"https://www.goodreads.com/work/editions/{work_id}"
-            resp = self.session.get(url, timeout=self.timeout)
-            if resp.status_code != 200 or "bookTitle" not in resp.text:
-                alt_url = f"https://www.goodreads.com/book/editions/{work_id}"
-                alt_resp = self.session.get(alt_url, timeout=self.timeout)
-                if alt_resp.status_code == 200 and "bookTitle" in alt_resp.text:
-                    resp = alt_resp
-            resp.raise_for_status()
-            html_str = resp.text
+        page = 1
+        max_pages = 5
+        resolved_work_id = work_id
 
-            blocks = html_str.split('<div class="elementList clearFix">')
-            for block in blocks[1:]:
-                if len(editions) >= limit:
+        while len(editions) < limit and page <= max_pages:
+            try:
+                url = f"https://www.goodreads.com/work/editions/{resolved_work_id}?per_page=100&page={page}&utf8=%E2%9C%93"
+                resp = self.session.get(url, timeout=self.timeout)
+                if page == 1 and (resp.status_code != 200 or "bookTitle" not in resp.text):
+                    alt_url = f"https://www.goodreads.com/book/editions/{work_id}?per_page=100&page=1&utf8=%E2%9C%93"
+                    alt_resp = self.session.get(alt_url, timeout=self.timeout)
+                    if alt_resp.status_code == 200 and "bookTitle" in alt_resp.text:
+                        resp = alt_resp
+
+                work_id_m = re.search(r'/work/editions/(\d+)', resp.url)
+                if work_id_m:
+                    resolved_work_id = work_id_m.group(1)
+
+                resp.raise_for_status()
+                html_str = resp.text
+
+                blocks = html_str.split('<div class="elementList clearFix">')
+                page_editions_count = 0
+                for block in blocks[1:]:
+                    if len(editions) >= limit:
+                        break
+                    if "bookTitle" not in block:
+                        continue
+
+                    title_match = re.search(r'<a class="bookTitle" href="/book/show/(\d+)[^"]*">(.*?)</a>', block, re.DOTALL)
+                    if not title_match:
+                        continue
+
+                    edition_id = title_match.group(1)
+                    title = html.unescape(title_match.group(2).strip())
+
+                    pub_div_match = re.search(r'<div class="dataRow">\s*Published\s+([^<]+?)\s*</div>', block, re.DOTALL | re.IGNORECASE)
+                    publish_year = None
+                    publisher = None
+                    if pub_div_match:
+                        pub_text = pub_div_match.group(1).strip()
+                        if "by" in pub_text:
+                            parts = pub_text.split("by", 1)
+                            pub_date_str = parts[0].strip()
+                            publisher = html.unescape(parts[1].strip())
+                        else:
+                            pub_date_str = pub_text
+
+                        year_match = re.search(r'\b\d{4}\b', pub_date_str)
+                        if year_match:
+                            publish_year = year_match.group(0)
+                        else:
+                            publish_year = pub_date_str
+
+                    lang_match = re.search(r'Edition language:\s*</div>\s*<div class="dataValue">\s*([^<]+?)\s*</div>', block, re.IGNORECASE | re.DOTALL)
+                    language = None
+                    if lang_match:
+                        language = lang_match.group(1).strip()
+
+                    isbn_match = re.search(r'ISBN:\s*</div>\s*<div class="dataValue">\s*([0-9Xx]+)?(?:\s*<span class="greyText">\s*\(ISBN10:\s*([0-9Xx]+)\)\s*</span>)?', block, re.IGNORECASE | re.DOTALL)
+                    isbn_13 = None
+                    isbn_10 = None
+                    if isbn_match:
+                        isbn_13 = isbn_match.group(1)
+                        if isbn_13:
+                            isbn_13 = clean_isbn(isbn_13.strip())
+                        isbn_10 = isbn_match.group(2)
+                        if isbn_10:
+                            isbn_10 = clean_isbn(isbn_10.strip())
+
+                    asin_match = re.search(r'ASIN:\s*</div>\s*<div class="dataValue">\s*([a-zA-Z0-9]+)\s*</div>', block, re.IGNORECASE | re.DOTALL)
+                    if asin_match and not isbn_10:
+                        isbn_10 = asin_match.group(1).strip()
+
+                    edition = Edition(
+                        edition_id=edition_id,
+                        title=title,
+                        publish_year=publish_year,
+                        publisher=publisher,
+                        language=language,
+                        isbn_13=isbn_13,
+                        isbn_10=isbn_10
+                    )
+                    editions.append(edition)
+                    page_editions_count += 1
+
+                if page_editions_count == 0:
                     break
-                if "bookTitle" not in block:
-                    continue
-
-                title_match = re.search(r'<a class="bookTitle" href="/book/show/(\d+)[^"]*">(.*?)</a>', block, re.DOTALL)
-                if not title_match:
-                    continue
-
-                edition_id = title_match.group(1)
-                title = html.unescape(title_match.group(2).strip())
-
-                pub_div_match = re.search(r'<div class="dataRow">\s*Published\s+([^<]+?)\s*</div>', block, re.DOTALL | re.IGNORECASE)
-                publish_year = None
-                publisher = None
-                if pub_div_match:
-                    pub_text = pub_div_match.group(1).strip()
-                    if "by" in pub_text:
-                        parts = pub_text.split("by", 1)
-                        pub_date_str = parts[0].strip()
-                        publisher = html.unescape(parts[1].strip())
-                    else:
-                        pub_date_str = pub_text
-
-                    year_match = re.search(r'\b\d{4}\b', pub_date_str)
-                    if year_match:
-                        publish_year = year_match.group(0)
-                    else:
-                        publish_year = pub_date_str
-
-                lang_match = re.search(r'Edition language:\s*</div>\s*<div class="dataValue">\s*([^<]+?)\s*</div>', block, re.IGNORECASE | re.DOTALL)
-                language = None
-                if lang_match:
-                    language = lang_match.group(1).strip()
-
-                isbn_match = re.search(r'ISBN:\s*</div>\s*<div class="dataValue">\s*([0-9Xx]+)?(?:\s*<span class="greyText">\s*\(ISBN10:\s*([0-9Xx]+)\)\s*</span>)?', block, re.IGNORECASE | re.DOTALL)
-                isbn_13 = None
-                isbn_10 = None
-                if isbn_match:
-                    isbn_13 = isbn_match.group(1)
-                    if isbn_13:
-                        isbn_13 = clean_isbn(isbn_13.strip())
-                    isbn_10 = isbn_match.group(2)
-                    if isbn_10:
-                        isbn_10 = clean_isbn(isbn_10.strip())
-
-                asin_match = re.search(r'ASIN:\s*</div>\s*<div class="dataValue">\s*([a-zA-Z0-9]+)\s*</div>', block, re.IGNORECASE | re.DOTALL)
-                if asin_match and not isbn_10:
-                    isbn_10 = asin_match.group(1).strip()
-
-                edition = Edition(
-                    edition_id=edition_id,
-                    title=title,
-                    publish_year=publish_year,
-                    publisher=publisher,
-                    language=language,
-                    isbn_13=isbn_13,
-                    isbn_10=isbn_10
-                )
-                editions.append(edition)
-        except Exception as e:
-            logger.warning(f"Failed to fetch Goodreads editions for work '{work_id}': {e}")
+                page += 1
+            except Exception as e:
+                logger.warning(f"Failed to fetch Goodreads editions page {page} for work '{work_id}': {e}")
+                break
 
         return editions
 
