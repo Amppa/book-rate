@@ -183,9 +183,9 @@ export function renderEditionsList(container, work, editions, showAll = false, o
 
   const hasZhOrEn = zhEditions.length > 0 || enEditions.length > 0;
 
-  const zhGroup = createGroup("Chinese editions", zhEditions, false);
-  const enGroup = createGroup("English editions", enEditions, false);
-  const otherGroup = createGroup("Other editions", otherEditions, false);
+  const zhGroup = createGroup("中文版本", zhEditions, false);
+  const enGroup = createGroup("英文版本", enEditions, false);
+  const otherGroup = createGroup("其他語言版本", otherEditions, false);
 
   if (zhGroup) listDiv.appendChild(zhGroup);
   if (enGroup) listDiv.appendChild(enGroup);
