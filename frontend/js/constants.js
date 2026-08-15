@@ -19,9 +19,9 @@ export const SOURCES = [
 export const STRATEGIES = [
   { value: "search_name", label: "搜尋名稱 (User input title)" },
   { value: "title_list", label: "書名列表 (短路)" },
-  { value: "title_zh_list", label: "書名列表 (亞洲) (短路)" },
+  { value: "title_zh_list", label: "書名列表(CJK) (短路)" },
   { value: "title_list_full", label: "書名列表 (完整)" },
-  { value: "title_zh_list_full", label: "書名列表 (亞洲) (完整)" },
+  { value: "title_zh_list_full", label: "書名列表(CJK) (完整)" },
   { value: "isbn", label: "ISBN" },
 ];
 
@@ -92,9 +92,9 @@ export const LANGUAGE_NAME_MAP = {
 export const STRATEGY_LABEL_MAP = {
   "search_name": "搜尋名稱",
   "title_list": "書名列表 (短路)",
-  "title_zh_list": "書名列表 (亞洲) (短路)",
+  "title_zh_list": "書名列表(CJK) (短路)",
   "title_list_full": "書名列表 (完整)",
-  "title_zh_list_full": "書名列表 (亞洲) (完整)",
+  "title_zh_list_full": "書名列表(CJK) (完整)",
   "isbn": "ISBN",
   "source_id": "書籍ID (精確)"
 };

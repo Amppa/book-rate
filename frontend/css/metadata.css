@@ -1,24 +1,36 @@
 /* ==========================================================================
    Book Metadata Inputs, Cards & Grids Components
    ========================================================================== */
-/* Step 2 Split Layout & Book Metadata Card */
-.step2-split-layout {
+/* Step 2 & 3 Split Layouts */
+.step2-split-layout,
+.step3-split-layout {
   display: flex;
   gap: var(--space-5);
   align-items: flex-start;
 }
 
-.step2-left-panel {
+.step3-split-layout {
+  transition: gap 0.3s ease;
+}
+
+.step2-left-panel,
+.step3-right-panel {
   flex: 1;
   min-width: 0;
 }
 
-.step2-right-panel {
+.step2-right-panel,
+.step3-left-panel {
   width: 300px;
   flex-shrink: 0;
   position: sticky;
   top: 20px;
   align-self: flex-start;
+}
+
+.step3-left-panel {
+  transition: width 0.3s ease, opacity 0.2s ease;
+  overflow: hidden;
 }
 
 .book-metadata-card {
@@ -61,7 +73,8 @@
 }
 
 .btn-confirm-next:hover {
-  background: var(--link);
+  background: var(--primary);
+  filter: brightness(92%);
   transform: translateY(-1px);
 }
 
@@ -118,40 +131,17 @@ input.bm-input:not([type="checkbox"]):not([type="radio"]):focus,
 textarea.bm-input:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 2px rgba(23, 79, 60, 0.15);
-}
-
-/* Step 3 Split Layout & Collapse */
-.step3-split-layout {
-  display: flex;
-  gap: var(--space-5);
-  align-items: flex-start;
-  transition: gap 0.3s ease;
+  box-shadow: 0 0 0 2px var(--primary-alpha-15);
 }
 
 .step3-split-layout.s3-meta-collapsed {
   gap: 0;
 }
 
-.step3-left-panel {
-  width: 300px;
-  flex-shrink: 0;
-  position: sticky;
-  top: 20px;
-  align-self: flex-start;
-  transition: width 0.3s ease, opacity 0.2s ease;
-  overflow: hidden;
-}
-
 .step3-split-layout.s3-meta-collapsed .step3-left-panel {
   width: 0;
   opacity: 0;
   pointer-events: none;
-}
-
-.step3-right-panel {
-  flex: 1;
-  min-width: 0;
 }
 
 #btn-expand-s3-meta {
@@ -165,61 +155,8 @@ textarea.bm-input:focus {
 /* Global style for readonly bm-input (e.g. in Step 3) */
 input.bm-input:not([type="checkbox"]):not([type="radio"])[readonly],
 textarea.bm-input[readonly] {
-  background: var(--surface-subtle);
+  background: var(--secondary);
   border-color: var(--border-light);
   color: var(--text-muted);
   cursor: default;
-}
-
-/* Metadata table details block (Step 2/3) */
-.metadata-table-container {
-  overflow-x: auto;
-}
-
-.metadata-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.85rem;
-}
-
-.metadata-table th,
-.metadata-table td {
-  padding: 6px var(--space-2);
-  border-bottom: 1px solid var(--border-light);
-  text-align: left;
-  vertical-align: middle;
-}
-
-.metadata-table tr:last-child th,
-.metadata-table tr:last-child td {
-  border-bottom: 0;
-}
-
-.metadata-table th {
-  width: 120px;
-  font-weight: 600;
-  color: var(--text-muted);
-  background: transparent;
-}
-
-.metadata-table td {
-  color: var(--text-primary);
-  word-break: break-all;
-}
-
-/* Step 3 details expand block animation */
-.step3-metadata-details {
-  animation: slideDown 0.2s ease-out;
-}
-
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }

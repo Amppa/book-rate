@@ -5,19 +5,14 @@
   /* Fonts & Text Colors */
   --font-family: Inter, "Noto Sans TC", system-ui, sans-serif;
   --text-primary: #1d2b25;
-  --text-secondary: #2e3e34;
   --text-muted: #647068;
-  --text-light: #5d6962;
   --text-contrast: #ffffff;
-  --text-green-gray: #4e5e55;
-  --text-td-small: #627066;
 
   /* Primary & Secondary Color Palette */
-  --primary: #174f3c;
-  --secondary: #edf2ea;
-  --accent: #a44d28;
-  --error: #9d321d;
-  --link: #17634a;
+  --primary: #174f3c;        /* 主色綠 (包含原連結色) */
+  --secondary: #edf2ea;      /* 輔助淡綠灰 (包含原面版背景、按鈕等) */
+  --accent: #a44d28;         /* 強調橘 (如載入動畫、醒目提示) */
+  --error: #c5221f;          /* 錯誤紅 */
 
   /* Semantic Status Colors (Background, Text, Border) */
   --status-success-bg: #e6f4ea;
@@ -33,14 +28,11 @@
   --status-warning-border: #f0b000;
 
   --status-error-bg: #fce8e6;
-  --status-error-text: #c5221f;
   --status-error-border: #fad2cf;
-
 
   /* Backgrounds & Surface Colors */
   --surface-bg: #f7f4ed;
   --surface-card: #fffdfa;
-  --surface-subtle: #edf2ea;
   --overlay: rgba(29, 43, 37, 0.4);
 
   /* Button Disabled State */
@@ -49,8 +41,13 @@
 
   /* Border Colors */
   --border: #bfc7b9;
-  --border-mid: #a4beb4;
   --border-light: #e5ded0;
+
+  /* Stars Color & Primary opacity colors */
+  --star-color: #f59e0b;
+  --primary-alpha-6: rgba(23, 79, 60, 0.06);
+  --primary-alpha-10: rgba(23, 79, 60, 0.1);
+  --primary-alpha-15: rgba(23, 79, 60, 0.15);
 
   /* Radius (6, 8, 16, 20) */
   --radius-sm: 6px;

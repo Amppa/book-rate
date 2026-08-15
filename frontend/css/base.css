@@ -18,7 +18,7 @@ h1 {
 h1 .subtitle {
   font-size: 0.55em;
   font-weight: 400;
-  color: var(--text-light);
+  color: var(--text-muted);
   letter-spacing: normal;
   margin-left: var(--space-2);
 }
@@ -40,7 +40,7 @@ h2 {
 }
 
 a {
-  color: var(--link);
+  color: var(--primary);
   font-size: var(--fs-md);
   white-space: nowrap;
 }
@@ -48,7 +48,7 @@ a {
 td small {
   display: block;
   margin-top: var(--space-1);
-  color: var(--text-td-small);
+  color: var(--text-muted);
   font-size: var(--fs-xs);
 }
 
@@ -100,7 +100,7 @@ button.btn-link {
   border: 0;
   padding: 0;
   border-radius: 0;
-  color: var(--link);
+  color: var(--primary);
   font-size: var(--fs-md);
   font-family: inherit;
   font-weight: normal;
@@ -135,11 +135,13 @@ button:not(:disabled):hover,
 .settings-details summary:hover,
 a:hover {
   filter: brightness(92%);
-  color: var(--primary);
 }
 
-button:not(:disabled):not(.btn-secondary):not(.title-source-tab-btn):not(.btn-link):hover {
-  color: var(--text-contrast);
+.btn-secondary:hover,
+.settings-details summary:hover,
+a:hover,
+button.btn-link:hover {
+  color: var(--primary);
 }
 
 .checkbox-label:hover span {
@@ -180,7 +182,7 @@ button:disabled:hover {
 }
 
 .checkbox-label span {
-  color: var(--text-green-gray);
+  color: var(--text-muted);
   transition: color 0.2s ease;
 }
 
@@ -217,5 +219,17 @@ button:disabled:hover {
 .btn-icon-only:hover {
   background: var(--secondary);
   color: var(--primary);
+}
+
+/* Animations */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 

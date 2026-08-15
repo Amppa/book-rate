@@ -12,7 +12,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  border-bottom: 2px solid var(--border-mid);
+  border-bottom: 2px solid var(--border);
   position: relative;
   z-index: 1;
 }
@@ -38,7 +38,7 @@
 .title-source-tab-btn.active {
   background: var(--surface-card);
   color: var(--primary);
-  border: 2px solid var(--border-mid);
+  border: 2px solid var(--border);
   border-bottom: 2px solid var(--surface-card);
   margin-bottom: -2px;
   position: relative;
@@ -56,7 +56,7 @@
   flex-direction: column;
   overflow: hidden;
   background: var(--surface-card);
-  border: 2px solid var(--border-mid);
+  border: 2px solid var(--border);
   border-top: none;
   border-radius: 0 0 var(--radius-md) var(--radius-md);
   box-shadow: var(--shadow-sm);
@@ -102,52 +102,18 @@
 .candidate-meta {
   display: inline-block;
   margin-top: var(--space-1);
-  color: var(--text-green-gray);
+  color: var(--text-muted);
   font-size: var(--fs-sm);
   text-decoration: none;
   transition: color 0.2s ease;
 }
 
 a.candidate-meta:hover {
-  color: var(--link);
+  color: var(--primary);
   text-decoration: underline;
 }
 
-/* Metadata Expandable Block details */
-.candidate-info-wrapper {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
 
-.candidate-header-row {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.candidate-basic-meta {
-  color: var(--text-muted);
-  font-size: var(--fs-sm);
-}
-
-.candidate-details-row {
-  margin-top: var(--space-2);
-  padding: var(--space-3);
-  background: var(--surface-subtle);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-sm);
-  animation: slideDown 0.2s ease-out;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.candidate-actions {
-  display: flex;
-  justify-content: flex-start;
-  margin-top: var(--space-1);
-}
 
 
 /* Status Tags */
@@ -197,12 +163,7 @@ a.candidate-meta:hover {
   width: 100%;
 }
 
-.candidate-info-wrapper {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-grow: 1;
-}
+
 
 .candidate-chevron {
   color: var(--text-muted);

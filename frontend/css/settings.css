@@ -118,7 +118,7 @@
 }
 
 .mode-tab-btn:hover {
-  background: rgba(23, 79, 60, 0.06);
+  background: var(--primary-alpha-6);
   color: var(--primary);
 }
 

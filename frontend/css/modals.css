@@ -47,7 +47,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: var(--surface-subtle);
+  background: var(--secondary);
 }
 
 .modal-header h3 {
@@ -103,8 +103,8 @@
 }
 
 .presets-table th {
-  background: var(--surface-subtle);
-  color: var(--text-green-gray);
+  background: var(--secondary);
+  color: var(--text-muted);
   font-weight: 700;
   font-size: var(--fs-sm);
   border-bottom: 2px solid var(--border-light);
@@ -129,7 +129,7 @@
   padding: var(--space-4) var(--space-5);
 }
 
-.edition-list {
+.modal .edition-list {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -164,8 +164,8 @@
 }
 
 .editions-table th {
-  background: var(--surface-subtle);
-  color: var(--text-green-gray);
+  background: var(--secondary);
+  color: var(--text-muted);
   font-weight: 700;
   font-size: var(--fs-xs);
 }
@@ -218,12 +218,12 @@
 }
 
 .info-text-link:hover {
-  color: var(--link);
+  color: var(--primary);
   background: transparent;
 }
 
 .star-rating {
-  color: #f59e0b;
+  color: var(--star-color);
   font-size: 0.95rem;
   letter-spacing: 1px;
 }
@@ -240,7 +240,7 @@
 
 .note {
   font-size: var(--fs-sm);
-  color: var(--text-secondary);
+  color: var(--text-muted);
   line-height: 1.5;
   margin-top: 0;
   margin-bottom: var(--space-4);
@@ -268,14 +268,14 @@
 }
 
 .source-info-table th {
-  background: var(--surface-subtle);
-  color: var(--text-green-gray);
+  background: var(--secondary);
+  color: var(--text-muted);
   font-weight: 700;
   white-space: nowrap;
 }
 
 .source-info-table a {
-  color: var(--link);
+  color: var(--primary);
   font-weight: 600;
   text-decoration: underline;
   white-space: nowrap;
@@ -283,6 +283,7 @@
 
 .source-info-table a:hover {
   color: var(--primary);
+  filter: brightness(92%);
 }
 
 .tag {
@@ -295,16 +296,19 @@
 }
 
 .tag-api {
-  background: #e6f4ea;
-  color: #137333;
+  background: var(--status-success-bg);
+  color: var(--status-success-text);
+  border: 1px solid var(--status-success-border);
 }
 
 .tag-web {
-  background: #feefc3;
-  color: #b06000;
+  background: var(--status-warning-bg);
+  color: var(--status-warning-text);
+  border: 1px solid var(--status-warning-border);
 }
 
 .tag-none {
-  background: #f1f3f4;
-  color: #5f6368;
+  background: var(--status-info-bg);
+  color: var(--status-info-text);
+  border: 1px solid var(--status-info-border);
 }

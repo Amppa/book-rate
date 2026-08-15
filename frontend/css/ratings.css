@@ -48,7 +48,7 @@
 }
 
 .strategy-select {
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   padding: 2px 4px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
@@ -120,9 +120,9 @@
 }
 
 .table-wrap th {
-  background: var(--surface-subtle);
+  background: var(--secondary);
   font-size: var(--fs-xs);
-  color: var(--text-green-gray);
+  color: var(--text-muted);
   letter-spacing: .04em;
   white-space: nowrap;
 }
