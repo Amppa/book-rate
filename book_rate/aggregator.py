@@ -192,7 +192,7 @@ class BookAggregator:
 
         if work_id.startswith(("/works/", "OL")) or ":" not in work_id:
             full_id = work_id if work_id.startswith("/works/") else f"/works/{work_id}"
-            return self.open_library, full_id, 100
+            return self.open_library, full_id, 2000
 
         return None, work_id, 0
 
@@ -240,7 +240,7 @@ class BookAggregator:
         ol_work_mapped = self._find_ol_work(isbn, title, author, active_title_sources)
         if ol_work_mapped:
             ol_rating = self.open_library.fetch_ratings(ol_work_mapped)
-            return ol_rating, self.open_library.fetch_editions(ol_work_mapped.work_id, limit=100)
+            return ol_rating, self.open_library.fetch_editions(ol_work_mapped.work_id, limit=1000)
         return SourceRating("Open Library"), []
 
     def resolve_work_editions_and_ol_rating(
@@ -432,7 +432,7 @@ class BookAggregator:
             ol_rating = self.open_library.fetch_ratings(Work(work_id=full_work_id, title="", author=""))
         else:
             ol_rating = SourceRating(source_name="Open Library")
-        editions = self.open_library.fetch_editions(full_work_id, limit=100)
+        editions = self.open_library.fetch_editions(full_work_id, limit=1000)
         if editions:
             for ed in editions:
                 if ed.isbn_13 or ed.isbn_10:
