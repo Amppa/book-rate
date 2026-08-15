@@ -121,15 +121,7 @@ class BookAggregator:
 
     def _format_editions(self, editions_list) -> dict:
         entries = []
-        seen_isbns = set()
         for ed in editions_list:
-            isbn = ed.isbn_13 or ed.isbn_10
-            if isbn:
-                clean_isbn_val = isbn.strip().upper()
-                if clean_isbn_val in seen_isbns:
-                    continue
-                seen_isbns.add(clean_isbn_val)
-
             langs = []
             if ed.language:
                 for l in ed.language.split(","):
