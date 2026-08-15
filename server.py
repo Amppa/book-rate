@@ -485,16 +485,42 @@ def api_work_details(
     return result_payload
 
 
+PREFIX_MAP = {
+    "gr:": goodreads,
+    "sg:": storygraph,
+    "db:": douban,
+    "am:": amazon,
+    "amjp:": amazon_jp,
+    "rm:": readmoo,
+    "gb:": google_books,
+}
+
+def resolve_source_and_id(work_id: str):
+    for prefix, source in PREFIX_MAP.items():
+        if work_id.startswith(prefix):
+            return source, work_id, 1000
+
+    if work_id.startswith(("/works/", "OL")) or ":" not in work_id:
+        full_id = work_id if work_id.startswith("/works/") else f"/works/{work_id}"
+        return open_library, full_id, 100
+
+    return None, work_id, 0
+
 @app.get("/api/work-editions")
 def api_work_editions(
     work_id: str = Query(..., description="Work ID e.g. OL17267881W"),
 ):
     print(f"\n[Editions API] User requested editions for work: '{work_id}'")
-    if work_id.startswith("gr:"):
-        editions = goodreads.fetch_editions(work_id, limit=1000)
-    else:
-        full_work_id = work_id if work_id.startswith("/works/") else f"/works/{work_id}"
-        editions = open_library.fetch_editions(full_work_id, limit=100)
+
+    source, formatted_id, limit = resolve_source_and_id(work_id)
+    editions = []
+
+    if source and hasattr(source, "fetch_editions"):
+        try:
+            editions = source.fetch_editions(formatted_id, limit=limit)
+        except Exception as e:
+            print(f"[Editions API] Error fetching editions from {source.name}: {e}")
+
     return _format_editions(editions)
 
 
