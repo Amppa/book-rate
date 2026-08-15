@@ -50,6 +50,11 @@ export function initPresetsModal(searchInput) {
 
       const selectPreset = (q) => {
         if (q && searchInput) searchInput.value = q;
+        if (q) {
+          navigator.clipboard.writeText(q).catch((err) => {
+            console.error("Failed to copy to clipboard:", err);
+          });
+        }
         close();
       };
       tdTitle.addEventListener("click", () => selectPreset(item.title));
