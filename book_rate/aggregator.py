@@ -477,6 +477,7 @@ class BookAggregator:
                 "amazon": self.amazon,
                 "amazon_jp": self.amazon_jp,
                 "readmoo": self.readmoo,
+                "books_tw": self.books_tw,
             }
             for source in self.TITLE_SOURCES:
                 if source in active_title_sources:

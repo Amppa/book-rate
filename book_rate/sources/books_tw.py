@@ -14,7 +14,7 @@ class BooksTwSource(BaseSource):
     """Source provider for Books.com.tw (博客來)."""
 
     BASE_URL = "https://www.books.com.tw"
-    SEARCH_URL = "https://search.books.com.tw/search/query/key/{query}/cat/all"
+    SEARCH_URL = "https://search.books.com.tw/search/query/cat/1/sort/1/v/0/page/{page}/spell/3/key/{query}"
 
     @property
     def name(self) -> str:
@@ -166,9 +166,9 @@ class BooksTwSource(BaseSource):
 
             url = f"{self.BASE_URL}/products/{item_id}"
             
-            # Find closest surrounding html block for title if possible
-            start_pos = max(0, m.start() - 300)
-            end_pos = min(len(html_str), m.end() + 300)
+            # Find closest surrounding html block for title & author if possible
+            start_pos = max(0, m.start() - 200)
+            end_pos = min(len(html_str), m.end() + 1500)
             block = html_str[start_pos:end_pos]
 
             title = None
@@ -176,11 +176,18 @@ class BooksTwSource(BaseSource):
             if title_m:
                 title = self._clean_text(title_m.group(1))
 
+            author = None
+            author_m = re.search(r'<a[^>]*rel=[\'"]go_author[\'"][^>]*>(.*?)</a>', block, re.DOTALL)
+            if not author_m:
+                author_m = re.search(r'href="[^"]*adv_author[^"]*"[^>]*>(.*?)</a>', block, re.DOTALL)
+            if author_m:
+                author = self._clean_text(author_m.group(1))
+
             items.append({
                 "book_id": item_id,
                 "url": url,
                 "title": title,
-                "author": None,
+                "author": author,
                 "avg_rating": None
             })
 
@@ -194,7 +201,7 @@ class BooksTwSource(BaseSource):
         if not query:
             return []
 
-        search_url = self.SEARCH_URL.format(query=urllib.parse.quote(query))
+        search_url = self.SEARCH_URL.format(query=urllib.parse.quote(query), page=page)
         html_str = self._fetch_books_html(search_url)
         if not html_str:
             return []
