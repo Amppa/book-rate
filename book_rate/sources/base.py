@@ -346,12 +346,15 @@ class BaseSource:
                     if res_works:
                         r = self._select_best_rating(res_works, target_title=t)
                         if r and (r.rate is not None or r.rating_count is not None or r.url):
+                            if hasattr(self, "_enrich_with_book_page"):
+                                r = self._enrich_with_book_page(r)
+                            is_r_match = (r.rate is not None or r.rating_count is not None)
                             results_list.append({
                                 "average": r.rate,
                                 "count": r.rating_count,
                                 "url": r.url,
                                 "title": r.title or t,
-                                "status": "MATCH",
+                                "status": "MATCH" if is_r_match else "NO_MATCH",
                                 "query": t
                             })
                             if not best_rating or (r.rating_count or 0) > (best_rating.rating_count or 0):

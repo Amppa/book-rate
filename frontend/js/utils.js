@@ -9,8 +9,8 @@ export function fetchJson(url) {
 }
 
 export function displayRate(average, count, maxScore = 5) {
-  return Number(count) > 0 && Number(average) > 0
-    ? `${Number(average).toFixed(2)} / ${maxScore}`
+  return Number(average) > 0
+    ? `${Number(average).toFixed(1)} / ${maxScore}`
     : "暫無評分";
 }
 
@@ -22,9 +22,10 @@ export function formatCompact(n) {
 }
 
 export function displayCount(count) {
-  return Number(count) > 0
-    ? `${formatCompact(Number(count))} 人評價`
-    : "NULL";
+  const cVal = Number(count);
+  return (count !== null && count !== undefined && !isNaN(cVal) && cVal > 0)
+    ? `${formatCompact(cVal)} 人評價`
+    : "連結";
 }
 
 export function getWorkExternalUrl(key) {
