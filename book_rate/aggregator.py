@@ -15,6 +15,7 @@ from book_rate.sources.amazon import AmazonSource
 from book_rate.sources.amazon_jp import AmazonJPSource
 from book_rate.sources.storygraph import StoryGraphSource
 from book_rate.sources.readmoo import ReadmooSource
+from book_rate.sources.books_tw import BooksTwSource
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,7 @@ logger = logging.getLogger(__name__)
 class BookAggregator:
     """Aggregates book works, editions, and ratings across multiple sources."""
 
-    TITLE_SOURCES = ["goodreads", "storygraph", "amazon", "amazon_jp", "douban", "readmoo"]
+    TITLE_SOURCES = ["goodreads", "storygraph", "amazon", "amazon_jp", "douban", "readmoo", "books_tw"]
     DEFAULT_EDITION_LIMIT = 2000
 
     def __init__(self, google_api_key: Optional[str] = None):
@@ -34,6 +35,7 @@ class BookAggregator:
         self.amazon_jp = AmazonJPSource()
         self.storygraph = StoryGraphSource()
         self.readmoo = ReadmooSource()
+        self.books_tw = BooksTwSource()
 
     def aggregate_by_title(self, title_query: str, limit: int = 5) -> List[Work]:
         """
@@ -401,7 +403,7 @@ class BookAggregator:
             )
             return ol_rating, editions, target_work, crawler_status
 
-        if work_id.startswith(("am:", "amjp:", "rm:")):
+        if work_id.startswith(("am:", "amjp:", "rm:", "bk:")):
             book_id = work_id.split(":", 1)[1]
             prov_name = work_id.split(":", 1)[0]
             crawler_status[prov_name] = "Normal"
@@ -450,6 +452,7 @@ class BookAggregator:
             "amazon_jp": self.amazon_jp,
             "storygraph": self.storygraph,
             "readmoo": self.readmoo,
+            "books_tw": self.books_tw,
         }
 
     def search_works(self, q: str, page: int = 1, active_title_sources: List[str] = [], google_key: Optional[str] = None) -> List[dict]:

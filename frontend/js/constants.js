@@ -24,6 +24,7 @@ export const SOURCES = [
   { id: "amazon_jp", label: "Amazon JP", defaultStrategy: "title_list", lang: ["en"] },
   { id: "douban", label: "豆瓣", defaultStrategy: "title_zh_list", lang: ["zh", "en"], enable_extend_editions: true },
   { id: "readmoo", label: "讀墨", defaultStrategy: "title_zh_list", lang: ["zh"] },
+  { id: "books_tw", label: "博客來", defaultStrategy: "title_zh_list", lang: ["zh"] },
 ];
 
 export const STRATEGIES = [
@@ -44,7 +45,8 @@ export const SOURCE_PREFIX = {
   amazon: "am",
   amazon_jp: "amjp",
   douban: "db",
-  readmoo: "rm"
+  readmoo: "rm",
+  books_tw: "bk"
 };
 
 export const LANGUAGE_NAME_MAP = {

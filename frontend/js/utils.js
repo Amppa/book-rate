@@ -50,6 +50,7 @@ export function getWorkExternalUrl(key) {
   if (key.startsWith("amjp:")) return `https://www.amazon.co.jp/dp/${key.slice(5)}`;
   if (key.startsWith("sg:")) return `https://app.thestorygraph.com/books/${key.slice(3)}`;
   if (key.startsWith("rm:")) return `https://readmoo.com/book/${key.slice(3)}`;
+  if (key.startsWith("bk:")) return `https://www.books.com.tw/products/${key.slice(3)}`;
   return null;
 }
 
@@ -71,7 +72,9 @@ export function getSourceDisplayName(key) {
     storygraph: "StoryGraph",
     sg: "StoryGraph",
     readmoo: "Readmoo",
-    rm: "Readmoo"
+    rm: "Readmoo",
+    books_tw: "博客來",
+    bk: "博客來"
   };
   return names[key] || key;
 }
