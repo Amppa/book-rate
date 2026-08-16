@@ -183,11 +183,20 @@ class BooksTwSource(BaseSource):
             if author_m:
                 author = self._clean_text(author_m.group(1))
 
+            pub_year = None
+            pub_m = re.search(r'出版日期[：:]\s*([\d-]+)', block)
+            if pub_m:
+                raw_pub = pub_m.group(1)
+                year_m = re.search(r'\b(19\d\d|20\d\d)\b', raw_pub)
+                if year_m:
+                    pub_year = int(year_m.group(1))
+
             items.append({
                 "book_id": item_id,
                 "url": url,
                 "title": title,
                 "author": author,
+                "first_publish_year": pub_year,
                 "avg_rating": None
             })
 
@@ -214,6 +223,7 @@ class BooksTwSource(BaseSource):
                 work_id=work_id,
                 title=item["title"] or query,
                 author=item["author"] or "",
+                first_publish_year=item.get("first_publish_year"),
             )
 
             status_val = "CURL_MATCH" if getattr(self, "last_request_used_curl", False) else "MATCH"
