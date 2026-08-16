@@ -119,13 +119,13 @@ export function renderEditionsList(container, work, editions, showAll = false, o
     const title = ed.title || work.title || "Unknown Title";
     const author = (work.author_name || []).join(", ") || "Unknown Author";
     const year = ed.publish_date || "Unknown Year";
-    const isbn = ed.isbn_13 || ed.isbn_10 || "No ISBN";
+    const isbn = ed.isbn_13 || ed.isbn_10 || "-";
 
     const langList = (ed.languages || []).map((l) => {
       const code = (l.key || "").replace("/languages/", "").toLowerCase();
       return LANGUAGE_NAME_MAP[code] || code;
     });
-    const langStr = langList.join(", ") || "Unknown Language";
+    const langStr = langList.join(", ") || "-";
 
     const editionText = `${title} / 作者: ${author} / ${year} / ISBN: ${isbn} / 語言: ${langStr}`;
     const itemEl = document.createElement("div");
@@ -183,13 +183,20 @@ export function renderEditionsList(container, work, editions, showAll = false, o
 
   const hasZhOrEn = zhEditions.length > 0 || enEditions.length > 0;
 
-  const zhGroup = createGroup("中文版本", zhEditions, false);
-  const enGroup = createGroup("英文版本", enEditions, false);
-  const otherGroup = createGroup("其他語言版本", otherEditions, false);
+  if (hasZhOrEn) {
+    const zhGroup = createGroup("中文版本", zhEditions, false);
+    const enGroup = createGroup("英文版本", enEditions, false);
+    const otherGroup = createGroup("其他語言版本", otherEditions, false);
 
-  if (zhGroup) listDiv.appendChild(zhGroup);
-  if (enGroup) listDiv.appendChild(enGroup);
-  if (otherGroup) listDiv.appendChild(otherGroup);
+    if (zhGroup) listDiv.appendChild(zhGroup);
+    if (enGroup) listDiv.appendChild(enGroup);
+    if (otherGroup) listDiv.appendChild(otherGroup);
+  } else {
+    // If no language classification is available (like Douban), render them directly
+    editions.forEach((ed) => {
+      renderSingleEdition(ed, listDiv);
+    });
+  }
 
   container.appendChild(listDiv);
 }

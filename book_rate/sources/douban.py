@@ -197,6 +197,88 @@ class DoubanSource(BaseSource):
     def default_strategy(self) -> str:
         return "isbn_primary"
 
+    @property
+    def enable_extend_editions(self) -> bool:
+        return True
+
     def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> SourceRating:
         """Fetch Douban rating for a Work using explicit SearchStrategy."""
         return self._fetch_ratings(work, strategy=strategy)
+
+    def fetch_editions(self, work_id: str, limit: int = 10) -> List[Edition]:
+        """Fetch editions associated with a specific Douban Work/Subject ID."""
+        if not work_id:
+            return []
+
+        if ":" in work_id:
+            work_id = work_id.split(":", 1)[1]
+
+        is_works_id = "works" in work_id
+
+        id_match = re.search(r'(\d+)', work_id)
+        if not id_match:
+            return []
+        numeric_id = id_match.group(1)
+
+        if not is_works_id:
+            subject_url = f"https://book.douban.com/subject/{numeric_id}/"
+            html_str = self._fetch_html(subject_url)
+            if not html_str:
+                return []
+
+            # Try to find the works link
+            works_match = re.search(r'href="([^"]*?/works/(\d+))"', html_str)
+            if works_match:
+                works_path = works_match.group(1)
+                if works_path.startswith("/"):
+                    works_url = f"https://book.douban.com{works_path}"
+                else:
+                    works_url = works_path
+            else:
+                # No works link found, fallback to original subject details
+                details = _parse_subject_html(html_str, subject_url)
+                return [Edition(
+                    edition_id=numeric_id,
+                    title=details["title"] or "Unknown",
+                    publish_year=details["pub_year"],
+                    isbn_13=details["isbn"] if details["isbn"] and len(details["isbn"]) == 13 else None,
+                    isbn_10=details["isbn"] if details["isbn"] and len(details["isbn"]) == 10 else None,
+                )]
+        else:
+            works_url = f"https://book.douban.com/works/{numeric_id}"
+
+        html_str = self._fetch_html(works_url)
+        if not html_str:
+            return []
+
+        blocks = html_str.split('<div class="bkses')
+        editions: List[Edition] = []
+        for block in blocks[1:]:
+            if len(editions) >= limit:
+                break
+
+            title_match = re.search(r'<a\s+class="pl2"\s+href="https://book\.douban\.com/subject/(\d+)/?"[^>]*>\s*(.*?)\s*</a>', block, re.DOTALL)
+            if not title_match:
+                title_match = re.search(r'href="https://book\.douban\.com/subject/(\d+)/?"[^>]*>\s*([^<]+)', block, re.DOTALL)
+
+            if not title_match:
+                continue
+
+            sub_id = title_match.group(1).strip()
+            title = title_match.group(2).strip()
+            title = re.sub(r'\s+', ' ', title)
+
+            pub_match = re.search(r'<span class="pl">\s*出版社:\s*</span>\s*(.*?)\s*<br/>', block, re.DOTALL)
+            publisher = pub_match.group(1).strip() if pub_match else None
+
+            year_match = re.search(r'<span class="pl">\s*出版年:\s*</span>\s*(.*?)\s*<br/>', block, re.DOTALL)
+            pub_year = year_match.group(1).strip() if year_match else None
+
+            editions.append(Edition(
+                edition_id=sub_id,
+                title=title,
+                publish_year=pub_year,
+                publisher=publisher
+            ))
+
+        return editions

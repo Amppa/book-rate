@@ -468,5 +468,82 @@ class TestPresetBooksMapping(unittest.TestCase):
         self.assertEqual(works_zh[0].title, "快思慢想")
 
 
+class TestDoubanEditions(unittest.TestCase):
+    @patch('book_rate.sources.base.BaseSource._fetch_html')
+    def test_fetch_editions_success(self, mock_fetch_html):
+        subject_html = """
+        <div class="gray_ad version_works">
+          <span>这本书的其他版本</span>
+          <a href="https://book.douban.com/works/1032119">全部14</a>
+        </div>
+        """
+        works_html = """
+        <div class="bkses clearfix">
+          <div class="bkdesc">
+            <a class="pl2" href="https://book.douban.com/subject/10785583/">
+              思考，快與慢
+            </a>
+            <div>
+              <span class="pl">出版社:</span> 中信出版社<br/>
+              <span class="pl">出版年:</span> 2012-7<br/>
+              <span class="pl">作者:</span> [美] 丹尼爾·卡尼曼<br/>
+            </div>
+          </div>
+        </div>
+        <div class="bkses clearfix">
+          <div class="bkdesc">
+            <a class="pl2" href="https://book.douban.com/subject/6754574/">
+              Thinking, Fast and Slow
+            </a>
+            <div>
+              <span class="pl">出版社:</span> Farrar, Straus and Giroux<br/>
+              <span class="pl">出版年:</span> 2011-10-1<br/>
+              <span class="pl">作者:</span> Daniel Kahneman<br/>
+            </div>
+          </div>
+        </div>
+        """
+        
+        def side_effect(url, **kwargs):
+            if "subject" in url:
+                return subject_html
+            elif "works" in url:
+                return works_html
+            return ""
+
+        mock_fetch_html.side_effect = side_effect
+        source = DoubanSource()
+        editions = source.fetch_editions("db:6754574")
+
+        self.assertEqual(len(editions), 2)
+        self.assertEqual(editions[0].edition_id, "10785583")
+        self.assertEqual(editions[0].title, "思考，快與慢")
+        self.assertEqual(editions[0].publisher, "中信出版社")
+        self.assertEqual(editions[0].publish_year, "2012-7")
+        self.assertEqual(editions[1].edition_id, "6754574")
+        self.assertEqual(editions[1].title, "Thinking, Fast and Slow")
+        self.assertEqual(editions[1].publisher, "Farrar, Straus and Giroux")
+        self.assertEqual(editions[1].publish_year, "2011-10-1")
+
+    @patch('book_rate.sources.base.BaseSource._fetch_html')
+    def test_fetch_editions_fallback(self, mock_fetch_html):
+        # When no works link exists, should fallback to original subject details
+        subject_html = """
+        <span property="v:itemreviewed">Thinking, Fast and Slow</span>
+        <span class="pl">出版社:</span> Farrar, Straus and Giroux<br/>
+        <span class="pl">出版年:</span> 2011-10-1<br/>
+        ISBN:</span> 9780374275631
+        """
+        mock_fetch_html.return_value = subject_html
+        source = DoubanSource()
+        editions = source.fetch_editions("db:6754574")
+
+        self.assertEqual(len(editions), 1)
+        self.assertEqual(editions[0].edition_id, "6754574")
+        self.assertEqual(editions[0].title, "Thinking, Fast and Slow")
+        self.assertEqual(editions[0].publish_year, "2011-10-1")
+        self.assertEqual(editions[0].isbn_13, "9780374275631")
+
+
 if __name__ == "__main__":
     unittest.main()
