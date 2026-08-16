@@ -87,29 +87,20 @@ class ReadmooSource(BaseSource):
         if not works:
             return None
 
-        target_words = set()
-        if target_title:
-            target_words = set(
-                w.lower() for w in re.findall(r'\b[a-zA-Z0-9\u4e00-\u9fa5]{3,}\b', target_title)
-            )
-
         valid = []
         for w in works:
             t_lower = w.title.lower()
             if any(k in t_lower for k in ["summary of", "workbook for", "study guide for", "collection set"]):
                 continue
-            if target_words:
-                cand_words = set(
-                    cw.lower() for cw in re.findall(r'\b[a-zA-Z0-9\u4e00-\u9fa5]{3,}\b', t_lower)
-                )
-                if not (target_words & cand_words):
-                    continue
+            if target_title and not self._is_title_relevant(target_title, w.title):
+                continue
             valid.append(w)
 
         target_list = valid if valid else works
         best = max(
             target_list,
             key=lambda w: (
+                round(self._calculate_similarity(target_title, w.title), 1) if target_title else 0,
                 w.ratings.get(self.name).rate or 0
                 if (self.name in w.ratings and w.ratings[self.name].rate)
                 else 0
@@ -247,7 +238,8 @@ class ReadmooSource(BaseSource):
         """Fetch Readmoo rating for a Work using explicit SearchStrategy."""
         self.last_request_used_curl = False
         target_id = getattr(work, "work_id", "") or ""
-        if target_id.startswith("rm:"):
+        strat = strategy or self.default_strategy
+        if target_id.startswith("rm:") and strat == "source_id":
             # Direct Readmoo book ID: fetch the book page directly.
             page = self._fetch_book_page(target_id[3:])
             rating = self._rating_from_page(page, strategy or "source_id", target_id)

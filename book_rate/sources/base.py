@@ -87,14 +87,50 @@ class BaseSource:
         """Fetch rating metrics for a given Work object with explicit strategy."""
         return self._fetch_ratings(work, strategy=strategy)
 
+    @staticmethod
+    def _is_title_relevant(target_title: str, candidate_title: str) -> bool:
+        """Helper to check if candidate title is relevant to target title."""
+        if not target_title or not candidate_title:
+            return True
+
+        t_lower = target_title.lower()
+        c_lower = candidate_title.lower()
+
+        # 1. English words (>= 3 chars)
+        en_target = set(re.findall(r'\b[a-zA-Z0-9]{3,}\b', t_lower))
+        en_cand = set(re.findall(r'\b[a-zA-Z0-9]{3,}\b', c_lower))
+        if en_target and en_cand and (en_target & en_cand):
+            return True
+
+        # 2. CJK words (>= 2 chars)
+        zh_target = re.findall(r'[\u4e00-\u9fa5]{2,}', t_lower)
+        zh_cand = re.findall(r'[\u4e00-\u9fa5]{2,}', c_lower)
+
+        for zt in zh_target:
+            if zt in c_lower:
+                return True
+        for zc in zh_cand:
+            if zc in t_lower:
+                return True
+
+        # Fallback if both are empty (e.g. only symbols or very short words)
+        if not en_target and not zh_target:
+            return True
+
+        return False
+
+    @staticmethod
+    def _calculate_similarity(title1: str, title2: str) -> float:
+        """Calculate title similarity using SequenceMatcher."""
+        if not title1 or not title2:
+            return 0.0
+        from difflib import SequenceMatcher
+        return SequenceMatcher(None, title1.lower(), title2.lower()).ratio()
+
     def _select_best_rating(self, works: List[Work], target_title: Optional[str] = None) -> Optional[SourceRating]:
         """Helper to select the work rating with highest rating count that is relevant to target_title."""
         if not works:
             return None
-
-        target_words = set()
-        if target_title:
-            target_words = set(w.lower() for w in re.findall(r'\b[a-zA-Z0-9\u4e00-\u9fa5]{3,}\b', target_title))
 
         valid_works = []
         for w in works:
@@ -102,11 +138,8 @@ class BaseSource:
             if any(k in t_lower for k in ["summary of", "workbook for", "study guide for", "collection set"]):
                 continue
 
-            # Check title relevance if target_title is provided
-            if target_words:
-                cand_words = set(cw.lower() for cw in re.findall(r'\b[a-zA-Z0-9\u4e00-\u9fa5]{3,}\b', t_lower))
-                if not (target_words & cand_words):
-                    continue
+            if target_title and not self._is_title_relevant(target_title, w.title):
+                continue
 
             valid_works.append(w)
 
@@ -114,12 +147,15 @@ class BaseSource:
         best_work = max(
             target_list,
             key=lambda w: (
+                round(self._calculate_similarity(target_title, w.title), 1) if target_title else 0,
                 w.ratings.get(self.name).rating_count or 0
                 if (self.name in w.ratings and w.ratings[self.name].rating_count)
                 else 0
             )
         )
         return best_work.ratings.get(self.name)
+
+
 
     def _fetch_ratings(
         self,
@@ -179,8 +215,6 @@ class BaseSource:
             if query_used:
                 try:
                     candidate_works.extend(search(query_used))
-                except SourceNetworkError as ne:
-                    network_error_msg = ne.message
                 except Exception as e:
                     network_error_msg = f"Error: {e}"
 
@@ -194,6 +228,7 @@ class BaseSource:
                     extended_titles.append(t)
                 titles_to_try = extended_titles
             
+            fallback_rating = None
             for t in titles_to_try:
                 t = t.strip()
                 if not t:
@@ -202,21 +237,30 @@ class BaseSource:
                     res_works = search(t)
                     if res_works:
                         best_rating = self._select_best_rating(res_works, target_title=t)
-                        if best_rating and (best_rating.rate is not None or best_rating.rating_count is not None or best_rating.url):
-                            best_rating.strategy = strat
-                            best_rating.query = t
+                        if best_rating:
                             is_match = (best_rating.rate is not None or best_rating.rating_count is not None)
-                            best_rating.status = ("CURL_MATCH" if getattr(self, "last_request_used_curl", False) else "MATCH") if is_match else "NO_MATCH"
-                            return best_rating
+                            if is_match:
+                                best_rating.strategy = strat
+                                best_rating.query = t
+                                best_rating.status = "CURL_MATCH" if getattr(self, "last_request_used_curl", False) else "MATCH"
+                                return best_rating
+                            elif best_rating.url and fallback_rating is None:
+                                best_rating.strategy = strat
+                                best_rating.query = t
+                                best_rating.status = "NO_MATCH"
+                                fallback_rating = best_rating
                 except SourceNetworkError as ne:
                     network_error_msg = ne.message
                     break
                 except Exception as e:
                     network_error_msg = f"Error: {e}"
                     break
+            if fallback_rating:
+                return fallback_rating
 
         elif strat == SearchStrategy.TITLE_ZH_LIST:
             titles_to_try = work.title_zh_list if work.title_zh_list else ([work.title] if work.title else [])
+            fallback_rating = None
             for t in titles_to_try:
                 t = t.strip()
                 if not t:
@@ -225,18 +269,26 @@ class BaseSource:
                     res_works = search(t)
                     if res_works:
                         best_rating = self._select_best_rating(res_works, target_title=t)
-                        if best_rating and (best_rating.rate is not None or best_rating.rating_count is not None or best_rating.url):
-                            best_rating.strategy = strat
-                            best_rating.query = t
+                        if best_rating:
                             is_match = (best_rating.rate is not None or best_rating.rating_count is not None)
-                            best_rating.status = ("CURL_MATCH" if getattr(self, "last_request_used_curl", False) else "MATCH") if is_match else "NO_MATCH"
-                            return best_rating
+                            if is_match:
+                                best_rating.strategy = strat
+                                best_rating.query = t
+                                best_rating.status = "CURL_MATCH" if getattr(self, "last_request_used_curl", False) else "MATCH"
+                                return best_rating
+                            elif best_rating.url and fallback_rating is None:
+                                best_rating.strategy = strat
+                                best_rating.query = t
+                                best_rating.status = "NO_MATCH"
+                                fallback_rating = best_rating
                 except SourceNetworkError as ne:
                     network_error_msg = ne.message
                     break
                 except Exception as e:
                     network_error_msg = f"Error: {e}"
                     break
+            if fallback_rating:
+                return fallback_rating
 
         elif strat == SearchStrategy.ISBN:
             raw_isbns = work.isbn_list if work.isbn_list else ([work.isbn] if work.isbn else [])
@@ -246,23 +298,32 @@ class BaseSource:
                 if c and c not in cleaned_isbns:
                     cleaned_isbns.append(c)
             
+            fallback_rating = None
             for isbn in cleaned_isbns[:5]:
                 try:
                     res_works = search(isbn)
                     if res_works:
                         best_rating = self._select_best_rating(res_works, target_title=None)
-                        if best_rating and (best_rating.rate is not None or best_rating.rating_count is not None or best_rating.url):
-                            best_rating.strategy = strat
-                            best_rating.query = isbn
+                        if best_rating:
                             is_match = (best_rating.rate is not None or best_rating.rating_count is not None)
-                            best_rating.status = ("CURL_MATCH" if getattr(self, "last_request_used_curl", False) else "MATCH") if is_match else "NO_MATCH"
-                            return best_rating
+                            if is_match:
+                                best_rating.strategy = strat
+                                best_rating.query = isbn
+                                best_rating.status = "CURL_MATCH" if getattr(self, "last_request_used_curl", False) else "MATCH"
+                                return best_rating
+                            elif best_rating.url and fallback_rating is None:
+                                best_rating.strategy = strat
+                                best_rating.query = isbn
+                                best_rating.status = "NO_MATCH"
+                                fallback_rating = best_rating
                 except SourceNetworkError as ne:
                     network_error_msg = ne.message
                     break
                 except Exception as e:
                     network_error_msg = f"Error: {e}"
                     break
+            if fallback_rating:
+                return fallback_rating
 
         elif strat in (SearchStrategy.TITLE_LIST_FULL, SearchStrategy.TITLE_ZH_LIST_FULL):
             titles_to_try = work.title_list if strat == SearchStrategy.TITLE_LIST_FULL else work.title_zh_list
