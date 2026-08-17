@@ -1,5 +1,33 @@
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import List, Dict, Optional
+from pydantic import BaseModel
+
+
+class SourceStatus(str, Enum):
+    """Status code for rating search operations."""
+    SUCCESS = "SUCCESS"
+    UNRATED = "UNRATED"
+    NOT_FOUND = "NOT_FOUND"
+    RATE_LIMITED = "RATE_LIMITED"
+    TIMEOUT = "TIMEOUT"
+    ERROR = "ERROR"
+    NO_MATCH = "NO_MATCH"
+
+
+class RatingRequestPayload(BaseModel):
+    """Payload schema for POST /api/work-details and POST /api/work-details-stream endpoints."""
+    work_id: str
+    title: Optional[str] = None
+    author: Optional[str] = None
+    google_key: Optional[str] = None
+    engines: List[str] = []
+    strategies: Dict[str, str] = {}
+    search_name: Optional[str] = None
+    title_list: List[str] = []
+    title_zh_list: List[str] = []
+    author_list: List[str] = []
+    isbn_list: List[str] = []
 
 
 @dataclass
@@ -13,7 +41,9 @@ class SourceRating:
     strategy: Optional[str] = None
     query: Optional[str] = None
     status: str = "NO_MATCH"
+    error_message: Optional[str] = None
     results: List[dict] = field(default_factory=list)
+
 
     def format_rate_count(self) -> str:
         """Format rate and count as string (e.g. '4.25 / 150 ratings' or 'N/A')."""

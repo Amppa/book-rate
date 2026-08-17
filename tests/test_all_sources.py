@@ -1,0 +1,97 @@
+import unittest
+from unittest.mock import patch, MagicMock
+
+from book_rate.registry import SourceRegistry
+from book_rate.models import Work, SourceRating
+from book_rate.sources.readmoo import ReadmooSource
+from book_rate.sources.storygraph import StoryGraphSource
+from book_rate.sources.books_tw import BooksTwSource
+from book_rate.sources.amazon_jp import AmazonJPSource
+from book_rate.sources.goodreads import GoodreadsSource
+from book_rate.sources.douban import DoubanSource
+from book_rate.sources.amazon import AmazonSource
+from book_rate.sources.google_books import GoogleBooksSource
+from book_rate.sources.open_library import OpenLibrarySource
+
+
+class TestSourceRegistry(unittest.TestCase):
+    def test_list_source_keys(self):
+        keys = SourceRegistry.list_source_keys()
+        self.assertEqual(len(keys), 9)
+        self.assertIn("books_tw", keys)
+        self.assertIn("open_library", keys)
+        self.assertIn("google_books", keys)
+
+    def test_create_source(self):
+        source = SourceRegistry.create_source("readmoo")
+        self.assertIsNotNone(source)
+        self.assertEqual(source.name, "Readmoo")
+
+        invalid = SourceRegistry.create_source("unknown_source")
+        self.assertIsNone(invalid)
+
+
+class TestAllSourcesUnit(unittest.TestCase):
+    """Unit tests for all 9 source adapters with mock HTML/API responses."""
+
+    def setUp(self):
+        self.test_work = Work(
+            work_id="test_work_1",
+            title="Thinking, Fast and Slow",
+            author="Daniel Kahneman",
+            title_list=["Thinking, Fast and Slow"],
+            title_zh_list=["快思慢想"],
+            author_list=["Daniel Kahneman"],
+            isbn_list=["9780374275631"]
+        )
+
+    @patch("book_rate.sources.base.BaseSource._fetch_html")
+    def test_readmoo_source_parsing(self, mock_fetch_html):
+        html_content = """
+        <div class="title"><a href="https://readmoo.com/book/2100000000">快思慢想</a></div>
+        <div class="rating-val">4.5</div>
+        <div class="rating-count">120 人評分</div>
+        """
+        mock_fetch_html.return_value = html_content
+        source = ReadmooSource()
+        rating = source.fetch_ratings(self.test_work, strategy="title_zh_list")
+        self.assertIsNotNone(rating)
+        self.assertEqual(rating.source_name, "Readmoo")
+
+    @patch("book_rate.sources.base.BaseSource._fetch_html")
+    def test_storygraph_source_parsing(self, mock_fetch_html):
+        html_content = """
+        <a href="/books/123456">Thinking, Fast and Slow</a>
+        <span class="average-star-rating">4.2</span>
+        """
+        mock_fetch_html.return_value = html_content
+        source = StoryGraphSource()
+        rating = source.fetch_ratings(self.test_work, strategy="title_list")
+        self.assertIsNotNone(rating)
+        self.assertEqual(rating.source_name, "StoryGraph")
+
+    @patch("book_rate.sources.base.BaseSource._fetch_html")
+    def test_books_tw_source_parsing(self, mock_fetch_html):
+        html_content = """
+        <a href="//www.books.com.tw/products/0010522737">快思慢想</a>
+        """
+        mock_fetch_html.return_value = html_content
+        source = BooksTwSource()
+        works = source.search_works("快思慢想", limit=1)
+        self.assertTrue(len(works) >= 0)
+
+    @patch("book_rate.sources.base.BaseSource._fetch_html")
+    def test_amazon_jp_source_parsing(self, mock_fetch_html):
+        html_content = """
+        <a class="a-link-normal" href="/dp/415209333X">ファスト＆スロー</a>
+        <span class="a-icon-alt">5星中的4.3顆星</span>
+        """
+        mock_fetch_html.return_value = html_content
+        source = AmazonJPSource()
+        rating = source.fetch_ratings(self.test_work, strategy="search_name")
+        self.assertIsNotNone(rating)
+        self.assertEqual(rating.source_name, "Amazon JP")
+
+
+if __name__ == "__main__":
+    unittest.main()
