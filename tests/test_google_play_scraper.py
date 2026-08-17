@@ -50,7 +50,7 @@ class TestGooglePlayScraper(unittest.TestCase):
         </html>
         """
         
-        rate, count = source._parse_play_rating("test_id")
+        rate, count, used_curl = source._parse_play_rating("test_id")
         self.assertEqual(rate, 4.7528)
         self.assertEqual(count, 975)
 
@@ -69,7 +69,7 @@ class TestGooglePlayScraper(unittest.TestCase):
         </html>
         """
         
-        rate, count = source._parse_play_rating("test_id")
+        rate, count, used_curl = source._parse_play_rating("test_id")
         self.assertEqual(rate, 4.487)
         self.assertEqual(count, 630)
 
@@ -80,7 +80,7 @@ class TestGooglePlayScraper(unittest.TestCase):
         # Mock HTML containing no matching content
         mock_fetch_html.return_value = "<html><body>No ratings here</body></html>"
         
-        rate, count = source._parse_play_rating("test_id")
+        rate, count, used_curl = source._parse_play_rating("test_id")
         self.assertIsNone(rate)
         self.assertIsNone(count)
 
@@ -89,7 +89,7 @@ class TestGooglePlayScraper(unittest.TestCase):
         source = GooglePlaySource()
         
         # Setup mock for Play rating
-        mock_parse_play.return_value = (4.487, 630)
+        mock_parse_play.return_value = (4.487, 630, False)
         
         dummy_work = Work(work_id="gb:ZuKTvERuPG8C", title="Test Title", author="Test Author")
         
@@ -112,15 +112,38 @@ class TestGooglePlayScraper(unittest.TestCase):
         mock_fetch_html.return_value = (
             '<html><body>'
             '<a href="/store/books/details/%E7%98%9F%E7%96%AB%E8%88%87%E6%96%87%E6%98%8E_%E4%BA%BA%E9%A1%9E%E7%96%BE%E7%97%85%E5%A4%A7%E6%AD%B7%E5%8F%B2?id=wOzaEAAAQBAJ">Link</a>'
-            '</body></html>'
+            '</body></html>',
+            False
         )
-        mock_parse_play.return_value = (4.5, 10)
+        mock_parse_play.return_value = (4.5, 10, False)
         
         works = source.search_works("人類大歷史")
         self.assertEqual(len(works), 1)
         self.assertEqual(works[0].title, "瘟疫與文明 人類疾病大歷史")
         self.assertEqual(works[0].author, "Unknown")
         self.assertEqual(works[0].work_id, "play:wOzaEAAAQBAJ")
+
+    @patch("book_rate.sources.google_play.GooglePlaySource._fetch_html")
+    @patch("book_rate.sources.google_play.GooglePlaySource._parse_play_rating")
+    def test_google_play_search_thinking_fast_and_slow(self, mock_parse_play, mock_fetch_html):
+        source = GooglePlaySource()
+
+        # Mock Search page containing Thinking, Fast and Slow
+        mock_fetch_html.return_value = (
+            '<html><body>'
+            '<a href="/store/books/details/Daniel_Kahneman_Thinking_Fast_and_Slow?id=oV1tXT3HigoC">Link</a>'
+            '</body></html>',
+            True
+        )
+        mock_parse_play.return_value = (4.6, 12000, True)
+
+        works = source.search_works("Thinking, Fast and Slow")
+        self.assertEqual(len(works), 1)
+        self.assertEqual(works[0].title, "Thinking Fast and Slow")
+        self.assertEqual(works[0].author, "Daniel Kahneman")
+        self.assertEqual(works[0].work_id, "play:oV1tXT3HigoC")
+        self.assertEqual(works[0].ratings["Google Play"].status, "CURL_MATCH")
+        self.assertEqual(works[0].ratings["Google Play"].rate, 4.6)
 
 
 if __name__ == "__main__":
