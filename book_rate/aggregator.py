@@ -237,22 +237,12 @@ class BookAggregator:
         )
         orchestrated = self.orchestrator.evaluate_all(req)
 
-        active_rate_sources = [e.strip() for e in engines.split(",") if e.strip()] if engines else self.registry.list_source_keys()
-        ol_rating, editions, target_work, crawler_status = self.resolve_work_editions_and_ol_rating(
-            work_id, title or "", author or "", active_rate_sources, google_key=google_key
-        )
-
-        ratings_dict = {
-            "average": ol_rating.rate if ol_rating and ol_rating.rate is not None else 0,
-            "count": ol_rating.rating_count if ol_rating and ol_rating.rating_count is not None else 0,
-            "url": ol_rating.url if ol_rating else None
-        }
-        editions_dict = format_editions(editions)
+        ol_rating_dict = orchestrated.get("ol_rating") or {"average": 0, "count": 0, "url": None}
 
         result_payload = {
-            "ratings": ratings_dict,
-            "editions": editions_dict,
-            "crawler_status": crawler_status
+            "ratings": ol_rating_dict,
+            "editions": orchestrated.get("editions"),
+            "crawler_status": orchestrated.get("crawler_status")
         }
         for k, v in orchestrated.get("ratings", {}).items():
             result_payload[k] = v

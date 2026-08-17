@@ -109,12 +109,26 @@ class RatingOrchestrator:
                 engine_key, res = future.result()
                 ratings_res[engine_key] = res
 
+        ol_average = ol_rating.rate if ol_rating and ol_rating.rate is not None else 0
+        ol_count = ol_rating.rating_count if ol_rating and ol_rating.rating_count is not None else 0
+        ol_url = ol_rating.url if ol_rating else None
+
+        ol_rating_dict = {
+            "average": ol_average,
+            "count": ol_count,
+            "url": ol_url
+        }
+
+        editions_dict = format_editions(editions)
+
         return {
             "work_id": req.work_id,
             "title": target_work.title,
             "author": target_work.author,
             "ratings": ratings_res,
-            "crawler_status": crawler_status
+            "crawler_status": crawler_status,
+            "editions": editions_dict,
+            "ol_rating": ol_rating_dict
         }
 
     def evaluate_stream(self, req: RatingRequestPayload) -> Generator[dict, None, None]:
@@ -144,6 +158,9 @@ class RatingOrchestrator:
 
         init_data = {
             "type": "init",
+            "work_id": req.work_id,
+            "title": target_work.title,
+            "author": target_work.author,
             "ratings": ratings_dict,
             "editions": editions_dict,
             "crawler_status": crawler_status
