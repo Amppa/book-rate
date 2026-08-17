@@ -5,7 +5,7 @@ import re
 import urllib.parse
 from typing import List, Optional
 
-from book_rate.models import Work, Edition, SourceRating
+from book_rate.models import Work, Edition, SourceRating, SourceStatus
 from book_rate.sources.base import BaseSource
 from book_rate.utils.isbn import clean_isbn
 
@@ -202,7 +202,12 @@ class DoubanSource(BaseSource):
         search_url = f"https://search.douban.com/book/subject_search?search_text={urllib.parse.quote(clean_query)}&cat=1001&start={start_index}"
         
         try:
-            html_content = self._fetch_html(search_url)
+            fetch_res = self._fetch_html(search_url)
+            if isinstance(fetch_res, tuple):
+                html_content, used_curl = fetch_res
+            else:
+                html_content, used_curl = str(fetch_res), False
+
             match = re.search(r'window\.__DATA__\s*=\s*(\{.*?\});', html_content)
             if match:
                 data = json.loads(match.group(1))
@@ -261,12 +266,16 @@ class DoubanSource(BaseSource):
                         edition_count=None
                     )
 
+                    is_match = (rate is not None)
+                    status_val = (SourceStatus.CURL_MATCH.value if used_curl else SourceStatus.MATCH.value) if is_match else SourceStatus.NO_MATCH.value
+
                     work.ratings[self.name] = SourceRating(
                         source_name=self.name,
                         rate=rate,
                         rating_count=votes,
                         url=subject_url,
-                        title=title
+                        title=title,
+                        status=status_val
                     )
 
                     edition = Edition(
@@ -310,7 +319,8 @@ class DoubanSource(BaseSource):
 
         if not is_works_id:
             subject_url = f"https://book.douban.com/subject/{numeric_id}/"
-            html_str = self._fetch_html(subject_url)
+            fetch_res = self._fetch_html(subject_url)
+            html_str = fetch_res[0] if isinstance(fetch_res, tuple) else fetch_res
             if not html_str:
                 return []
 
@@ -335,7 +345,8 @@ class DoubanSource(BaseSource):
         else:
             works_url = f"https://book.douban.com/works/{numeric_id}"
 
-        html_str = self._fetch_html(works_url)
+        fetch_res = self._fetch_html(works_url)
+        html_str = fetch_res[0] if isinstance(fetch_res, tuple) else fetch_res
         if not html_str:
             return []
 

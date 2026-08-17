@@ -163,6 +163,44 @@ class TestRatingOrchestrator(unittest.TestCase):
         self.assertEqual(len(results_200), 1)
         self.assertEqual(results_200[0].title, "Test Book")
 
+    @patch("book_rate.sources.douban.DoubanSource._fetch_html")
+    def test_douban_search_and_editions_unpacked(self, mock_fetch_html):
+        source = DoubanSource()
+        import json
+
+        # Mock HTML returned for search page containing multiple works
+        search_json = {
+            "items": [
+                {
+                    "tpl_name": "search_subject",
+                    "id": "12345",
+                    "title": "Thinking, Fast and Slow (Edition 1)",
+                    "url": "https://book.douban.com/subject/12345/",
+                    "rating": {"value": "9.0", "count": 500},
+                    "abstract": "Daniel Kahneman / 2012 / Translation Pub"
+                },
+                {
+                    "tpl_name": "search_subject",
+                    "id": "67890",
+                    "title": "Thinking, Fast and Slow (Edition 2)",
+                    "url": "https://book.douban.com/subject/67890/",
+                    "rating": {"value": "8.8", "count": 250},
+                    "abstract": "Daniel Kahneman / 2013 / Translation Pub"
+                }
+            ]
+        }
+        mock_fetch_html.return_value = (
+            f"<html><body>window.__DATA__ = {json.dumps(search_json)};</body></html>",
+            True
+        )
+
+        works = source.search_works("Thinking, Fast and Slow")
+        self.assertEqual(len(works), 2)
+        self.assertEqual(works[0].title, "Thinking, Fast and Slow (Edition 1)")
+        self.assertEqual(works[0].ratings["Douban"].status, "CURL_MATCH")
+        self.assertEqual(works[1].title, "Thinking, Fast and Slow (Edition 2)")
+        self.assertEqual(works[1].ratings["Douban"].status, "CURL_MATCH")
+
 
 if __name__ == "__main__":
     unittest.main()
