@@ -483,10 +483,11 @@ class BookAggregator:
         results = []
         existing_keys = set()
         for w in works:
-            key_tuple = (w.title.lower().strip(), "".join(self._author_list(w)).lower().strip())
+            key_tuple = (w.title.lower().strip(), "".join(self._author_list(w)).lower().strip(), w.work_id)
             if key_tuple not in existing_keys:
                 results.append(self._work_to_dict(w))
                 existing_keys.add(key_tuple)
+
         return results
 
 

@@ -128,9 +128,10 @@ class GooglePlaySource(BaseSource):
 
             w = Work(
                 work_id=f"play:{vid}",
-                title=f"{parsed_title} [{vid}]",
+                title=parsed_title,
                 author=parsed_author
             )
+
             w.ratings[self.name] = SourceRating(
                 source_name=self.name,
                 rate=rate,
