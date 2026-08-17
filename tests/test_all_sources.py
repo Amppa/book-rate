@@ -93,5 +93,38 @@ class TestAllSourcesUnit(unittest.TestCase):
         self.assertEqual(rating.source_name, "Amazon JP")
 
 
+from book_rate.orchestrator import RatingOrchestrator
+from book_rate.models import RatingRequestPayload
+
+
+class TestRatingOrchestrator(unittest.TestCase):
+    def test_evaluate_all_sync(self):
+        orchestrator = RatingOrchestrator()
+        req = RatingRequestPayload(
+            work_id="gr:12345",
+            title="Thinking, Fast and Slow",
+            author="Daniel Kahneman",
+            engines=["readmoo"]
+        )
+        res = orchestrator.evaluate_all(req)
+        self.assertEqual(res["work_id"], "gr:12345")
+        self.assertIn("readmoo", res["ratings"])
+
+    def test_evaluate_stream(self):
+        orchestrator = RatingOrchestrator()
+        req = RatingRequestPayload(
+            work_id="gr:12345",
+            title="Thinking, Fast and Slow",
+            author="Daniel Kahneman",
+            engines=["readmoo"]
+        )
+        events = list(orchestrator.evaluate_stream(req))
+        self.assertTrue(len(events) >= 2)
+        self.assertEqual(events[0]["type"], "init")
+        self.assertEqual(events[-1]["type"], "done")
+
+
+
 if __name__ == "__main__":
     unittest.main()
+

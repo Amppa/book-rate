@@ -143,12 +143,14 @@ class TestServerAPI(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 200)
         
-        # Parse stream response
+        # Parse stream response and verify strict JSON decoding
         events = []
         for line in response.iter_lines():
             if line.startswith("data: "):
                 import json
-                events.append(json.loads(line[6:]))
+                parsed_event = json.loads(line[6:])
+                self.assertIsInstance(parsed_event, dict, "SSE event payload must be a JSON object, not a double-encoded string")
+                events.append(parsed_event)
                 
         self.assertEqual(len(events), 4) # init, source1, source2, done
         self.assertEqual(events[0]["type"], "init")
@@ -160,6 +162,7 @@ class TestServerAPI(unittest.TestCase):
         self.assertEqual(sources_received["goodreads"]["average"], 4.2)
         
         self.assertEqual(events[-1]["type"], "done")
+
 
 
 if __name__ == "__main__":

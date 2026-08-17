@@ -15,7 +15,9 @@ from book_rate.sources.amazon import AmazonSource
 from book_rate.sources.amazon_jp import AmazonJPSource
 from book_rate.sources.storygraph import StoryGraphSource
 from book_rate.sources.readmoo import ReadmooSource
-from book_rate.sources.books_tw import BooksTwSource
+from book_rate.registry import SourceRegistry
+from book_rate.orchestrator import RatingOrchestrator
+from book_rate.models import Work, Edition, SourceRating, RatingRequestPayload
 
 logger = logging.getLogger(__name__)
 
@@ -23,19 +25,41 @@ logger = logging.getLogger(__name__)
 class BookAggregator:
     """Aggregates book works, editions, and ratings across multiple sources."""
 
-    TITLE_SOURCES = ["goodreads", "storygraph", "amazon", "amazon_jp", "douban", "readmoo", "books_tw"]
+    TITLE_SOURCES = SourceRegistry.TITLE_SOURCES
     DEFAULT_EDITION_LIMIT = 2000
 
     def __init__(self, google_api_key: Optional[str] = None):
-        self.open_library = OpenLibrarySource()
-        self.google_books = GoogleBooksSource(api_key=google_api_key)
-        self.goodreads = GoodreadsSource()
-        self.douban = DoubanSource()
-        self.amazon = AmazonSource()
-        self.amazon_jp = AmazonJPSource()
-        self.storygraph = StoryGraphSource()
-        self.readmoo = ReadmooSource()
-        self.books_tw = BooksTwSource()
+        self.google_api_key = google_api_key
+        self.registry = SourceRegistry()
+
+        self.open_library = self.registry.create_source("open_library")
+        self.google_books = self.registry.create_source("google_books", api_key=google_api_key)
+        self.goodreads = self.registry.create_source("goodreads")
+        self.douban = self.registry.create_source("douban")
+        self.amazon = self.registry.create_source("amazon")
+        self.amazon_jp = self.registry.create_source("amazon_jp")
+        self.storygraph = self.registry.create_source("storygraph")
+        self.readmoo = self.registry.create_source("readmoo")
+        self.books_tw = self.registry.create_source("books_tw")
+
+        self.source_instances = {
+            "open_library": self.open_library,
+            "google_books": self.google_books,
+            "goodreads": self.goodreads,
+            "douban": self.douban,
+            "amazon": self.amazon,
+            "amazon_jp": self.amazon_jp,
+            "storygraph": self.storygraph,
+            "readmoo": self.readmoo,
+            "books_tw": self.books_tw,
+        }
+
+        self.orchestrator = RatingOrchestrator(
+            registry=self.registry,
+            source_instances=self.source_instances,
+            resolve_work_fn=lambda *args, **kwargs: self.resolve_work_editions_and_ol_rating(*args, **kwargs)
+        )
+
 
     def aggregate_by_title(self, title_query: str, limit: int = 5) -> List[Work]:
         """
@@ -244,8 +268,12 @@ class BookAggregator:
         title: str,
         author: str,
         active_title_sources: list,
-        gb_source: Optional[GoogleBooksSource] = None
+        gb_source: Optional[GoogleBooksSource] = None,
+        google_key: Optional[str] = None
     ) -> tuple[SourceRating, list, Work, dict]:
+        if google_key and not gb_source:
+            gb_source = GoogleBooksSource(api_key=google_key)
+
         ol_rating = SourceRating("Open Library")
         editions = []
         resolved_title = title or ""
@@ -498,22 +526,21 @@ class BookAggregator:
 
         return results
 
-    def fetch_ratings_for_work(
+    def _build_payload(
         self,
         work_id: str,
-        title: Optional[str],
-        author: Optional[str],
-        engines: str,
-        strategies: Optional[str],
-        search_name: Optional[str],
-        title_list: Optional[str],
-        title_zh_list: Optional[str],
-        author_list: Optional[str],
-        isbn_list: Optional[str],
+        title: Optional[str] = None,
+        author: Optional[str] = None,
+        engines: str = "",
+        strategies: Optional[str] = None,
+        search_name: Optional[str] = None,
+        title_list: Optional[str] = None,
+        title_zh_list: Optional[str] = None,
+        author_list: Optional[str] = None,
+        isbn_list: Optional[str] = None,
         google_key: Optional[str] = None
-    ) -> dict:
-        active_rate_sources = [e.strip() for e in engines.split(",") if e.strip()]
-        gb_source = GoogleBooksSource(api_key=google_key) if google_key else self.google_books
+    ) -> RatingRequestPayload:
+        active_rate_sources = [e.strip() for e in engines.split(",") if e.strip()] if engines else self.registry.list_source_keys()
 
         strat_dict = {}
         if strategies:
@@ -522,15 +549,48 @@ class BookAggregator:
             except Exception:
                 pass
 
+        return RatingRequestPayload(
+            work_id=work_id,
+            title=title,
+            author=author,
+            google_key=google_key or self.google_api_key,
+            engines=active_rate_sources,
+            strategies=strat_dict,
+            search_name=search_name,
+            title_list=self.parse_json_list(title_list),
+            title_zh_list=self.parse_json_list(title_zh_list),
+            author_list=self.parse_json_list(author_list),
+            isbn_list=self.parse_json_list(isbn_list)
+        )
+
+    def fetch_ratings_for_work(
+        self,
+        work_id: str,
+        title: Optional[str] = None,
+        author: Optional[str] = None,
+        engines: str = "",
+        strategies: Optional[str] = None,
+        search_name: Optional[str] = None,
+        title_list: Optional[str] = None,
+        title_zh_list: Optional[str] = None,
+        author_list: Optional[str] = None,
+        isbn_list: Optional[str] = None,
+        google_key: Optional[str] = None
+    ) -> dict:
+        active_rate_sources = [e.strip() for e in engines.split(",") if e.strip()]
+        gb_source = GoogleBooksSource(api_key=google_key) if google_key else self.google_books
+
         ol_rating, editions, target_work, crawler_status = self.resolve_work_editions_and_ol_rating(
             work_id, title or "", author or "", active_rate_sources, gb_source=gb_source
         )
 
-        target_work.search_name = search_name
-        target_work.title_list = self.parse_json_list(title_list)
-        target_work.title_zh_list = self.parse_json_list(title_zh_list)
-        target_work.author_list = self.parse_json_list(author_list)
-        target_work.isbn_list = self.parse_json_list(isbn_list)
+        req = self._build_payload(
+            work_id=work_id, title=title, author=author, engines=engines,
+            strategies=strategies, search_name=search_name, title_list=title_list,
+            title_zh_list=title_zh_list, author_list=author_list, isbn_list=isbn_list,
+            google_key=google_key
+        )
+        orchestrated = self.orchestrator.evaluate_all(req)
 
         ratings_dict = {
             "average": ol_rating.rate if ol_rating and ol_rating.rate is not None else 0,
@@ -544,102 +604,32 @@ class BookAggregator:
             "editions": editions_dict,
             "crawler_status": crawler_status
         }
-
-        fut_dict = {}
-        source_instances = self._build_source_instances(gb_source)
-
-        with ThreadPoolExecutor(max_workers=7) as executor:
-            for p_key, p_inst in source_instances.items():
-                if p_key in active_rate_sources:
-                    p_strat = strat_dict.get(p_key)
-                    fut_dict[p_key] = executor.submit(p_inst.fetch_ratings, target_work, strategy=p_strat)
-
-            for p_key, fut in fut_dict.items():
-                try:
-                    p_rating = fut.result()
-                    quota = p_key == "google_books" and gb_source.quota_exceeded
-                    result_payload[p_key] = self._format_rating_response(p_key, p_rating, target_work.title, quota_exceeded=quota)
-                except Exception:
-                    result_payload[p_key] = {
-                        "average": 0, "count": 0, "title": target_work.title, "url": None,
-                        "source": p_key, "strategy": strat_dict.get(p_key), "query": "", "status": "ERROR",
-                        "results": []
-                    }
+        for k, v in orchestrated.get("ratings", {}).items():
+            result_payload[k] = v
 
         return result_payload
 
     def fetch_ratings_for_work_stream(
         self,
         work_id: str,
-        title: Optional[str],
-        author: Optional[str],
-        engines: str,
-        strategies: Optional[str],
-        search_name: Optional[str],
-        title_list: Optional[str],
-        title_zh_list: Optional[str],
-        author_list: Optional[str],
-        isbn_list: Optional[str],
+        title: Optional[str] = None,
+        author: Optional[str] = None,
+        engines: str = "",
+        strategies: Optional[str] = None,
+        search_name: Optional[str] = None,
+        title_list: Optional[str] = None,
+        title_zh_list: Optional[str] = None,
+        author_list: Optional[str] = None,
+        isbn_list: Optional[str] = None,
         google_key: Optional[str] = None
     ):
-        active_rate_sources = [e.strip() for e in engines.split(",") if e.strip()]
-        gb_source = GoogleBooksSource(api_key=google_key) if google_key else self.google_books
-
-        strat_dict = {}
-        if strategies:
-            try:
-                strat_dict = json.loads(strategies)
-            except Exception:
-                pass
-
-        ol_rating, editions, target_work, crawler_status = self.resolve_work_editions_and_ol_rating(
-            work_id, title or "", author or "", active_rate_sources, gb_source=gb_source
+        req = self._build_payload(
+            work_id=work_id, title=title, author=author, engines=engines,
+            strategies=strategies, search_name=search_name, title_list=title_list,
+            title_zh_list=title_zh_list, author_list=author_list, isbn_list=isbn_list,
+            google_key=google_key
         )
+        for event in self.orchestrator.evaluate_stream(req):
+            yield event
 
-        target_work.search_name = search_name
-        target_work.title_list = self.parse_json_list(title_list)
-        target_work.title_zh_list = self.parse_json_list(title_zh_list)
-        target_work.author_list = self.parse_json_list(author_list)
-        target_work.isbn_list = self.parse_json_list(isbn_list)
 
-        ratings_dict = {
-            "average": ol_rating.rate if ol_rating and ol_rating.rate is not None else 0,
-            "count": ol_rating.rating_count if ol_rating and ol_rating.rating_count is not None else 0,
-            "url": ol_rating.url if ol_rating else None
-        }
-        editions_dict = self._format_editions(editions)
-
-        init_data = {
-            "type": "init",
-            "ratings": ratings_dict,
-            "editions": editions_dict,
-            "crawler_status": crawler_status
-        }
-        yield init_data
-
-        fut_map = {}
-        source_instances = self._build_source_instances(gb_source)
-
-        with ThreadPoolExecutor(max_workers=7) as executor:
-            for p_key, p_inst in source_instances.items():
-                if p_key in active_rate_sources:
-                    p_strat = strat_dict.get(p_key)
-                    fut = executor.submit(p_inst.fetch_ratings, target_work, strategy=p_strat)
-                    fut_map[fut] = p_key
-
-            for fut in as_completed(fut_map):
-                p_key = fut_map[fut]
-                try:
-                    p_rating = fut.result()
-                    quota = p_key == "google_books" and gb_source.quota_exceeded
-                    p_dict = self._format_rating_response(p_key, p_rating, target_work.title, quota_exceeded=quota)
-                except Exception:
-                    p_dict = {
-                        "average": 0, "count": 0, "title": target_work.title, "url": None,
-                        "source": p_key, "strategy": strat_dict.get(p_key), "query": "", "status": "ERROR",
-                        "results": []
-                    }
-
-                yield {"type": "source", "source": p_key, "data": p_dict}
-
-        yield {"type": "done"}
