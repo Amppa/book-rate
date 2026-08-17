@@ -34,11 +34,20 @@ class BaseSource:
     def __init__(self, timeout: int = 10):
         self.timeout = timeout
         import requests
+        import threading
         self.session = requests.Session()
         self.session.headers.update({
             "User-Agent": self.DEFAULT_USER_AGENT
         })
-        self.last_request_used_curl = False
+        self._thread_local = threading.local()
+
+    @property
+    def last_request_used_curl(self) -> bool:
+        return getattr(self._thread_local, "last_request_used_curl", False)
+
+    @last_request_used_curl.setter
+    def last_request_used_curl(self, value: bool):
+        self._thread_local.last_request_used_curl = value
 
     def _fetch_html(self, url: str) -> str:
         """Fetch URL using curl.exe to pass Cloudflare TLS fingerprinting checks on Windows."""

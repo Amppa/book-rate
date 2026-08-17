@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import List, Dict, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class SourceStatus(str, Enum):
@@ -21,13 +21,13 @@ class RatingRequestPayload(BaseModel):
     title: Optional[str] = None
     author: Optional[str] = None
     google_key: Optional[str] = None
-    engines: List[str] = []
-    strategies: Dict[str, str] = {}
+    engines: List[str] = Field(default_factory=list)
+    strategies: Dict[str, str] = Field(default_factory=dict)
     search_name: Optional[str] = None
-    title_list: List[str] = []
-    title_zh_list: List[str] = []
-    author_list: List[str] = []
-    isbn_list: List[str] = []
+    title_list: List[str] = Field(default_factory=list)
+    title_zh_list: List[str] = Field(default_factory=list)
+    author_list: List[str] = Field(default_factory=list)
+    isbn_list: List[str] = Field(default_factory=list)
 
 
 @dataclass
