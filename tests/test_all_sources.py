@@ -125,6 +125,43 @@ class TestRatingOrchestrator(unittest.TestCase):
         self.assertEqual(events[0]["type"], "init")
         self.assertEqual(events[-1]["type"], "done")
 
+    @patch.object(GoogleBooksSource, "fetch_volume_by_id")
+    def test_google_books_direct_id_search(self, mock_fetch_vol):
+        mock_work = Work(work_id="gb:gS_oAwAAQBAJ", title="Thinking, Fast and Slow", author="Daniel Kahneman")
+        mock_fetch_vol.return_value = mock_work
+
+        gb = GoogleBooksSource()
+        results = gb.search_works("gb:gS_oAwAAQBAJ")
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].work_id, "gb:gS_oAwAAQBAJ")
+        mock_fetch_vol.assert_called_once_with("gS_oAwAAQBAJ")
+
+    @patch("requests.Session.get")
+    def test_google_books_quota_limit_independent(self, mock_get):
+        gb = GoogleBooksSource()
+
+        # Mock 429 response on first request
+        mock_resp_429 = MagicMock()
+        mock_resp_429.status_code = 429
+        mock_get.return_value = mock_resp_429
+
+        results_429 = gb.search_works("Test Query 1")
+        self.assertEqual(results_429, [])
+
+        # Mock 200 response on second request
+        mock_resp_200 = MagicMock()
+        mock_resp_200.status_code = 200
+        mock_resp_200.json.return_value = {
+            "items": [{
+                "id": "vol123",
+                "volumeInfo": {"title": "Test Book", "authors": ["Test Author"], "averageRating": 4.5, "ratingsCount": 10}
+            }]
+        }
+        mock_get.return_value = mock_resp_200
+
+        results_200 = gb.search_works("Test Query 2")
+        self.assertEqual(len(results_200), 1)
+        self.assertEqual(results_200[0].title, "Test Book")
 
 
 if __name__ == "__main__":

@@ -6,7 +6,7 @@ import requests
 from typing import List, Optional
 
 
-from book_rate.models import Work, Edition, SourceRating
+from book_rate.models import Work, Edition, SourceRating, SourceStatus
 from book_rate.sources.base import BaseSource
 from book_rate.utils.isbn import clean_isbn, extract_isbns_from_work
 
@@ -24,7 +24,6 @@ class GoogleBooksSource(BaseSource):
         self.session.headers.update({
             "User-Agent": "BookScoreAggregator/1.0 (https://github.com/books-score)"
         })
-        self.quota_exceeded = False
 
     @property
     def name(self) -> str:
@@ -36,21 +35,8 @@ class GoogleBooksSource(BaseSource):
 
     def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> SourceRating:
         """Fetch Google Books rating for a Work via Google Books API."""
-        if self.quota_exceeded:
-            return SourceRating(
-                source_name=self.name,
-                strategy=strategy or self.default_strategy,
-                status="QUOTA_EXCEEDED"
-            )
-
         rating = self._fetch_ratings(work, strategy=strategy)
-        return rating if rating else SourceRating(source_name=self.name, strategy=strategy, status="NOT_FOUND")
-
-
-
-
-
-
+        return rating if rating else SourceRating(source_name=self.name, strategy=strategy, status=SourceStatus.NOT_FOUND.value)
 
     def _extract_volume_id_from_url(self, url: Optional[str]) -> Optional[str]:
         if not url:
@@ -74,7 +60,8 @@ class GoogleBooksSource(BaseSource):
     def _fetch_google_play_rating(self, volume_id: str) -> tuple[Optional[float], Optional[int]]:
         """Fetch rating and vote count from Google Play Books detail page."""
         url = f"https://play.google.com/store/books/details?id={volume_id}"
-        html_content = self._fetch_html(url)
+        fetch_res = self._fetch_html(url)
+        html_content = fetch_res[0] if isinstance(fetch_res, tuple) else fetch_res
         if not html_content:
             return None, None
 
@@ -109,12 +96,16 @@ class GoogleBooksSource(BaseSource):
 
         return None, None
 
-
     def search_works(self, query: str, limit: int = 5, include_details: bool = True, page: int = 1) -> List[Work]:
         """Search Google Books volumes for query."""
         clean_query = query.strip()
         if not clean_query:
             return []
+
+        if clean_query.startswith("gb:"):
+            vol_id = clean_query[3:]
+            w = self.fetch_volume_by_id(vol_id)
+            return [w] if w else []
 
         max_results = min(limit, 10)
         params = {
@@ -128,12 +119,10 @@ class GoogleBooksSource(BaseSource):
         try:
             resp = self.session.get(self.BASE_URL, params=params, timeout=self.timeout)
             if resp.status_code == 429:
-                if not self.quota_exceeded:
-                    self.quota_exceeded = True
-                    logger.warning(
-                        "Google Books API rate limit / quota exceeded (HTTP 429). "
-                        "Consider setting GOOGLE_BOOKS_API_KEY environment variable."
-                    )
+                logger.warning(
+                    "Google Books API rate limit / quota exceeded (HTTP 429). "
+                    "Consider setting GOOGLE_BOOKS_API_KEY environment variable."
+                )
                 print(f"  [Google Books API] ⚠️ QUOTA EXCEEDED (HTTP 429) for query '{query}'")
                 return []
             resp.raise_for_status()
@@ -146,6 +135,14 @@ class GoogleBooksSource(BaseSource):
             logger.warning(f"Google Books API search failed for '{query}': {e}")
             print(f"  [Google Books API] ❌ ERROR ({e}) for query '{query}'")
             return []
+
+
+
+
+
+
+
+
 
         items = data.get("items", [])
         if not items:
