@@ -1,6 +1,8 @@
 import html
+import json
 import logging
 import re
+import urllib.parse
 from typing import List, Optional
 
 from book_rate.models import Work, Edition, SourceRating
@@ -196,8 +198,6 @@ class DoubanSource(BaseSource):
             return []
 
         # Try scraping the subject_search page first to get up to 15 results with ratings in a single request.
-        import urllib.parse
-        import json
         start_index = (page - 1) * 15
         search_url = f"https://search.douban.com/book/subject_search?search_text={urllib.parse.quote(clean_query)}&cat=1001&start={start_index}"
         

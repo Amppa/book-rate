@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from book_rate.models import Work, SourceRating
 from book_rate.sources.google_play import GooglePlaySource

@@ -17,12 +17,8 @@ class WorkResolver:
         self.source_instances = source_instances or {}
 
     def get_source(self, key: str, google_key: Optional[str] = None):
-        if key == "google_books":
-            if google_key:
-                return self.registry.create_source("google_books", api_key=google_key)
-            if key in self.source_instances:
-                return self.source_instances[key]
-            return self.registry.create_source("google_books")
+        if key == "google_books" and google_key:
+            return self.registry.create_source("google_books", api_key=google_key)
         if key in self.source_instances:
             return self.source_instances[key]
         return self.registry.create_source(key)

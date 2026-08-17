@@ -1,5 +1,7 @@
+import json
 import logging
 import re
+import urllib.parse
 from typing import Optional, List
 
 from book_rate.models import Work, SourceRating
@@ -41,7 +43,6 @@ class GooglePlaySource(BaseSource):
 
     def _search_volume_id(self, query: str) -> Optional[str]:
         """Search Google Play Books store HTML for query and extract volume_id."""
-        import urllib.parse
         encoded_q = urllib.parse.quote(query)
         html_content = self._fetch_html(f"{self.SEARCH_URL}?q={encoded_q}&c=books")
         if not html_content or not isinstance(html_content, str):
@@ -59,7 +60,6 @@ class GooglePlaySource(BaseSource):
 
         # 1. Try JSON-LD application/ld+json
         ld_json_blocks = re.findall(r'<script[^>]*type="application/ld\+json"[^>]*>(.*?)</script>', html_content, re.DOTALL)
-        import json
         for block in ld_json_blocks:
             try:
                 data = json.loads(block.strip())
@@ -94,7 +94,6 @@ class GooglePlaySource(BaseSource):
         if not clean_query:
             return []
 
-        import urllib.parse
         encoded_q = urllib.parse.quote(clean_query)
         url = f"{self.SEARCH_URL}?q={encoded_q}&c=books"
         html_content = self._fetch_html(url)

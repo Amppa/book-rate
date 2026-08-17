@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import re
@@ -79,7 +80,6 @@ class GoogleBooksSource(BaseSource):
 
         # 1. Try parsing application/ld+json
         ld_json_blocks = re.findall(r'<script[^>]*type="application/ld\+json"[^>]*>(.*?)</script>', html_content, re.DOTALL)
-        import json
         for block in ld_json_blocks:
             try:
                 data = json.loads(block.strip())
