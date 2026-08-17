@@ -142,5 +142,29 @@ class TestUnratedBookWithUrlCase(unittest.TestCase):
         self.assertIsNone(rating.rating_count)
 
 
+    @patch("requests.Session.get")
+    def test_books_tw_search_parsing(self, mock_get):
+        from book_rate.sources.books_tw import BooksTwSource
+        source = BooksTwSource()
+        sample_html = '''
+        <table class="table-search">
+          <tr>
+            <td>
+              <h4><a target="_blank" rel="mid_name" href="//search.books.com.tw/redirect/move/item/0011032772/" title="牧羊少年奇幻之旅">牧羊少年奇幻之旅</a></h4>
+              <ul class="list-date clearfix">
+                <li><span>中文書</span> , <a rel='go_author' href='//search.books.com.tw/adv_author/1' title='保羅．科爾賀'>保羅．科爾賀</a>, 出版日期: 2025-10-07</li>
+              </ul>
+            </td>
+          </tr>
+        </table>
+        '''
+        items = source._parse_search_items(sample_html)
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]["book_id"], "0011032772")
+        self.assertEqual(items[0]["author"], "保羅．科爾賀")
+        self.assertEqual(items[0]["first_publish_year"], 2025)
+
+
 if __name__ == "__main__":
     unittest.main()
+

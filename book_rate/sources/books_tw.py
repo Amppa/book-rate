@@ -157,34 +157,47 @@ class BooksTwSource(BaseSource):
         items = []
         seen_ids = set()
 
-        # Matches redirect URLs like: //search.books.com.tw/redirect/move/key/.../item/0010863501/page/1...
-        for m in _ITEM_LINK_RE.finditer(html_str):
+        # Parse search result table by <tr> rows (for v/0 list view)
+        rows = re.findall(r'<tr[^>]*>.*?</tr>', html_str, re.DOTALL)
+
+        for row in rows:
+            # Matches item link in row (prefer mid_name link)
+            m = re.search(r'/area/mid_name/item/([A-Z0-9]+)/', row)
+            if not m:
+                m = re.search(r'/item/([A-Z0-9]+)/', row)
+            if not m:
+                continue
+
             item_id = m.group(1)
             if item_id in seen_ids:
                 continue
             seen_ids.add(item_id)
 
             url = f"{self.BASE_URL}/products/{item_id}"
-            
-            # Find closest surrounding html block for title & author if possible
-            start_pos = max(0, m.start() - 200)
-            end_pos = min(len(html_str), m.end() + 1500)
-            block = html_str[start_pos:end_pos]
 
+            # Title extraction
             title = None
-            title_m = re.search(r'title="([^"]+)"', block)
+            title_m = re.search(r'rel=[\'"]mid_name[\'"][^>]*title=[\'"]([^\'"]+)[\'"]', row)
+            if not title_m:
+                title_m = re.search(r'title=[\'"]([^\'"]+)[\'"]', row)
             if title_m:
                 title = self._clean_text(title_m.group(1))
 
+            # Author extraction
             author = None
-            author_m = re.search(r'<a[^>]*rel=[\'"]go_author[\'"][^>]*>(.*?)</a>', block, re.DOTALL)
+            author_m = re.search(r'<a[^>]*rel=[\'"]go_author[\'"][^>]*>(.*?)</a>', row, re.DOTALL)
             if not author_m:
-                author_m = re.search(r'href="[^"]*adv_author[^"]*"[^>]*>(.*?)</a>', block, re.DOTALL)
+                author_m = re.search(r'href=[\'"][^\'"]*adv_author[^\'"]*[\'"][^>]*>(.*?)</a>', row, re.DOTALL)
+            if not author_m:
+                author_m = re.search(r'作者[：:]\s*<a[^>]*>(.*?)</a>', row, re.DOTALL)
             if author_m:
                 author = self._clean_text(author_m.group(1))
 
+            # Pub year extraction
             pub_year = None
-            pub_m = re.search(r'出版日期[：:]\s*([\d-]+)', block)
+            pub_m = re.search(r'出版日期[：:]\s*([\d-]+)', row)
+            if not pub_m:
+                pub_m = re.search(r'(\b(?:19|20)\d\d[-\.\/]\d\d[-\.\/]\d\d\b|\b(?:19|20)\d\d\b)', row)
             if pub_m:
                 raw_pub = pub_m.group(1)
                 year_m = re.search(r'\b(19\d\d|20\d\d)\b', raw_pub)
@@ -202,6 +215,51 @@ class BooksTwSource(BaseSource):
 
             if len(items) >= limit:
                 break
+
+        # Fallback to character slicing if no <tr> rows matched
+        if not items:
+            for m in _ITEM_LINK_RE.finditer(html_str):
+                item_id = m.group(1)
+                if item_id in seen_ids:
+                    continue
+                seen_ids.add(item_id)
+
+                url = f"{self.BASE_URL}/products/{item_id}"
+                start_pos = max(0, m.start() - 200)
+                end_pos = min(len(html_str), m.end() + 3000)
+                block = html_str[start_pos:end_pos]
+
+                title = None
+                title_m = re.search(r'title="([^"]+)"', block)
+                if title_m:
+                    title = self._clean_text(title_m.group(1))
+
+                author = None
+                author_m = re.search(r'<a[^>]*rel=[\'"]go_author[\'"][^>]*>(.*?)</a>', block, re.DOTALL)
+                if not author_m:
+                    author_m = re.search(r'href="[^"]*adv_author[^"]*"[^>]*>(.*?)</a>', block, re.DOTALL)
+                if author_m:
+                    author = self._clean_text(author_m.group(1))
+
+                pub_year = None
+                pub_m = re.search(r'出版日期[：:]\s*([\d-]+)', block)
+                if pub_m:
+                    raw_pub = pub_m.group(1)
+                    year_m = re.search(r'\b(19\d\d|20\d\d)\b', raw_pub)
+                    if year_m:
+                        pub_year = int(year_m.group(1))
+
+                items.append({
+                    "book_id": item_id,
+                    "url": url,
+                    "title": title,
+                    "author": author,
+                    "first_publish_year": pub_year,
+                    "avg_rating": None
+                })
+
+                if len(items) >= limit:
+                    break
 
         return items
 

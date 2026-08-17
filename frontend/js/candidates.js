@@ -233,7 +233,7 @@ export function renderCandidates(works, { onChooseCandidate, onChooseEdition } =
     fragment.querySelector(".candidate-title").textContent = work.title;
 
     const authorText = `作者：${(work.author_name || ["Unknown"]).join("、")}`;
-    const publishText = work.first_publish_year ? `首版 ${work.first_publish_year}` : "";
+    const publishText = work.first_publish_year ? `出版日期 ${work.first_publish_year}` : "";
     const editionText = work.edition_count ? `${work.edition_count.toLocaleString()} 個版本` : "";
 
     const statusTag = fragment.querySelector(".candidate-status-tag");
