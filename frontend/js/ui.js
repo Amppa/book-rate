@@ -5,6 +5,7 @@ export function renderSourceToggles(container) {
   container.innerHTML = '<span class="toggle-title">來源：</span>';
 
   SOURCES.forEach((source) => {
+    if (source.id === "douban_api") return;
     const suffix = SOURCE_PREFIX[source.id];
     const item = document.createElement("div");
     item.className = "source-toggle-item";
@@ -31,6 +32,7 @@ export function renderStrategySelects(strategyRow) {
   strategyRow.replaceChildren();
 
   SOURCES.forEach((source) => {
+    if (source.id === "douban_api") return;
     const suffix = SOURCE_PREFIX[source.id];
     const th = document.createElement("th");
     th.className = `col-${suffix}`;
@@ -54,6 +56,7 @@ export function renderStrategySelects(strategyRow) {
 export function updateTableVisibility(ratingTable) {
   if (ratingTable) {
     SOURCES.forEach((source) => {
+      if (source.id === "douban_api") return;
       const suffix = SOURCE_PREFIX[source.id];
       const checkbox = document.querySelector(`#score-${suffix}`);
       ratingTable.classList.toggle(`hide-${suffix}-score`, checkbox ? !checkbox.checked : true);
@@ -66,6 +69,7 @@ export function renderTableHeaders(headerRow) {
   headerRow.replaceChildren();
 
   SOURCES.forEach((source) => {
+    if (source.id === "douban_api") return;
     const suffix = SOURCE_PREFIX[source.id];
     const th = document.createElement("th");
     th.className = `col-${suffix}`;
@@ -100,6 +104,7 @@ export function initTableVisibilityStyles() {
   }
   let css = "";
   SOURCES.forEach((source) => {
+    if (source.id === "douban_api") return;
     const suffix = SOURCE_PREFIX[source.id];
     css += `
       .hide-${suffix}-score .col-${suffix} {

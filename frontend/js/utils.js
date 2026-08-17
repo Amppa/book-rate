@@ -47,6 +47,7 @@ export function getWorkExternalUrl(key) {
     return `https://www.goodreads.com/book/show/${rawId}`;
   }
   if (key.startsWith("db:")) return `https://book.douban.com/subject/${key.slice(3)}/`;
+  if (key.startsWith("dbapi:")) return `https://book.douban.com/subject/${key.slice(6)}/`;
   if (key.startsWith("amjp:")) return `https://www.amazon.co.jp/dp/${key.slice(5)}`;
   if (key.startsWith("sg:")) return `https://app.thestorygraph.com/books/${key.slice(3)}`;
   if (key.startsWith("rm:")) return `https://readmoo.com/book/${key.slice(3)}`;
@@ -68,6 +69,8 @@ export function getSourceDisplayName(key) {
     gr: "Goodreads",
     douban: "豆瓣",
     db: "豆瓣",
+    douban_api: "豆瓣 API",
+    dbapi: "豆瓣 API",
     amazon: "Amazon",
     am: "Amazon",
     amazon_jp: "Amazon JP",

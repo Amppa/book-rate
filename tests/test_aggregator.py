@@ -164,8 +164,10 @@ class TestGoodreadsSource(unittest.TestCase):
 
 
 class TestDoubanSource(unittest.TestCase):
+    @patch('book_rate.sources.base.BaseSource._fetch_html')
     @patch('requests.Session.get')
-    def test_search_works(self, mock_get):
+    def test_search_works(self, mock_get, mock_fetch_html):
+        mock_fetch_html.return_value = ""
         def side_effect(url, **kwargs):
             mock_resp = MagicMock()
             mock_resp.status_code = 200

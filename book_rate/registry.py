@@ -6,7 +6,7 @@ from book_rate.sources.open_library import OpenLibrarySource
 from book_rate.sources.google_books import GoogleBooksSource
 from book_rate.sources.google_play import GooglePlaySource
 from book_rate.sources.goodreads import GoodreadsSource
-from book_rate.sources.douban import DoubanSource
+from book_rate.sources.douban import DoubanSource, DoubanApiSource
 from book_rate.sources.amazon import AmazonSource
 from book_rate.sources.amazon_jp import AmazonJPSource
 from book_rate.sources.storygraph import StoryGraphSource
@@ -22,7 +22,7 @@ class SourceRegistry:
     for all available rating and title source adapters.
     """
 
-    TITLE_SOURCES = ["google_play", "goodreads", "storygraph", "amazon", "amazon_jp", "douban", "readmoo", "books_tw"]
+    TITLE_SOURCES = ["google_play", "goodreads", "storygraph", "amazon", "amazon_jp", "douban", "douban_api", "readmoo", "books_tw"]
 
 
     # Mapping of engine key to source adapter class
@@ -32,6 +32,7 @@ class SourceRegistry:
         "google_play": GooglePlaySource,
         "goodreads": GoodreadsSource,
         "douban": DoubanSource,
+        "douban_api": DoubanApiSource,
         "amazon": AmazonSource,
         "amazon_jp": AmazonJPSource,
         "storygraph": StoryGraphSource,

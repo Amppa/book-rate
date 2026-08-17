@@ -33,8 +33,10 @@ class TestNonExistentBookCase(unittest.TestCase):
         self.assertIsNone(rating.rate)
         self.assertIsNone(rating.rating_count)
 
+    @patch("book_rate.sources.base.BaseSource._fetch_html")
     @patch("requests.Session.get")
-    def test_douban_non_existent_book(self, mock_get):
+    def test_douban_non_existent_book(self, mock_get, mock_fetch_html):
+        mock_fetch_html.return_value = ""
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = []
@@ -111,8 +113,10 @@ class TestUnratedBookWithUrlCase(unittest.TestCase):
         self.assertIsNone(rating.rate)
         self.assertIsNone(rating.rating_count)
 
+    @patch("book_rate.sources.base.BaseSource._fetch_html")
     @patch("requests.Session.get")
-    def test_douban_unrated_book_with_url(self, mock_get):
+    def test_douban_unrated_book_with_url(self, mock_get, mock_fetch_html):
+        mock_fetch_html.return_value = ""
         def side_effect(url, **kwargs):
             mock_resp = MagicMock()
             mock_resp.status_code = 200

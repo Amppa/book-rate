@@ -116,30 +116,9 @@ class DoubanSource(BaseSource):
             logger.debug(f"Douban ISBN lookup failed for '{isbn_str}': {e}")
             return None
 
-    def search_works(self, query: str, limit: int = 5, page: int = 1) -> List[Work]:
-        """Search Douban for books by query string or ISBN."""
+    def _search_works_suggest(self, query: str, limit: int = 5, page: int = 1) -> List[Work]:
+        """Fallback to original suggest API search."""
         clean_query = query.strip()
-        if not clean_query:
-            return []
-
-        isbn_str = clean_isbn(clean_query)
-        if isbn_str:
-            rating = self._lookup_by_isbn(isbn_str)
-            if rating and rating.url:
-                sub_match = re.search(r"/subject/(\d+)/", rating.url)
-                sub_id = sub_match.group(1) if sub_match else isbn_str
-                work = Work(
-                    work_id=f"db:{sub_id}",
-                    title=rating.title or clean_query,
-                    author="",
-                    edition_count=getattr(rating, "editions_count", None)
-                )
-                work.ratings[self.name] = rating
-                edition = Edition(edition_id=sub_id, title=rating.title or clean_query)
-                work.editions.append(edition)
-                return [work]
-            return []
-
         try:
             resp = self.session.get(
                 self.SUGGEST_URL,
@@ -149,7 +128,7 @@ class DoubanSource(BaseSource):
             resp.raise_for_status()
             items = resp.json()
         except Exception as e:
-            logger.warning(f"Douban search failed for '{query}': {e}")
+            logger.warning(f"Douban search suggest failed for '{query}': {e}")
             return []
 
         if not isinstance(items, list):
@@ -192,13 +171,123 @@ class DoubanSource(BaseSource):
 
         return works
 
+    def search_works(self, query: str, limit: int = 5, page: int = 1) -> List[Work]:
+        """Search Douban for books by query string or ISBN."""
+        clean_query = query.strip()
+        if not clean_query:
+            return []
+
+        isbn_str = clean_isbn(clean_query)
+        if isbn_str:
+            rating = self._lookup_by_isbn(isbn_str)
+            if rating and rating.url:
+                sub_match = re.search(r"/subject/(\d+)/", rating.url)
+                sub_id = sub_match.group(1) if sub_match else isbn_str
+                work = Work(
+                    work_id=f"db:{sub_id}",
+                    title=rating.title or clean_query,
+                    author="",
+                    edition_count=getattr(rating, "editions_count", None)
+                )
+                work.ratings[self.name] = rating
+                edition = Edition(edition_id=sub_id, title=rating.title or clean_query)
+                work.editions.append(edition)
+                return [work]
+            return []
+
+        # Try scraping the subject_search page first to get up to 15 results with ratings in a single request.
+        import urllib.parse
+        import json
+        start_index = (page - 1) * 15
+        search_url = f"https://search.douban.com/book/subject_search?search_text={urllib.parse.quote(clean_query)}&cat=1001&start={start_index}"
+        
+        try:
+            html_content = self._fetch_html(search_url)
+            match = re.search(r'window\.__DATA__\s*=\s*(\{.*?\});', html_content)
+            if match:
+                data = json.loads(match.group(1))
+                items = data.get("items", [])
+                
+                works: List[Work] = []
+                for item in items:
+                    if not isinstance(item, dict) or item.get("tpl_name") != "search_subject":
+                        continue
+
+                    sub_id = str(item.get("id", ""))
+                    if not sub_id:
+                        continue
+
+                    title = item.get("title", "Unknown Title")
+                    subject_url = item.get("url") or _build_subject_url(sub_id)
+                    
+                    rating_data = item.get("rating", {})
+                    rate_val = rating_data.get("value")
+                    votes_val = rating_data.get("count")
+                    
+                    rate = None
+                    votes = None
+                    if rate_val is not None:
+                        try:
+                            rate = float(rate_val)
+                        except ValueError:
+                            pass
+                    if votes_val is not None:
+                        try:
+                            votes = int(votes_val)
+                        except ValueError:
+                            pass
+
+                    # Parse abstract to extract author and pub_year
+                    abstract_str = item.get("abstract", "")
+                    author_name = "Unknown Author"
+                    pub_year_str = ""
+                    pub_year = None
+                    if abstract_str:
+                        parts = [p.strip() for p in abstract_str.split("/") if p.strip()]
+                        if parts:
+                            author_name = parts[0]
+                            for p in parts[1:]:
+                                year_match = re.search(r'\b(\d{4})\b', p)
+                                if year_match:
+                                    pub_year_str = year_match.group(1)
+                                    pub_year = int(pub_year_str)
+                                    break
+
+                    work = Work(
+                        work_id=f"db:{sub_id}",
+                        title=title,
+                        author=author_name,
+                        first_publish_year=pub_year,
+                        edition_count=None
+                    )
+
+                    work.ratings[self.name] = SourceRating(
+                        source_name=self.name,
+                        rate=rate,
+                        rating_count=votes,
+                        url=subject_url,
+                        title=title
+                    )
+
+                    edition = Edition(
+                        edition_id=sub_id,
+                        title=title,
+                        publish_year=pub_year_str
+                    )
+                    work.editions.append(edition)
+                    works.append(work)
+
+                if works:
+                    return works
+        except Exception as e:
+            logger.warning(f"Failed to scrape Douban search page for '{query}': {e}")
+
+        # Fallback to suggest API
+        return self._search_works_suggest(query, limit=limit, page=page)
+
     @property
     def default_strategy(self) -> str:
         return "isbn_primary"
-
-    @property
-    def enable_extend_editions(self) -> bool:
-        return True
 
     def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> SourceRating:
         """Fetch Douban rating for a Work using explicit SearchStrategy."""
@@ -281,3 +370,15 @@ class DoubanSource(BaseSource):
             ))
 
         return editions
+
+
+class DoubanApiSource(DoubanSource):
+    """Source for querying Douban (豆瓣) ratings and book subjects via suggest API."""
+
+    @property
+    def name(self) -> str:
+        return "Douban API"
+
+    def search_works(self, query: str, limit: int = 5, page: int = 1) -> List[Work]:
+        return self._search_works_suggest(query, limit=limit, page=page)
+

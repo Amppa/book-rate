@@ -23,7 +23,8 @@ export const SOURCES = [
   { id: "storygraph", label: "StoryGraph", defaultStrategy: "title_list", lang: ["en"] },
   { id: "amazon", label: "Amazon", defaultStrategy: "title_list", lang: ["en"] },
   { id: "amazon_jp", label: "Amazon JP", defaultStrategy: "title_list", lang: ["en"] },
-  { id: "douban", label: "豆瓣", defaultStrategy: "title_zh_list", lang: ["zh", "en"], enable_extend_editions: true },
+  { id: "douban", label: "豆瓣", defaultStrategy: "title_zh_list", lang: ["zh", "en"] },
+  { id: "douban_api", label: "豆瓣 API", defaultStrategy: "title_zh_list", lang: ["zh", "en"] },
   { id: "readmoo", label: "讀墨", defaultStrategy: "title_zh_list", lang: ["zh"] },
   { id: "books_tw", label: "博客來", defaultStrategy: "title_zh_list", lang: ["zh"] },
 ];
@@ -47,6 +48,7 @@ export const SOURCE_PREFIX = {
   amazon: "am",
   amazon_jp: "amjp",
   douban: "db",
+  douban_api: "dbapi",
   readmoo: "rm",
   books_tw: "bk"
 };

@@ -59,6 +59,7 @@ export function renderInitialWorkRow(work) {
   row.className = "work-row";
 
   SOURCES.forEach((source) => {
+    if (source.id === "douban_api") return;
     const suffix = SOURCE_PREFIX[source.id];
     const td = document.createElement("td");
     td.className = `col-${suffix}`;

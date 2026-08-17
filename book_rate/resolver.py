@@ -97,6 +97,7 @@ class EditionResolver:
             "gr:": "goodreads",
             "sg:": "storygraph",
             "db:": "douban",
+            "dbapi:": "douban_api",
             "am:": "amazon",
             "amjp:": "amazon_jp",
             "rm:": "readmoo",
