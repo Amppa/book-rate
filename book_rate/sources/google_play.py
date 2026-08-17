@@ -119,12 +119,13 @@ class GooglePlaySource(BaseSource):
             parsed_title = clean_query
             parsed_author = "Unknown"
             if slug:
-                parts = slug.replace("_", " ").strip().split(" ")
+                decoded_slug = urllib.parse.unquote(slug)
+                parts = decoded_slug.replace("_", " ").strip().split(" ")
                 if len(parts) > 2:
                     parsed_author = " ".join(parts[:2])
                     parsed_title = " ".join(parts[2:])
                 else:
-                    parsed_title = slug.replace("_", " ")
+                    parsed_title = decoded_slug.replace("_", " ")
 
             w = Work(
                 work_id=f"play:{vid}",

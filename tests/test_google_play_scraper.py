@@ -103,6 +103,25 @@ class TestGooglePlayScraper(unittest.TestCase):
         self.assertEqual(result_rating.status, "MATCH")
         mock_parse_play.assert_called_once_with("ZuKTvERuPG8C")
 
+    @patch("book_rate.sources.google_play.GooglePlaySource._fetch_html")
+    @patch("book_rate.sources.google_play.GooglePlaySource._parse_play_rating")
+    def test_search_works_chinese_slug(self, mock_parse_play, mock_fetch_html):
+        source = GooglePlaySource()
+        
+        # Mock HTML containing Chinese URL-encoded slug
+        mock_fetch_html.return_value = (
+            '<html><body>'
+            '<a href="/store/books/details/%E7%98%9F%E7%96%AB%E8%88%87%E6%96%87%E6%98%8E_%E4%BA%BA%E9%A1%9E%E7%96%BE%E7%97%85%E5%A4%A7%E6%AD%B7%E5%8F%B2?id=wOzaEAAAQBAJ">Link</a>'
+            '</body></html>'
+        )
+        mock_parse_play.return_value = (4.5, 10)
+        
+        works = source.search_works("人類大歷史")
+        self.assertEqual(len(works), 1)
+        self.assertEqual(works[0].title, "瘟疫與文明 人類疾病大歷史")
+        self.assertEqual(works[0].author, "Unknown")
+        self.assertEqual(works[0].work_id, "play:wOzaEAAAQBAJ")
+
 
 if __name__ == "__main__":
     unittest.main()
