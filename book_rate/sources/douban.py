@@ -49,9 +49,8 @@ def _parse_subject_html(html_str: str, url: str) -> dict:
         res["isbn"] = clean_isbn(isbn_match.group(1))
 
     if pub_match:
-        py_clean = pub_match.group(1).strip()
-        ym = re.search(r'\b(19\d\d|20\d\d)\b', py_clean)
-        res["pub_year"] = ym.group(1) if ym else py_clean
+        res["pub_year"] = pub_match.group(1).strip()
+
 
     editions_match = re.search(r'这本书的其他版本.*?全部(\d+)', html_str, re.DOTALL)
     if editions_match:
