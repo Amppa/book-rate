@@ -1,7 +1,8 @@
 import { state } from './state.js';
 import { STORAGE_KEYS, SOURCES, SOURCE_PREFIX, OPEN_LIBRARY_BASE_URL, STRATEGY_LABEL_MAP } from './constants.js';
-import { displayRate, displayCount, buildStreamUrl, calculateTitleConfidence } from './utils.js';
+import { displayRate, displayCount, calculateTitleConfidence } from './utils.js';
 import { getRatingCache, setRatingCache } from './cache.js';
+import { streamWorkDetailsPost } from './api.js';
 import {
   getStep3Metadata,
   getSelectedStrategies,
@@ -274,6 +275,33 @@ export function updateWorkDetailRow(row, { work, ratings }, strategies) {
 // SSE orchestration
 // ---------------------------------------------------------------------------
 
+/**
+ * Builds the RatingRequestPayload object for work details retrieval.
+ * Automatically retrieves metadata from Step 2/3 metadata editor.
+ * 
+ * @param {Object} work - The Work object containing key, title, and author.
+ * @param {string[]} engines - List of source engine IDs to query.
+ * @param {Object} strategies - Mapping of engines to search strategies.
+ * @param {string} apiKey - Optional Google Books API Key.
+ * @returns {Object} The payload object matching RatingRequestPayload schema.
+ */
+function buildWorkDetailsPayload(work, engines, strategies, apiKey) {
+  const meta = getStep3Metadata();
+  return {
+    work_id: work.key,
+    title: work.title || "",
+    author: work.author || "",
+    engines: engines,
+    strategies: strategies,
+    search_name: meta.searchName || "",
+    title_list: meta.titleList || [],
+    title_zh_list: meta.titleZhList || [],
+    author_list: meta.authorList || [],
+    isbn_list: meta.isbnList || [],
+    google_key: apiKey || null
+  };
+}
+
 /** Advances to Step 3, starts the SSE stream, and populates the rating table. */
 export async function selectWork(work) {
   state.currentSelectedWork = work;
@@ -322,17 +350,14 @@ export async function selectWork(work) {
   });
 
   try {
-    const meta = getStep3Metadata();
-    const url = buildStreamUrl(work.key, meta, pendingRateSources, strategies, apiKey);
+    const payload = buildWorkDetailsPayload(work, pendingRateSources, strategies, apiKey);
 
     const collectedDetails = { work, ratings: {}, editions: {} };
     SOURCES.forEach((source) => { collectedDetails[source.id] = {}; });
 
-    const eventSource = new EventSource(url);
-
-    eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
+    streamWorkDetailsPost(
+      payload,
+      (data) => {
         if (data.type === "init") {
           collectedDetails.ratings = data.ratings;
           collectedDetails.editions = data.editions;
@@ -346,20 +371,16 @@ export async function selectWork(work) {
           const strategy = strategies[sourceKey] || getSourceDefaultStrat(sourceKey);
           setRatingCache(work.key, sourceKey, strategy, data.data);
           renderSourceCell(row, prefix, data.data, maxRate);
-        } else if (data.type === "done") {
-          eventSource.close();
-          _step3Status.textContent = "";
         }
-      } catch (err) {
-        console.error("Stream parse error:", err);
+      },
+      (err) => {
+        console.error("POST Stream failed:", err);
+        _step3Status.textContent = "";
+      },
+      () => {
+        _step3Status.textContent = "";
       }
-    };
-
-    eventSource.onerror = (err) => {
-      console.error("EventSource failed:", err);
-      eventSource.close();
-      _step3Status.textContent = "";
-    };
+    );
   } catch (error) {
     console.error(error);
     _step3Status.classList.add("error");
@@ -403,27 +424,21 @@ export function reQuerySingleSource(work, sourceKey) {
   }
 
   const apiKey = localStorage.getItem(STORAGE_KEYS.GOOGLE_API_KEY) || "";
-  const meta = getStep3Metadata();
-  const url = buildStreamUrl(work.key, meta, sourceKey, strategies, apiKey);
+  const payload = buildWorkDetailsPayload(work, [sourceKey], strategies, apiKey);
 
-  const eventSource = new EventSource(url);
-  eventSource.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data);
+  streamWorkDetailsPost(
+    payload,
+    (data) => {
       if (data.type === "source") {
         const maxRate = prefix === "db" ? 10 : 5;
         const strategy = strategies[sourceKey] || getSourceDefaultStrat(sourceKey);
         setRatingCache(work.key, sourceKey, strategy, data.data);
         renderSourceCell(row, prefix, data.data, maxRate);
-      } else if (data.type === "done") {
-        eventSource.close();
       }
-    } catch (err) {
-      console.error("Single source re-query parse error:", err);
-    }
-  };
-  eventSource.onerror = (err) => {
-    console.error("Single source EventSource failed:", err);
-    eventSource.close();
-  };
+    },
+    (err) => {
+      console.error("Single source re-query failed:", err);
+    },
+    () => {}
+  );
 }
