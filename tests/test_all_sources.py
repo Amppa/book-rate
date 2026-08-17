@@ -201,6 +201,12 @@ class TestRatingOrchestrator(unittest.TestCase):
         self.assertEqual(works[1].title, "Thinking, Fast and Slow (Edition 2)")
         self.assertEqual(works[1].ratings["Douban"].status, "CURL_MATCH")
 
+    def test_books_tw_clean_text_unescape(self):
+        source = BooksTwSource()
+        raw_text = "An Analysis of Daniel Kahneman&rsquo;s Thinking, Fast and Slow"
+        cleaned = source._clean_text(raw_text)
+        self.assertEqual(cleaned, "An Analysis of Daniel Kahneman’s Thinking, Fast and Slow")
+
 
 if __name__ == "__main__":
     unittest.main()

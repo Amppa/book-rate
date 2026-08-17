@@ -1,5 +1,6 @@
 """Books.com.tw (博客來) crawler source implementation."""
 
+import html
 import re
 import subprocess
 import urllib.parse
@@ -29,7 +30,7 @@ class BooksTwSource(BaseSource):
             return ""
         # Strip HTML tags
         clean = re.sub(r'<[^>]+>', '', text)
-        return clean.strip()
+        return html.unescape(clean.strip())
 
     def _fetch_books_html(self, url: str, referer: Optional[str] = None) -> Tuple[Optional[str], bool]:
         """Fetch URL with Accept-Language header and optional Referer to bypass Books.com.tw WAF."""
