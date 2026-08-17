@@ -38,7 +38,7 @@ Defined in [server.py](file:///c:/Users/flow/Documents/我的git/book-rate/serve
 - **`/api/work-editions`**: Fetches all published editions for a target book.
 - **POST `/api/work-details`**: Synchronously retrieves and aggregates ratings for a work using a JSON payload.
 - **POST `/api/work-details-stream`**: An SSE endpoint that accepts a JSON payload, yields an `init` event (containing edition list and Open Library ratings), concurrently queries active providers, and yields individual `source` event updates.
-- **Legacy Endpoints**: GET `/api/work-details` and GET `/api/work-details-stream` are preserved for backward compatibility.
+
 - **Modular Core Component Blocks**:
   - **[resolver.py](file:///c:/Users/flow/Documents/我的git/book-rate/book_rate/resolver.py)**:
     - [WorkResolver](file:///c:/Users/flow/Documents/我的git/book-rate/book_rate/resolver.py#L10): Handles candidate work discovery across active title sources.
