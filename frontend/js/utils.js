@@ -51,6 +51,7 @@ export function getWorkExternalUrl(key) {
   if (key.startsWith("sg:")) return `https://app.thestorygraph.com/books/${key.slice(3)}`;
   if (key.startsWith("rm:")) return `https://readmoo.com/book/${key.slice(3)}`;
   if (key.startsWith("bk:")) return `https://www.books.com.tw/products/${key.slice(3)}`;
+  if (key.startsWith("play:")) return `https://play.google.com/store/books/details?id=${key.slice(5)}`;
   return null;
 }
 
@@ -60,6 +61,8 @@ export function getSourceDisplayName(key) {
     ol: "Open Library",
     google_books: "Google Books",
     gb: "Google Books",
+    google_play: "Google Play",
+    gp: "Google Play",
     google: "Google Books",
     goodreads: "Goodreads",
     gr: "Goodreads",
@@ -76,6 +79,7 @@ export function getSourceDisplayName(key) {
     books_tw: "博客來",
     bk: "博客來"
   };
+
   return names[key] || key;
 }
 

@@ -32,7 +32,7 @@ class GoogleBooksSource(BaseSource):
         return "isbn_primary"
 
     def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> SourceRating:
-        """Fetch Google Books rating for a Work using explicit SearchStrategy and enrich with Google Play ratings."""
+        """Fetch Google Books rating for a Work via Google Books API."""
         if self.quota_exceeded:
             return SourceRating(
                 source_name=self.name,
@@ -41,38 +41,13 @@ class GoogleBooksSource(BaseSource):
             )
 
         rating = self._fetch_ratings(work, strategy=strategy)
+        return rating if rating else SourceRating(source_name=self.name, strategy=strategy, status="NOT_FOUND")
 
-        # Enhance Google Books rating with Google Play details if a match was found
-        if rating and rating.status in ("MATCH", "CURL_MATCH"):
-            volume_id = None
-            if work.work_id and work.work_id.startswith("gb:"):
-                volume_id = work.work_id[3:]
-            else:
-                volume_id = self._extract_volume_id(rating)
 
-            if volume_id:
-                logger.info(f"Enriching Google Books rating from Google Play Books for volume {volume_id}")
-                play_rate, play_count = self._fetch_google_play_rating(volume_id)
-                if play_rate is not None:
-                    rating.rate = play_rate
-                    rating.rating_count = play_count
-                    rating.url = f"https://play.google.com/store/books/details?id={volume_id}"
-                    if getattr(self, "last_request_used_curl", False):
-                        rating.status = "CURL_MATCH"
-                    else:
-                        rating.status = "MATCH"
 
-                # Update matching result in results list if present
-                if rating.results:
-                    for res in rating.results:
-                        res_vol_id = self._extract_volume_id_from_url(res.get("url"))
-                        if res_vol_id == volume_id and play_rate is not None:
-                            res["average"] = play_rate
-                            res["count"] = play_count
-                            res["url"] = f"https://play.google.com/store/books/details?id={volume_id}"
-                            res["status"] = "MATCH"
 
-        return rating
+
+
 
     def _extract_volume_id_from_url(self, url: Optional[str]) -> Optional[str]:
         if not url:

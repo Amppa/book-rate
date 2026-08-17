@@ -18,6 +18,7 @@ export const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 export const SOURCES = [
   { id: "open_library", label: "Open Library", defaultStrategy: "title_list", lang: ["en"], enable_extend_editions: true },
   { id: "google_books", label: "谷歌圖書", defaultStrategy: "title_list", lang: ["en"] },
+  { id: "google_play", label: "Google Play", defaultStrategy: "title_list", lang: ["en", "zh"] },
   { id: "goodreads", label: "Goodreads", defaultStrategy: "title_list", lang: ["en"], enable_extend_editions: true },
   { id: "storygraph", label: "StoryGraph", defaultStrategy: "title_list", lang: ["en"] },
   { id: "amazon", label: "Amazon", defaultStrategy: "title_list", lang: ["en"] },
@@ -40,6 +41,7 @@ export const STRATEGIES = [
 export const SOURCE_PREFIX = {
   open_library: "ol",
   google_books: "gb",
+  google_play: "gp",
   goodreads: "gr",
   storygraph: "sg",
   amazon: "am",
@@ -48,6 +50,7 @@ export const SOURCE_PREFIX = {
   readmoo: "rm",
   books_tw: "bk"
 };
+
 
 export const LANGUAGE_NAME_MAP = {
   eng: "English",

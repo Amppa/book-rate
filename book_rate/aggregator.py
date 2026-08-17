@@ -34,6 +34,7 @@ class BookAggregator:
 
         self.open_library = self.registry.create_source("open_library")
         self.google_books = self.registry.create_source("google_books", api_key=google_api_key)
+        self.google_play = self.registry.create_source("google_play")
         self.goodreads = self.registry.create_source("goodreads")
         self.douban = self.registry.create_source("douban")
         self.amazon = self.registry.create_source("amazon")
@@ -45,6 +46,7 @@ class BookAggregator:
         self.source_instances = {
             "open_library": self.open_library,
             "google_books": self.google_books,
+            "google_play": self.google_play,
             "goodreads": self.goodreads,
             "douban": self.douban,
             "amazon": self.amazon,
@@ -53,6 +55,7 @@ class BookAggregator:
             "readmoo": self.readmoo,
             "books_tw": self.books_tw,
         }
+
 
         self.orchestrator = RatingOrchestrator(
             registry=self.registry,
@@ -136,6 +139,9 @@ class BookAggregator:
             status = work.ratings["Goodreads"].status
         elif work.work_id.startswith("sg:") and "StoryGraph" in work.ratings:
             status = work.ratings["StoryGraph"].status
+        elif work.work_id.startswith("play:") and "Google Play" in work.ratings:
+            status = work.ratings["Google Play"].status
+
         return {
             "key": work.work_id,
             "title": work.title,
@@ -204,7 +210,9 @@ class BookAggregator:
             "amjp:": self.amazon_jp,
             "rm:": self.readmoo,
             "gb:": self.google_books,
+            "play:": self.google_play,
         }
+
         for prefix, source in prefix_map.items():
             if work_id.startswith(prefix):
                 return source, work_id, self.DEFAULT_EDITION_LIMIT
@@ -474,6 +482,7 @@ class BookAggregator:
     def _build_source_instances(self, gb_source: GoogleBooksSource) -> dict:
         return {
             "google_books": gb_source,
+            "google_play": self.google_play,
             "goodreads": self.goodreads,
             "douban": self.douban,
             "amazon": self.amazon,
@@ -499,6 +508,7 @@ class BookAggregator:
         extra_works = []
         if "open_library" not in active_title_sources and "google_books" not in active_title_sources:
             source_map = {
+                "google_play": self.google_play,
                 "goodreads": self.goodreads,
                 "douban": self.douban,
                 "storygraph": self.storygraph,
@@ -511,6 +521,7 @@ class BookAggregator:
                 if source in active_title_sources:
                     extra_works = source_map[source].search_works(q, limit=10, page=page)
                     break
+
 
         results = [self._work_to_dict(w) for w in works]
         existing_keys = {

@@ -17,10 +17,12 @@ from book_rate.sources.open_library import OpenLibrarySource
 class TestSourceRegistry(unittest.TestCase):
     def test_list_source_keys(self):
         keys = SourceRegistry.list_source_keys()
-        self.assertEqual(len(keys), 9)
+        self.assertEqual(len(keys), 10)
         self.assertIn("books_tw", keys)
         self.assertIn("open_library", keys)
         self.assertIn("google_books", keys)
+        self.assertIn("google_play", keys)
+
 
     def test_create_source(self):
         source = SourceRegistry.create_source("readmoo")

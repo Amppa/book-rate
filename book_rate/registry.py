@@ -4,6 +4,7 @@ from typing import Dict, List, Optional, Type
 from book_rate.sources.base import BaseSource
 from book_rate.sources.open_library import OpenLibrarySource
 from book_rate.sources.google_books import GoogleBooksSource
+from book_rate.sources.google_play import GooglePlaySource
 from book_rate.sources.goodreads import GoodreadsSource
 from book_rate.sources.douban import DoubanSource
 from book_rate.sources.amazon import AmazonSource
@@ -21,12 +22,14 @@ class SourceRegistry:
     for all available rating and title source adapters.
     """
 
-    TITLE_SOURCES = ["goodreads", "storygraph", "amazon", "amazon_jp", "douban", "readmoo", "books_tw"]
+    TITLE_SOURCES = ["google_play", "goodreads", "storygraph", "amazon", "amazon_jp", "douban", "readmoo", "books_tw"]
+
 
     # Mapping of engine key to source adapter class
     _REGISTRY: Dict[str, Type[BaseSource]] = {
         "open_library": OpenLibrarySource,
         "google_books": GoogleBooksSource,
+        "google_play": GooglePlaySource,
         "goodreads": GoodreadsSource,
         "douban": DoubanSource,
         "amazon": AmazonSource,
@@ -35,6 +38,7 @@ class SourceRegistry:
         "readmoo": ReadmooSource,
         "books_tw": BooksTwSource,
     }
+
 
     @classmethod
     def list_source_keys(cls) -> List[str]:

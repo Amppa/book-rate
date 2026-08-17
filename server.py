@@ -20,7 +20,7 @@ def api_search(
     q: str = Query(..., description="Search query"),
     page: int = Query(1, description="Page number"),
     google_key: str = Query(None, description="Optional Google Books API Key"),
-    engines: str = Query("open_library,google_books,goodreads,storygraph,amazon,amazon_jp,douban,readmoo,books_tw", description="Comma-separated engines to use")
+    engines: str = Query("open_library,google_books,google_play,goodreads,storygraph,amazon,amazon_jp,douban,readmoo,books_tw", description="Comma-separated engines to use")
 ):
     print(f"\n[Search API] User query: '{q}', page: {page}, engines: '{engines}'")
     active_title_sources = [e.strip() for e in engines.split(",") if e.strip()]
@@ -33,7 +33,7 @@ def api_work_details(
     title: str = Query(None, description="Title of the work"),
     author: str = Query(None, description="Author of the work"),
     google_key: str = Query(None, description="Optional Google Books API Key"),
-    engines: str = Query("open_library,google_books,goodreads,storygraph,amazon,amazon_jp,douban,readmoo,books_tw", description="Comma-separated score engines to fetch"),
+    engines: str = Query("open_library,google_books,google_play,goodreads,storygraph,amazon,amazon_jp,douban,readmoo,books_tw", description="Comma-separated score engines to fetch"),
     strategies: str = Query(None, description="JSON string of source search strategies"),
     search_name: str = Query(None, description="User input search name"),
     title_list: str = Query(None, description="List of book titles"),
@@ -71,7 +71,7 @@ def api_work_details_stream(
     title: str = Query(None, description="Title of the work"),
     author: str = Query(None, description="Author of the work"),
     google_key: str = Query(None, description="Optional Google Books API Key"),
-    engines: str = Query("open_library,google_books,goodreads,storygraph,amazon,amazon_jp,douban,readmoo,books_tw", description="Comma-separated score engines to fetch"),
+    engines: str = Query("open_library,google_books,google_play,goodreads,storygraph,amazon,amazon_jp,douban,readmoo,books_tw", description="Comma-separated score engines to fetch"),
     strategies: str = Query(None, description="JSON string of source search strategies"),
     search_name: str = Query(None, description="User input search name"),
     title_list: str = Query(None, description="List of book titles"),
