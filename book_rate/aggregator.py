@@ -16,6 +16,7 @@ from book_rate.sources.amazon_jp import AmazonJPSource
 from book_rate.sources.storygraph import StoryGraphSource
 from book_rate.sources.readmoo import ReadmooSource
 from book_rate.registry import SourceRegistry
+from book_rate.resolver import WorkResolver, EditionResolver
 from book_rate.orchestrator import RatingOrchestrator
 from book_rate.models import Work, Edition, SourceRating, RatingRequestPayload
 
@@ -31,7 +32,6 @@ class BookAggregator:
     def __init__(self, google_api_key: Optional[str] = None):
         self.google_api_key = google_api_key
         self.registry = SourceRegistry()
-
         self.open_library = self.registry.create_source("open_library")
         self.google_books = self.registry.create_source("google_books", api_key=google_api_key)
         self.google_play = self.registry.create_source("google_play")
@@ -56,12 +56,17 @@ class BookAggregator:
             "books_tw": self.books_tw,
         }
 
+        self.work_resolver = WorkResolver(registry=self.registry, source_instances=self.source_instances)
+        self.edition_resolver = EditionResolver(registry=self.registry, source_instances=self.source_instances)
 
         self.orchestrator = RatingOrchestrator(
             registry=self.registry,
             source_instances=self.source_instances,
             resolve_work_fn=lambda *args, **kwargs: self.resolve_work_editions_and_ol_rating(*args, **kwargs)
         )
+
+
+
 
 
     def aggregate_by_title(self, title_query: str, limit: int = 5) -> List[Work]:
@@ -202,36 +207,12 @@ class BookAggregator:
         }
 
     def resolve_source_and_id(self, work_id: str):
-        prefix_map = {
-            "gr:": self.goodreads,
-            "sg:": self.storygraph,
-            "db:": self.douban,
-            "am:": self.amazon,
-            "amjp:": self.amazon_jp,
-            "rm:": self.readmoo,
-            "gb:": self.google_books,
-            "play:": self.google_play,
-        }
-
-        for prefix, source in prefix_map.items():
-            if work_id.startswith(prefix):
-                return source, work_id, self.DEFAULT_EDITION_LIMIT
-
-        if work_id.startswith(("/works/", "OL")) or ":" not in work_id:
-            full_id = work_id if work_id.startswith("/works/") else f"/works/{work_id}"
-            return self.open_library, full_id, self.DEFAULT_EDITION_LIMIT
-
-        return None, work_id, 0
+        return self.edition_resolver.resolve_source_and_id(work_id)
 
     def fetch_editions_for_work(self, work_id: str) -> dict:
-        source, formatted_id, limit = self.resolve_source_and_id(work_id)
-        editions = []
-        if source and hasattr(source, "fetch_editions"):
-            try:
-                editions = source.fetch_editions(formatted_id, limit=limit)
-            except Exception as e:
-                logger.warning(f"Error fetching editions from {source.name}: {e}")
+        editions = self.edition_resolver.fetch_editions_for_work(work_id)
         return self._format_editions(editions)
+
 
     def _find_ol_work(self, isbn: Optional[str], title: Optional[str], author: Optional[str], active_title_sources: list) -> Optional[Work]:
         if "open_library" not in active_title_sources:
@@ -493,49 +474,21 @@ class BookAggregator:
         }
 
     def search_works(self, q: str, page: int = 1, active_title_sources: List[str] = [], google_key: Optional[str] = None) -> List[dict]:
-        works = []
-        if "open_library" in active_title_sources:
-            works = self.open_library.search_works(q, limit=10, page=page, include_details=False)
-        
-        gb_works = []
-        gb_source = GoogleBooksSource(api_key=google_key) if google_key else self.google_books
-        if "google_books" in active_title_sources:
-            if "open_library" not in active_title_sources:
-                gb_works = gb_source.search_works(q, limit=10, page=page)
-            elif page == 1:
-                gb_works = gb_source.search_works(q, limit=10, page=1)
-
-        extra_works = []
-        if "open_library" not in active_title_sources and "google_books" not in active_title_sources:
-            source_map = {
-                "google_play": self.google_play,
-                "goodreads": self.goodreads,
-                "douban": self.douban,
-                "storygraph": self.storygraph,
-                "amazon": self.amazon,
-                "amazon_jp": self.amazon_jp,
-                "readmoo": self.readmoo,
-                "books_tw": self.books_tw,
-            }
-            for source in self.TITLE_SOURCES:
-                if source in active_title_sources:
-                    extra_works = source_map[source].search_works(q, limit=10, page=page)
-                    break
-
-
-        results = [self._work_to_dict(w) for w in works]
-        existing_keys = {
-            (r["title"].lower().strip(), "".join(r["author_name"]).lower().strip())
-            for r in results
-        }
-
-        for w in list(gb_works) + list(extra_works):
+        works = self.work_resolver.search_works(
+            q=q,
+            page=page,
+            active_title_sources=active_title_sources,
+            google_key=google_key
+        )
+        results = []
+        existing_keys = set()
+        for w in works:
             key_tuple = (w.title.lower().strip(), "".join(self._author_list(w)).lower().strip())
             if key_tuple not in existing_keys:
                 results.append(self._work_to_dict(w))
                 existing_keys.add(key_tuple)
-
         return results
+
 
     def _build_payload(
         self,
