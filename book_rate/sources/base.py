@@ -38,11 +38,25 @@ class BaseSource:
         self.session.headers.update({
             "User-Agent": self.DEFAULT_USER_AGENT
         })
+        self.last_network_error = None
+
+        # Wrap self.session.get to capture network errors
+        orig_get = self.session.get
+        def wrapped_get(*args, **kwargs):
+            try:
+                resp = orig_get(*args, **kwargs)
+                self.last_network_error = None
+                return resp
+            except Exception as e:
+                self.last_network_error = f"Network Error: {type(e).__name__}"
+                raise e
+        self.session.get = wrapped_get
 
     def _fetch_html(self, url: str) -> Tuple[str, bool]:
         """Fetch URL using curl.exe to pass Cloudflare TLS fingerprinting checks on Windows.
         Returns a tuple of (html_content, used_curl).
         """
+        self.last_network_error = None
         try:
             cmd = [
                 "curl.exe", "-s", "-L",
@@ -53,13 +67,64 @@ class BaseSource:
             return output.decode("utf-8", errors="ignore"), True
         except Exception as e:
             logger.warning(f"Failed to fetch HTML via curl for URL '{url}': {e}")
+            self.last_network_error = f"curl Error: {type(e).__name__}"
             try:
                 resp = self.session.get(url, timeout=self.timeout)
                 resp.raise_for_status()
                 return resp.text, False
             except Exception as ex:
                 logger.warning(f"Fallback requests.get also failed for '{url}': {ex}")
+                import requests
+                if isinstance(ex, requests.exceptions.HTTPError):
+                    self.last_network_error = f"HTTP Error: {ex.response.status_code}"
+                else:
+                    self.last_network_error = f"Network Error: {type(ex).__name__}"
                 return "", False
+
+    def check_connectivity(self) -> Tuple[bool, str]:
+        """Test connection to the main domain of the source.
+        Returns a tuple of (is_connected, message_or_latency).
+        """
+        target_url = getattr(self, "BASE_URL", None) or getattr(self, "SEARCH_URL", None) or getattr(self, "SUGGEST_URL", None)
+        if not target_url:
+            fallbacks = {
+                "Open Library": "https://openlibrary.org",
+                "Google Books": "https://www.googleapis.com",
+                "Google Play": "https://play.google.com",
+                "Goodreads": "https://www.goodreads.com",
+                "豆瓣": "https://book.douban.com",
+                "豆瓣 API": "https://book.douban.com",
+                "Amazon": "https://www.amazon.com",
+                "Amazon JP": "https://www.amazon.co.jp",
+                "StoryGraph": "https://app.thestorygraph.com",
+                "Readmoo": "https://readmoo.com",
+                "博客來": "https://www.books.com.tw"
+            }
+            target_url = fallbacks.get(self.name, "https://www.google.com")
+
+        from urllib.parse import urlparse
+        import time
+        parsed = urlparse(target_url)
+        base_domain = f"{parsed.scheme}://{parsed.netloc}" if parsed.netloc else target_url
+
+        start_time = time.time()
+        try:
+            headers = {
+                "User-Agent": self.DEFAULT_USER_AGENT
+            }
+            resp = self.session.get(base_domain, headers=headers, timeout=5, allow_redirects=True)
+            latency = int((time.time() - start_time) * 1000)
+            if resp.status_code >= 500:
+                return False, f"HTTP {resp.status_code}"
+            return True, f"{latency}ms"
+        except Exception as e:
+            try:
+                cmd = ["curl.exe", "-s", "-I", "-m", "5", "-A", self.DEFAULT_USER_AGENT, base_domain]
+                subprocess.check_call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=6)
+                latency = int((time.time() - start_time) * 1000)
+                return True, f"{latency}ms (curl)"
+            except Exception as curl_ex:
+                return False, f"Unreachable: {type(e).__name__}"
 
     @property
     def name(self) -> str:
@@ -164,6 +229,7 @@ class BaseSource:
         Execute explicit SearchStrategy for the given Work object.
         No silent fallback.
         """
+        self.last_network_error = None
         strat = strategy or self.default_strategy
         if strat == "isbn_primary":
             # If work has ISBN, route to ISBN search, else fall back to TITLE_AUTHOR
@@ -424,5 +490,5 @@ class BaseSource:
             url=None,
             strategy=strat,
             query=query_used,
-            status=network_error_msg if network_error_msg else SourceStatus.NO_MATCH.value
+            status=network_error_msg if network_error_msg else (self.last_network_error or SourceStatus.NO_MATCH.value)
         )

@@ -149,3 +149,27 @@ export function clearWorkRatingsCache(workKey) {
   }
 }
 
+export function getSourceStatusCache() {
+  try {
+    const cached = localStorage.getItem(STORAGE_KEYS.SOURCE_STATUS);
+    if (!cached) return null;
+    const { data, timestamp } = JSON.parse(cached);
+    if (Date.now() - timestamp > 60 * 60 * 1000) {
+      localStorage.removeItem(STORAGE_KEYS.SOURCE_STATUS);
+      return null;
+    }
+    return data;
+  } catch (e) {
+    return null;
+  }
+}
+
+export function setSourceStatusCache(data) {
+  try {
+    const record = { data, timestamp: Date.now() };
+    localStorage.setItem(STORAGE_KEYS.SOURCE_STATUS, JSON.stringify(record));
+  } catch (e) {
+    console.warn("Failed to write source-status to localStorage cache:", e);
+  }
+}
+

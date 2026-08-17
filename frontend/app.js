@@ -1,7 +1,8 @@
 import { MAX_CANDIDATES, SOURCES, SOURCE_PREFIX, STORAGE_KEYS } from './js/constants.js';
 import {
   getCachedData, setCachedData, cleanExpiredCache,
-  clearAllStep2Cache, clearAllStep3Cache, clearEditionsCache, clearWorkRatingsCache
+  clearAllStep2Cache, clearAllStep3Cache, clearEditionsCache, clearWorkRatingsCache,
+  getSourceStatusCache, setSourceStatusCache
 } from './js/cache.js';
 import { fetchJson, getOrCreateTask } from './js/utils.js';
 import {
@@ -470,8 +471,100 @@ if (settingsDetails) {
 }
 
 // ---------------------------------------------------------------------------
+// Source Status Verification (source-status)
+// ---------------------------------------------------------------------------
+function initSourceStatus() {
+  const statusListEl = document.querySelector("#source-status-list");
+  const refreshBtn = document.querySelector("#source-status-refresh-btn");
+  if (!statusListEl) return;
+
+  const targetSources = SOURCES.filter(s => s.id !== "douban_api");
+
+  function renderStatus(cachedResults = null) {
+    statusListEl.innerHTML = "";
+    targetSources.forEach(source => {
+      const item = document.createElement("div");
+      item.className = "source-status-item";
+      
+      const light = document.createElement("span");
+      light.className = "source-status-light";
+      
+      const name = document.createElement("span");
+      name.className = "source-status-name";
+      name.textContent = source.label;
+
+      if (cachedResults && cachedResults[source.id]) {
+        const res = cachedResults[source.id];
+        if (res.status === "ok") {
+          light.classList.add("status-ok");
+          light.title = `連通延遲: ${res.message}`;
+        } else {
+          light.classList.add("status-failed");
+          light.title = `連線失敗原因: ${res.message}`;
+        }
+      } else {
+        light.title = "尚未檢測連線狀態";
+      }
+
+      item.appendChild(name);
+      item.appendChild(light);
+      statusListEl.appendChild(item);
+    });
+  }
+
+  async function performCheck(bypassCache = false) {
+    if (!bypassCache) {
+      const cached = getSourceStatusCache();
+      if (cached) {
+        renderStatus(cached);
+        return;
+      }
+    }
+
+    statusListEl.querySelectorAll(".source-status-light").forEach(light => {
+      light.className = "source-status-light status-checking";
+      light.title = "正在檢測連線狀態...";
+    });
+    if (refreshBtn) refreshBtn.style.pointerEvents = "none";
+
+    try {
+      const enginesParam = targetSources.map(s => s.id).join(",");
+      const response = await fetch(`/api/source-status?engines=${encodeURIComponent(enginesParam)}`);
+      if (!response.ok) throw new Error("API responded with error");
+      
+      const results = await response.json();
+      setSourceStatusCache(results);
+      renderStatus(results);
+    } catch (e) {
+      console.error("Failed to check source status:", e);
+      statusListEl.querySelectorAll(".source-status-light").forEach(light => {
+        light.className = "source-status-light status-failed";
+        light.title = `連線檢測失敗: ${e.message}`;
+      });
+    } finally {
+      if (refreshBtn) refreshBtn.style.pointerEvents = "";
+    }
+  }
+
+  const cached = getSourceStatusCache();
+  if (cached) {
+    renderStatus(cached);
+  } else {
+    renderStatus();
+    performCheck(false);
+  }
+
+  if (refreshBtn) {
+    refreshBtn.addEventListener("click", () => {
+      performCheck(true);
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Modal initialisation
 // ---------------------------------------------------------------------------
 initPresetsModal(searchInput);
 initEditionsModal();
 initSourceInfoModal();
+initSourceStatus();

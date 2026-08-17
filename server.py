@@ -121,6 +121,40 @@ def api_work_details_stream_post(payload: RatingRequestPayload):
 
 
 
+@app.get("/api/source-status")
+def api_source_status(
+    engines: str = Query("open_library,google_books,google_play,goodreads,douban,amazon,amazon_jp,storygraph,readmoo,books_tw", description="Comma-separated engines to check")
+):
+    from concurrent.futures import ThreadPoolExecutor
+    print(f"\n[Source Status API] Engines to check: '{engines}'")
+    active_engines = [e.strip() for e in engines.split(",") if e.strip()]
+    results = {}
+
+    def check_engine(key):
+        source_inst = aggregator.source_instances.get(key)
+        if not source_inst:
+            return key, {"status": "failed", "message": "Unknown engine"}
+        try:
+            is_ok, msg = source_inst.check_connectivity()
+            return key, {
+                "status": "ok" if is_ok else "failed",
+                "message": msg
+            }
+        except Exception as e:
+            return key, {
+                "status": "failed",
+                "message": f"Check Error: {str(e)}"
+            }
+
+    with ThreadPoolExecutor(max_workers=len(active_engines) or 1) as executor:
+        futures = [executor.submit(check_engine, e_key) for e_key in active_engines]
+        for future in futures:
+            key, res = future.result()
+            results[key] = res
+
+    return results
+
+
 # Serve the frontend prototype files
 # Check if "frontend" folder exists, then mount it
 frontend_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "frontend")

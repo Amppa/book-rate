@@ -8,7 +8,8 @@ export const STORAGE_KEYS = {
   STRATEGY_PREFIX: "bookrate:strategy:",
   CACHE_PREFIX: "bookrate:cache:",
   RATING_PREFIX: "bookrate:rating:",
-  HISTORY: "bookrate:recent-searches"
+  HISTORY: "bookrate:recent-searches",
+  SOURCE_STATUS: "bookrate:source-status"
 };
 
 export const HISTORY_KEY = STORAGE_KEYS.HISTORY;
@@ -17,7 +18,7 @@ export const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 export const SOURCES = [
   { id: "open_library", label: "Open Library", defaultStrategy: "title_list", lang: ["en"], enable_extend_editions: true },
-  { id: "google_books", label: "谷歌圖書", defaultStrategy: "title_list", lang: ["en"] },
+  { id: "google_books", label: "Google Book", defaultStrategy: "title_list", lang: ["en"] },
   { id: "google_play", label: "Google Play", defaultStrategy: "title_list", lang: ["en", "zh"] },
   { id: "goodreads", label: "Goodreads", defaultStrategy: "title_list", lang: ["en"], enable_extend_editions: true },
   { id: "storygraph", label: "StoryGraph", defaultStrategy: "title_list", lang: ["en"] },

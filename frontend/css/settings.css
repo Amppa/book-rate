@@ -135,3 +135,103 @@
   margin-top: calc(-1 * var(--space-1));
   line-height: 1.4;
 }
+
+/* ==========================================================================
+   Source Status Light Row Styles (source-status)
+   ========================================================================== */
+.source-status-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  font-size: var(--fs-xs);
+}
+
+.source-status-top-row {
+  text-align: left;
+}
+
+.source-status-bottom-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.source-status-title {
+  font-weight: 700;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.source-status-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+  flex: 1;
+}
+
+.source-status-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.source-status-name {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.source-status-light {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--border); /* Gray default */
+  display: inline-block;
+  transition: background-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.source-status-light.status-checking {
+  background-color: var(--star-color); /* Yellow checking */
+  box-shadow: 0 0 6px var(--star-color);
+}
+
+.source-status-light.status-ok {
+  background-color: #10b981; /* Green ok */
+  box-shadow: 0 0 6px #10b981;
+}
+
+.source-status-light.status-failed {
+  background-color: var(--error); /* Red failed */
+  box-shadow: 0 0 6px var(--error);
+  cursor: help;
+}
+
+.source-status-refresh-btn {
+  background: transparent;
+  border: none;
+  font-size: var(--fs-lg);
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  transition: var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+
+.source-status-refresh-btn:hover {
+  background: var(--secondary);
+  color: var(--primary);
+  transform: rotate(90deg);
+}
