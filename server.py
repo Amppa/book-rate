@@ -100,6 +100,27 @@ def api_work_details_stream(
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
+from book_rate.models import RatingRequestPayload
+
+
+@app.post("/api/work-details")
+def api_work_details_post(payload: RatingRequestPayload):
+    print(f"\n[POST Details API] User locked work: '{payload.work_id}' (Title: '{payload.title}', Author: '{payload.author}')")
+    return aggregator.orchestrator.evaluate_all(payload)
+
+
+@app.post("/api/work-details-stream")
+def api_work_details_stream_post(payload: RatingRequestPayload):
+    print(f"\n[POST Stream Details API] User locked work: '{payload.work_id}' (Title: '{payload.title}', Author: '{payload.author}')")
+
+    def event_generator():
+        for event in aggregator.orchestrator.evaluate_stream(payload):
+            yield f"data: {json.dumps(event)}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+
 # Serve the frontend prototype files
 # Check if "frontend" folder exists, then mount it
 frontend_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "frontend")

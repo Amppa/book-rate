@@ -163,7 +163,51 @@ class TestServerAPI(unittest.TestCase):
         
         self.assertEqual(events[-1]["type"], "done")
 
+    @patch("server.aggregator.resolve_work_editions_and_ol_rating")
+    @patch("server.aggregator.goodreads.fetch_ratings")
+    @patch("server.aggregator.google_books.fetch_ratings")
+    def test_post_api_work_details_stream(self, mock_gb_ratings, mock_gr_ratings, mock_resolve):
+        target_work = Work(
+            work_id="/works/OL123W",
+            title="Mock Book",
+            author="Author",
+            isbn="9781234567890"
+        )
+        mock_resolve.return_value = (
+            SourceRating(source_name="Open Library", rate=4.0, rating_count=10, url="http://ol", status="MATCH"),
+            [Edition(edition_id="OL123E", title="Mock Book", isbn_13="9781234567890")],
+            target_work,
+            {"open_library": "Normal"}
+        )
+        mock_gb_ratings.return_value = SourceRating(
+            source_name="Google Books", rate=4.5, rating_count=20, url="http://gb", status="MATCH"
+        )
+        mock_gr_ratings.return_value = SourceRating(
+            source_name="Goodreads", rate=4.2, rating_count=100, url="http://gr", status="MATCH"
+        )
+
+        payload = {
+            "work_id": "/works/OL123W",
+            "title": "Mock Book",
+            "author": "Author",
+            "engines": ["google_books", "goodreads"]
+        }
+        response = self.client.post("/api/work-details-stream", json=payload)
+        self.assertEqual(response.status_code, 200)
+
+        events = []
+        for line in response.iter_lines():
+            if line.startswith("data: "):
+                import json
+                parsed = json.loads(line[6:])
+                self.assertIsInstance(parsed, dict)
+                events.append(parsed)
+
+        self.assertTrue(len(events) >= 2)
+        self.assertEqual(events[0]["type"], "init")
+        self.assertEqual(events[-1]["type"], "done")
 
 
 if __name__ == "__main__":
     unittest.main()
+
