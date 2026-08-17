@@ -2,9 +2,9 @@ import html
 import logging
 import re
 import urllib.parse
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
-from book_rate.models import Work, Edition, SourceRating
+from book_rate.models import Work, Edition, SourceRating, SourceStatus
 from book_rate.sources.base import BaseSource
 
 logger = logging.getLogger(__name__)
@@ -38,13 +38,13 @@ class ReadmooSource(BaseSource):
         m = re.search(r"/book/(\d+)", url or "")
         return m.group(1) if m else None
 
-    def _fetch_book_page(self, book_id: str) -> dict:
-        """Fetch and parse a Readmoo book page into rating/title/author details."""
+    def _fetch_book_page(self, book_id: str) -> Tuple[dict, bool]:
+        """Fetch and parse a Readmoo book page into rating/title/author details and used_curl flag."""
         url = f"{self.BASE_URL}/book/{book_id}"
-        s = self._fetch_html(url)
+        s, used_curl = self._fetch_html(url)
         if not s:
             logger.warning(f"Failed to fetch Readmoo book page HTML for '{url}'")
-            return {"book_id": book_id, "rate": None, "count": None, "title": None, "author": None, "url": url}
+            return {"book_id": book_id, "rate": None, "count": None, "title": None, "author": None, "url": url}, used_curl
         rate = None
         count = None
         title = None
@@ -78,7 +78,7 @@ class ReadmooSource(BaseSource):
         if author_m:
             author = self._clean_text(author_m.group(1))
 
-        return {"book_id": book_id, "rate": rate, "count": count, "title": title, "author": author, "url": url}
+        return {"book_id": book_id, "rate": rate, "count": count, "title": title, "author": author, "url": url}, used_curl
 
     def _select_best_rating(
         self, works: List[Work], target_title: Optional[str] = None
@@ -171,7 +171,7 @@ class ReadmooSource(BaseSource):
             return []
 
         search_url = f"{self.SEARCH_URL}?q={urllib.parse.quote(clean_query)}"
-        search_html = self._fetch_html(search_url)
+        search_html, used_curl = self._fetch_html(search_url)
         if not search_html:
             return []
 
@@ -183,7 +183,7 @@ class ReadmooSource(BaseSource):
                 author=item["author"],
             )
             is_match = (item["avg_rating"] is not None)
-            status_val = ("CURL_MATCH" if getattr(self, "last_request_used_curl", False) else "MATCH") if is_match else "NO_MATCH"
+            status_val = (SourceStatus.CURL_MATCH.value if used_curl else SourceStatus.MATCH.value) if is_match else SourceStatus.NO_MATCH.value
 
             work.ratings[self.name] = SourceRating(
                 source_name=self.name,
@@ -198,10 +198,13 @@ class ReadmooSource(BaseSource):
 
         return works
 
-    def _rating_from_page(self, page: dict, strategy: Optional[str], query: str) -> Optional[SourceRating]:
-        """Build a SourceRating from a book page dict when any data exists."""
+    def _rating_from_page(self, page_tuple: Tuple[dict, bool], strategy: Optional[str], query: str) -> Optional[SourceRating]:
+        """Build a SourceRating from a book page dict and used_curl flag when any data exists."""
+        page, used_curl = page_tuple
         if page["rate"] is None and page["count"] is None and page["title"] is None:
             return None
+        is_match = (page["rate"] is not None or page["count"] is not None)
+        status_val = (SourceStatus.CURL_MATCH.value if used_curl else SourceStatus.MATCH.value) if is_match else SourceStatus.NO_MATCH.value
         return SourceRating(
             source_name=self.name,
             rate=page["rate"],
@@ -210,7 +213,7 @@ class ReadmooSource(BaseSource):
             title=page["title"] or None,
             strategy=strategy,
             query=query,
-            status=("CURL_MATCH" if getattr(self, "last_request_used_curl", False) else "MATCH") if (page["rate"] is not None or page["count"] is not None) else "NO_MATCH",
+            status=status_val,
         )
 
     def _enrich_with_book_page(self, rating: SourceRating) -> SourceRating:
@@ -221,7 +224,7 @@ class ReadmooSource(BaseSource):
         if not book_id:
             return rating
 
-        page = self._fetch_book_page(book_id)
+        page, used_curl = self._fetch_book_page(book_id)
         if page["rate"] is None and page["count"] is None:
             return rating
 
@@ -231,18 +234,17 @@ class ReadmooSource(BaseSource):
             rating.rating_count = page["count"]
         if not rating.title and page["title"]:
             rating.title = page["title"]
-        rating.status = "CURL_MATCH" if getattr(self, "last_request_used_curl", False) else "MATCH"
+        rating.status = SourceStatus.CURL_MATCH.value if (rating.status == SourceStatus.CURL_MATCH.value or used_curl) else SourceStatus.MATCH.value
         return rating
 
     def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> SourceRating:
         """Fetch Readmoo rating for a Work using explicit SearchStrategy."""
-        self.last_request_used_curl = False
         target_id = getattr(work, "work_id", "") or ""
         strat = strategy or self.default_strategy
         if target_id.startswith("rm:") and strat == "source_id":
             # Direct Readmoo book ID: fetch the book page directly.
-            page = self._fetch_book_page(target_id[3:])
-            rating = self._rating_from_page(page, strategy or "source_id", target_id)
+            page_tuple = self._fetch_book_page(target_id[3:])
+            rating = self._rating_from_page(page_tuple, strategy or "source_id", target_id)
             if rating:
                 return rating
             return SourceRating(
@@ -250,7 +252,7 @@ class ReadmooSource(BaseSource):
                 url=None,
                 strategy=strategy or "source_id",
                 query=target_id,
-                status="NO_MATCH",
+                status=SourceStatus.NO_MATCH.value,
             )
 
         rating = self._fetch_ratings(work, strategy=strategy)

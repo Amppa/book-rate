@@ -3,9 +3,9 @@
 import re
 import subprocess
 import urllib.parse
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
-from book_rate.models import Work, Edition, SourceRating
+from book_rate.models import Work, Edition, SourceRating, SourceStatus
 from book_rate.sources.base import BaseSource, SearchStrategy, SourceNetworkError
 
 _ITEM_LINK_RE = re.compile(r'/item/([A-Z0-9]+)/')
@@ -31,39 +31,26 @@ class BooksTwSource(BaseSource):
         clean = re.sub(r'<[^>]+>', '', text)
         return clean.strip()
 
-    def _fetch_books_html(self, url: str, referer: Optional[str] = None) -> Optional[str]:
+    def _fetch_books_html(self, url: str, referer: Optional[str] = None) -> Tuple[Optional[str], bool]:
         """Fetch URL with Accept-Language header and optional Referer to bypass Books.com.tw WAF."""
-        self.last_request_used_curl = False
-        try:
-            cmd = [
-                "curl.exe", "-s", "-L",
-                "-A", self.DEFAULT_USER_AGENT,
-                "-H", "Accept-Language: zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7",
-                "-H", "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            ]
-            if referer:
-                cmd.extend(["-e", referer])
-            cmd.append(url)
+        res = self._fetch_html(url)
+        if isinstance(res, tuple):
+            html_str, used_curl = res
+        else:
+            html_str, used_curl = str(res), False
 
-            output = subprocess.check_output(cmd, timeout=self.timeout)
-            self.last_request_used_curl = True
-            html_str = output.decode("utf-8", errors="ignore")
-            if html_str and ("waf/logo.svg" in html_str or "Connection is temporarily unavailable" in html_str):
-                raise SourceNetworkError("Connection Unavailable (WAF Rate Limit)")
-            return html_str
-        except SourceNetworkError:
-            raise
-        except Exception:
-            raise SourceNetworkError("Error: Connection Failed")
+        if html_str and ("waf/logo.svg" in html_str or "Connection is temporarily unavailable" in html_str):
+            raise SourceNetworkError("Connection Unavailable (WAF Rate Limit)")
+        return html_str, used_curl
 
-    def _fetch_book_page(self, item_id: str) -> dict:
+    def _fetch_book_page(self, item_id: str) -> Tuple[dict, bool]:
         """Fetch book product detail page from Books.com.tw."""
         url = f"{self.BASE_URL}/products/{item_id}"
-        html_str = self._fetch_books_html(url, referer="https://search.books.com.tw/")
+        html_str, used_curl = self._fetch_books_html(url, referer="https://search.books.com.tw/")
         if not html_str or "waf/logo.svg" in html_str:
             # Fallback to comment page
             comment_url = f"{self.BASE_URL}/booksComment/getCommemt/{item_id}"
-            html_str = self._fetch_books_html(comment_url, referer="https://search.books.com.tw/")
+            html_str, used_curl = self._fetch_books_html(comment_url, referer="https://search.books.com.tw/")
 
         res = {
             "book_id": item_id,
@@ -75,7 +62,7 @@ class BooksTwSource(BaseSource):
         }
 
         if not html_str:
-            return res
+            return res, used_curl
 
         # Title extraction
         title_m = re.search(r'<h1[^>]*>(.*?)</h1>', html_str, re.DOTALL)
@@ -108,12 +95,13 @@ class BooksTwSource(BaseSource):
             except ValueError:
                 pass
 
-        return res
+        return res, used_curl
 
-    def _rating_from_page(self, page: dict, strategy: str, query: str) -> SourceRating:
+    def _rating_from_page(self, page_tuple: Tuple[dict, bool], strategy: str, query: str) -> SourceRating:
+        page, used_curl = page_tuple
         url = page["url"]
         is_match = page["rate"] is not None or page["count"] is not None
-        status = ("CURL_MATCH" if getattr(self, "last_request_used_curl", False) else "MATCH") if is_match else "NO_MATCH"
+        status = (SourceStatus.CURL_MATCH.value if used_curl else SourceStatus.MATCH.value) if is_match else SourceStatus.NO_MATCH.value
         return SourceRating(
             source_name=self.name,
             rate=page["rate"],
@@ -128,16 +116,15 @@ class BooksTwSource(BaseSource):
     def _select_best_rating(
         self, works: List[Work], target_title: Optional[str] = None
     ) -> Optional[SourceRating]:
-        """Select best Books.com.tw rating by title similarity first, then score or count."""
+        """Select best candidate work rating."""
         if not works:
             return None
 
+        # Prefer work matching target title or having valid rate
         valid = []
         for w in works:
             t_lower = w.title.lower()
-            if any(k in t_lower for k in ["summary of", "workbook for", "study guide for", "collection set"]):
-                continue
-            if target_title and not self._is_title_relevant(target_title, w.title):
+            if any(k in t_lower for k in ["summary of", "workbook for", "study guide for"]):
                 continue
             valid.append(w)
 
@@ -146,19 +133,23 @@ class BooksTwSource(BaseSource):
             target_list,
             key=lambda w: (
                 round(self._calculate_similarity(target_title, w.title), 1) if target_title else 0,
-                w.ratings.get(self.name).rate or 0 if (self.name in w.ratings and w.ratings[self.name].rate) else 0,
-                w.ratings.get(self.name).rating_count or 0 if (self.name in w.ratings and w.ratings[self.name].rating_count) else 0
-            ),
+                w.ratings.get(self.name).rate or 0
+                if (self.name in w.ratings and w.ratings[self.name].rate)
+                else 0
+            )
         )
         return best.ratings.get(self.name)
 
     def _parse_search_items(self, html_str: str, limit: int = 5) -> List[dict]:
-        """Parse search result HTML from Books.com.tw into item dicts."""
+        """Parse search result HTML block into list of item dicts."""
         items = []
         seen_ids = set()
 
-        # Parse search result table by <tr> rows (for v/0 list view)
         rows = re.findall(r'<tr[^>]*>.*?</tr>', html_str, re.DOTALL)
+        if not rows:
+            rows = re.findall(r'<li[^>]*class="[^"]*item[^"]*"[^>]*>.*?</li>', html_str, re.DOTALL)
+        if not rows:
+            rows = [html_str]
 
         for row in rows:
             # Matches item link in row (prefer mid_name link)
@@ -269,7 +260,7 @@ class BooksTwSource(BaseSource):
             return []
 
         search_url = self.SEARCH_URL.format(query=urllib.parse.quote(query), page=page)
-        html_str = self._fetch_books_html(search_url)
+        html_str, used_curl = self._fetch_books_html(search_url)
         if not html_str:
             return []
 
@@ -284,7 +275,7 @@ class BooksTwSource(BaseSource):
                 first_publish_year=item.get("first_publish_year"),
             )
 
-            status_val = "CURL_MATCH" if getattr(self, "last_request_used_curl", False) else "MATCH"
+            status_val = SourceStatus.CURL_MATCH.value if used_curl else SourceStatus.MATCH.value
             w.ratings[self.name] = SourceRating(
                 source_name=self.name,
                 rate=item["avg_rating"],
@@ -299,13 +290,12 @@ class BooksTwSource(BaseSource):
 
     def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> SourceRating:
         """Fetch Books.com.tw rating for a Work using explicit SearchStrategy."""
-        self.last_request_used_curl = False
         target_id = getattr(work, "work_id", "") or ""
         strat = strategy or self.default_strategy
         if target_id.startswith("bk:") and strat == "source_id":
             # Direct Books.com.tw product ID
-            page = self._fetch_book_page(target_id[3:])
-            rating = self._rating_from_page(page, strategy or "source_id", target_id)
+            page_tuple = self._fetch_book_page(target_id[3:])
+            rating = self._rating_from_page(page_tuple, strategy or "source_id", target_id)
             if rating:
                 return rating
             return SourceRating(
@@ -313,7 +303,7 @@ class BooksTwSource(BaseSource):
                 url=None,
                 strategy=strategy or "source_id",
                 query=target_id,
-                status="NO_MATCH",
+                status=SourceStatus.NO_MATCH.value,
             )
 
         rating = self._fetch_ratings(work, strategy=strategy)
@@ -329,7 +319,7 @@ class BooksTwSource(BaseSource):
             return rating
 
         item_id = m.group(1)
-        page = self._fetch_book_page(item_id)
+        page, used_curl = self._fetch_book_page(item_id)
 
         if page["rate"] is not None:
             rating.rate = page["rate"]
@@ -338,7 +328,7 @@ class BooksTwSource(BaseSource):
         if not rating.title and page["title"]:
             rating.title = page["title"]
         if page["rate"] is not None or page["count"] is not None:
-            rating.status = "CURL_MATCH" if getattr(self, "last_request_used_curl", False) else "MATCH"
+            rating.status = SourceStatus.CURL_MATCH.value if (rating.status == SourceStatus.CURL_MATCH.value or used_curl) else SourceStatus.MATCH.value
 
         return rating
 

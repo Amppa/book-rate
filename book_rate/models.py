@@ -13,6 +13,8 @@ class SourceStatus(str, Enum):
     TIMEOUT = "TIMEOUT"
     ERROR = "ERROR"
     NO_MATCH = "NO_MATCH"
+    MATCH = "MATCH"
+    CURL_MATCH = "CURL_MATCH"
 
 
 class RatingRequestPayload(BaseModel):

@@ -5,7 +5,7 @@ import subprocess
 import urllib.parse
 from typing import List, Optional
 
-from book_rate.models import Work, Edition, SourceRating
+from book_rate.models import Work, Edition, SourceRating, SourceStatus
 from book_rate.sources.base import BaseSource
 
 logger = logging.getLogger(__name__)
@@ -22,12 +22,17 @@ class StoryGraphSource(BaseSource):
         return "StoryGraph"
 
 
-    def _fetch_book_rating(self, book_id: str) -> tuple[Optional[float], Optional[int]]:
+    def _fetch_book_rating(self, book_id: str) -> tuple[Optional[float], Optional[int], bool]:
         """Fetch rating and review count for a book from community_reviews Turbo Frame."""
         reviews_url = f"{self.BASE_URL}/books/{book_id}/community_reviews"
-        r_html = self._fetch_html(reviews_url)
+        res = self._fetch_html(reviews_url)
+        if isinstance(res, tuple):
+            r_html, used_curl = res
+        else:
+            r_html, used_curl = str(res), False
+
         if not r_html:
-            return None, None
+            return None, None, used_curl
 
         # Parse aria-label="Book rating: 4.16 out of 5 stars based on 89,069 reviews"
         aria_m = re.search(
@@ -39,7 +44,7 @@ class StoryGraphSource(BaseSource):
             try:
                 rate = float(aria_m.group(1))
                 votes = int(aria_m.group(2).replace(",", ""))
-                return rate, votes
+                return rate, votes, used_curl
             except ValueError:
                 pass
 
@@ -47,7 +52,7 @@ class StoryGraphSource(BaseSource):
         votes_m = re.search(r'([\d,]+)\s*reviews', r_html)
         rate = float(rate_m.group(1)) if rate_m else None
         votes = int(votes_m.group(1).replace(",", "")) if votes_m else None
-        return rate, votes
+        return rate, votes, used_curl
 
     def fetch_book_details(self, book_id: str) -> dict:
         """Fetch book details page from StoryGraph and extract ISBN, pub_year, and editions_count."""
@@ -60,11 +65,18 @@ class StoryGraphSource(BaseSource):
             "title": None,
             "author": None,
             "crawler_status": "Normal",
-            "url": url
+            "url": url,
+            "used_curl": False,
         }
 
         try:
-            html_str = self._fetch_html(url)
+            fetch_res = self._fetch_html(url)
+            if isinstance(fetch_res, tuple):
+                html_str, used_curl = fetch_res
+            else:
+                html_str, used_curl = str(fetch_res), False
+
+            res["used_curl"] = used_curl
             if not html_str:
                 res["crawler_status"] = "Empty HTML response"
                 return res
@@ -125,11 +137,17 @@ class StoryGraphSource(BaseSource):
         elif len(clean_query) == 36 and re.match(r'^[a-f0-9\-]{36}$', clean_query):
             direct_id = clean_query
 
+        search_used_curl = False
         if direct_id:
             unique_books = [(f"/books/{direct_id}", direct_id, "Unknown Title", "Unknown Author")]
         else:
             search_url = f"{self.BROWSE_URL}?search_term={urllib.parse.quote(clean_query)}"
-            search_html = self._fetch_html(search_url)
+            fetch_res = self._fetch_html(search_url)
+            if isinstance(fetch_res, tuple):
+                search_html, search_used_curl = fetch_res
+            else:
+                search_html, search_used_curl = str(fetch_res), False
+
             if not search_html:
                 return []
 
@@ -151,7 +169,7 @@ class StoryGraphSource(BaseSource):
             href, b_id, title, author_name = item
             subject_url = f"{self.BASE_URL}{href}"
 
-            details = {"isbn": None, "pub_year": None, "editions_count": None, "crawler_status": "Normal"}
+            details = {"isbn": None, "pub_year": None, "editions_count": None, "crawler_status": "Normal", "used_curl": False}
             try:
                 details = self.fetch_book_details(b_id)
             except Exception:
@@ -159,8 +177,9 @@ class StoryGraphSource(BaseSource):
 
             # Fetch rating & rating count
             rate, votes = None, None
+            rating_used_curl = False
             try:
-                rate, votes = self._fetch_book_rating(b_id)
+                rate, votes, rating_used_curl = self._fetch_book_rating(b_id)
             except Exception as e:
                 logger.warning(f"Failed to fetch StoryGraph rating for '{b_id}': {e}")
                 if details.get("crawler_status") == "Normal":
@@ -176,7 +195,8 @@ class StoryGraphSource(BaseSource):
             )
 
             is_match = (rate is not None or votes is not None)
-            status_val = ("CURL_MATCH" if getattr(self, "last_request_used_curl", False) else "MATCH") if is_match else (details.get("crawler_status") or "Normal")
+            has_used_curl = search_used_curl or details.get("used_curl", False) or rating_used_curl
+            status_val = (SourceStatus.CURL_MATCH.value if has_used_curl else SourceStatus.MATCH.value) if is_match else (details.get("crawler_status") or SourceStatus.NO_MATCH.value)
 
             work.ratings[self.name] = SourceRating(
                 source_name=self.name,
@@ -205,5 +225,4 @@ class StoryGraphSource(BaseSource):
 
     def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> SourceRating:
         """Fetch StoryGraph rating for a Work using explicit SearchStrategy."""
-        self.last_request_used_curl = False
         return self._fetch_ratings(work, strategy=strategy)

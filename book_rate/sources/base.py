@@ -1,8 +1,8 @@
 import logging
 import re
 import subprocess
-from typing import List, Optional, Callable
-from book_rate.models import Work, SourceRating
+from typing import List, Optional, Callable, Tuple
+from book_rate.models import Work, SourceRating, SourceStatus
 from book_rate.utils.isbn import clean_isbn, extract_isbns_from_work
 
 logger = logging.getLogger(__name__)
@@ -34,24 +34,15 @@ class BaseSource:
     def __init__(self, timeout: int = 10):
         self.timeout = timeout
         import requests
-        import threading
         self.session = requests.Session()
         self.session.headers.update({
             "User-Agent": self.DEFAULT_USER_AGENT
         })
-        self._thread_local = threading.local()
 
-    @property
-    def last_request_used_curl(self) -> bool:
-        return getattr(self._thread_local, "last_request_used_curl", False)
-
-    @last_request_used_curl.setter
-    def last_request_used_curl(self, value: bool):
-        self._thread_local.last_request_used_curl = value
-
-    def _fetch_html(self, url: str) -> str:
-        """Fetch URL using curl.exe to pass Cloudflare TLS fingerprinting checks on Windows."""
-        self.last_request_used_curl = False
+    def _fetch_html(self, url: str) -> Tuple[str, bool]:
+        """Fetch URL using curl.exe to pass Cloudflare TLS fingerprinting checks on Windows.
+        Returns a tuple of (html_content, used_curl).
+        """
         try:
             cmd = [
                 "curl.exe", "-s", "-L",
@@ -59,19 +50,16 @@ class BaseSource:
                 url
             ]
             output = subprocess.check_output(cmd, timeout=self.timeout)
-            self.last_request_used_curl = True
-            return output.decode("utf-8", errors="ignore")
+            return output.decode("utf-8", errors="ignore"), True
         except Exception as e:
             logger.warning(f"Failed to fetch HTML via curl for URL '{url}': {e}")
             try:
                 resp = self.session.get(url, timeout=self.timeout)
                 resp.raise_for_status()
-                self.last_request_used_curl = False
-                return resp.text
+                return resp.text, False
             except Exception as ex:
                 logger.warning(f"Fallback requests.get also failed for '{url}': {ex}")
-                self.last_request_used_curl = False
-                return ""
+                return "", False
 
     @property
     def name(self) -> str:
@@ -176,7 +164,6 @@ class BaseSource:
         Execute explicit SearchStrategy for the given Work object.
         No silent fallback.
         """
-        self.last_request_used_curl = False
         strat = strategy or self.default_strategy
         if strat == "isbn_primary":
             # If work has ISBN, route to ISBN search, else fall back to TITLE_AUTHOR
@@ -190,13 +177,20 @@ class BaseSource:
         query_used = ""
         network_error_msg = None
 
+        def _resolve_status(rating: Optional[SourceRating], is_match: bool) -> str:
+            if not is_match:
+                return SourceStatus.NO_MATCH.value
+            if rating and rating.status == SourceStatus.CURL_MATCH.value:
+                return SourceStatus.CURL_MATCH.value
+            return SourceStatus.MATCH.value
+
         if strat == SearchStrategy.SOURCE_ID:
             query_used = work.work_id
             if self.name in work.ratings and work.ratings[self.name].rate is not None:
                 r = work.ratings[self.name]
                 r.strategy = strat
                 r.query = query_used
-                r.status = "MATCH"
+                r.status = SourceStatus.MATCH.value
                 return r
 
             # Handle source ID search if prefix matches
@@ -251,12 +245,12 @@ class BaseSource:
                             if is_match:
                                 best_rating.strategy = strat
                                 best_rating.query = t
-                                best_rating.status = "CURL_MATCH" if getattr(self, "last_request_used_curl", False) else "MATCH"
+                                best_rating.status = _resolve_status(best_rating, True)
                                 return best_rating
                             elif best_rating.url and fallback_rating is None:
                                 best_rating.strategy = strat
                                 best_rating.query = t
-                                best_rating.status = "NO_MATCH"
+                                best_rating.status = SourceStatus.NO_MATCH.value
                                 fallback_rating = best_rating
                 except SourceNetworkError as ne:
                     network_error_msg = ne.message
@@ -283,12 +277,12 @@ class BaseSource:
                             if is_match:
                                 best_rating.strategy = strat
                                 best_rating.query = t
-                                best_rating.status = "CURL_MATCH" if getattr(self, "last_request_used_curl", False) else "MATCH"
+                                best_rating.status = _resolve_status(best_rating, True)
                                 return best_rating
                             elif best_rating.url and fallback_rating is None:
                                 best_rating.strategy = strat
                                 best_rating.query = t
-                                best_rating.status = "NO_MATCH"
+                                best_rating.status = SourceStatus.NO_MATCH.value
                                 fallback_rating = best_rating
                 except SourceNetworkError as ne:
                     network_error_msg = ne.message
@@ -318,12 +312,12 @@ class BaseSource:
                             if is_match:
                                 best_rating.strategy = strat
                                 best_rating.query = isbn
-                                best_rating.status = "CURL_MATCH" if getattr(self, "last_request_used_curl", False) else "MATCH"
+                                best_rating.status = _resolve_status(best_rating, True)
                                 return best_rating
                             elif best_rating.url and fallback_rating is None:
                                 best_rating.strategy = strat
                                 best_rating.query = isbn
-                                best_rating.status = "NO_MATCH"
+                                best_rating.status = SourceStatus.NO_MATCH.value
                                 fallback_rating = best_rating
                 except SourceNetworkError as ne:
                     network_error_msg = ne.message
@@ -363,7 +357,7 @@ class BaseSource:
                                 "count": r.rating_count,
                                 "url": r.url,
                                 "title": r.title or t,
-                                "status": "MATCH" if is_r_match else "NO_MATCH",
+                                "status": _resolve_status(r, is_r_match),
                                 "query": t
                             })
                             if not best_rating or (r.rating_count or 0) > (best_rating.rating_count or 0):
@@ -374,7 +368,7 @@ class BaseSource:
                                 "count": None,
                                 "url": None,
                                 "title": t,
-                                "status": "NO_MATCH",
+                                "status": SourceStatus.NO_MATCH.value,
                                 "query": t
                             })
                     else:
@@ -383,7 +377,7 @@ class BaseSource:
                             "count": None,
                             "url": None,
                             "title": t,
-                            "status": "NO_MATCH",
+                            "status": SourceStatus.NO_MATCH.value,
                             "query": t
                         })
                 except Exception as e:
@@ -401,7 +395,8 @@ class BaseSource:
                 copied_rating = copy(best_rating)
                 copied_rating.strategy = strat
                 copied_rating.query = ", ".join(t for t in titles_to_try[:4])
-                copied_rating.status = "CURL_MATCH" if getattr(self, "last_request_used_curl", False) else "MATCH"
+                is_best_match = (best_rating.rate is not None or best_rating.rating_count is not None)
+                copied_rating.status = _resolve_status(best_rating, is_best_match)
                 copied_rating.results = results_list
                 return copied_rating
             else:
@@ -412,7 +407,7 @@ class BaseSource:
                     url=None,
                     strategy=strat,
                     query=", ".join(t for t in titles_to_try[:4]),
-                    status="NO_MATCH",
+                    status=SourceStatus.NO_MATCH.value,
                     results=results_list
                 )
 
@@ -421,7 +416,7 @@ class BaseSource:
             best_rating.strategy = strat
             best_rating.query = query_used
             is_match = (best_rating.rate is not None or best_rating.rating_count is not None)
-            best_rating.status = ("CURL_MATCH" if getattr(self, "last_request_used_curl", False) else "MATCH") if is_match else "NO_MATCH"
+            best_rating.status = _resolve_status(best_rating, is_match)
             return best_rating
 
         return SourceRating(
@@ -429,5 +424,5 @@ class BaseSource:
             url=None,
             strategy=strat,
             query=query_used,
-            status=network_error_msg if network_error_msg else "NO_MATCH"
+            status=network_error_msg if network_error_msg else SourceStatus.NO_MATCH.value
         )
