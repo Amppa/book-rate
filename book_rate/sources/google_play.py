@@ -41,20 +41,6 @@ class GooglePlaySource(BaseSource):
             return m2.group(1)
         return None
 
-    def _search_volume_id(self, query: str) -> Optional[str]:
-        """Search Google Play Books store HTML for query and extract volume_id."""
-        encoded_q = urllib.parse.quote(query)
-        fetch_res = self._fetch_html(f"{self.SEARCH_URL}?q={encoded_q}&c=books")
-        if isinstance(fetch_res, tuple):
-            html_content, used_curl = fetch_res
-        else:
-            html_content, used_curl = str(fetch_res), False
-
-        if not html_content:
-            return None
-        m = re.search(r'/store/books/details(?:/[^?\s"]+)?\?id=([^"&]+)', html_content) or re.search(r'/store/books/details/([^"&\s?]+)', html_content)
-        return m.group(1) if m else None
-
 
     def _parse_play_rating(self, volume_id: str) -> tuple[Optional[float], Optional[int], bool]:
         """Parse rating value and vote count from Google Play Books store detail page."""

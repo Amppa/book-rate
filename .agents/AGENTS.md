@@ -32,7 +32,7 @@ graph TD
 
 ### Step 3: Compare & Aggregation
 * **User action**: Clicks "Compare" (or triggers search from the Metadata Editor Card).
-* **Backend flow**: Frontend serializes the reviewed metadata lists and requests the SSE stream endpoint `/api/work-details-stream` (or `/api/work-details`).
+* **Backend flow**: Frontend serializes the reviewed metadata lists and requests the SSE stream endpoint `/api/work-details-stream` (or `/api/work-details`) via POST payload.
 * **Processing**: The backend queries the 8 active rating sources concurrently under a ThreadPoolExecutor. Each source evaluates the user's selected **Search Strategy** (specified in the column header dropdowns of the comparison table) to find the best matching book on that platform.
 * **Output**: Renders a side-by-side comparison table showing ratings, review counts, matching links, and search queries for each platform.
 
@@ -83,7 +83,7 @@ In Step 3, rate providers fetch ratings using one of 6 single-factor search stra
 ## 5. Codebase Mapping
 
 ### Backend (Python + FastAPI)
-* **[server.py](../server.py)**: The entry point. Hosts API endpoints (`/api/search`, `/api/work-details`, `/api/work-details-stream`, `/api/work-editions`).
+* **[server.py](../server.py)**: The entry point. Hosts API endpoints (`/api/search`, POST `/api/work-details`, POST `/api/work-details-stream`, `/api/work-editions`).
 * **[book_rate/models.py](../book_rate/models.py)**: Dataclasses for `Work`, `Edition`, and `SourceRating`.
 * **[book_rate/aggregator.py](../book_rate/aggregator.py)**: Instantiates and groups rating sources.
 * **[book_rate/sources/base.py](../book_rate/sources/base.py)**: The `BaseSource` class implementing the execution of `SearchStrategy` and fallback query matching logic.

@@ -28,7 +28,7 @@ class WorkResolver:
         self,
         q: str,
         page: int = 1,
-        active_title_sources: List[str] = [],
+        active_title_sources: Optional[List[str]] = None,
         google_key: Optional[str] = None
     ) -> List[Work]:
         """
@@ -38,6 +38,9 @@ class WorkResolver:
         clean_q = q.strip()
         if not clean_q:
             return []
+
+        if active_title_sources is None:
+            active_title_sources = []
 
         works: List[Work] = []
 

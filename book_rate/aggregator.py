@@ -160,7 +160,9 @@ class BookAggregator:
             google_key=google_key
         )
 
-    def search_works(self, q: str, page: int = 1, active_title_sources: List[str] = [], google_key: Optional[str] = None) -> List[dict]:
+    def search_works(self, q: str, page: int = 1, active_title_sources: Optional[List[str]] = None, google_key: Optional[str] = None) -> List[dict]:
+        if active_title_sources is None:
+            active_title_sources = []
         works = self.work_resolver.search_works(
             q=q,
             page=page,

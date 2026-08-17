@@ -54,8 +54,6 @@ BookRate 提供以下 API 端點：
 - **GET `/api/work-editions`**：取得指定作品的所有已出版版本詳細資訊。
 - **POST `/api/work-details`**：使用 JSON 載荷同步獲取並聚合各平台的評分。
 - **POST `/api/work-details-stream`**：一個 SSE 串流端點，接收 JSON 載荷，回傳包含版本列表及 Open Library 評分的 `init` 事件，並並行查詢其他評分來源，即時推送各平台 (`source`) 的事件更新。
-- *（注意：舊有的 GET `/api/work-details` 與 GET `/api/work-details-stream` 查詢參數端點亦予以保留以維持相容性）*
-
 ## 授權條款
 
 MIT License

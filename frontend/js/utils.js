@@ -86,28 +86,7 @@ export function getSourceDisplayName(key) {
   return names[key] || key;
 }
 
-/**
-  * Builds the URL for the /api/work-details-stream SSE endpoint.
-  * @deprecated Use POST request payload via streamWorkDetailsPost instead.
-  * @param {string} workKey
-  * @param {{searchName:string, titleList:string[], titleZhList:string[], authorList:string[], isbnList:string[]}} meta
-  * @param {string|string[]} engines  - single engine id or array
-  * @param {Object} strategies
-  * @param {string} [apiKey]
-  */
-export function buildStreamUrl(workKey, meta, engines, strategies, apiKey) {
-  const enginesStr = Array.isArray(engines) ? engines.join(",") : engines;
-  let url = `/api/work-details-stream?work_id=${encodeURIComponent(workKey)}`
-    + `&search_name=${encodeURIComponent(meta.searchName)}`
-    + `&title_list=${encodeURIComponent(JSON.stringify(meta.titleList))}`
-    + `&title_zh_list=${encodeURIComponent(JSON.stringify(meta.titleZhList))}`
-    + `&author_list=${encodeURIComponent(JSON.stringify(meta.authorList))}`
-    + `&isbn_list=${encodeURIComponent(JSON.stringify(meta.isbnList))}`
-    + `&engines=${encodeURIComponent(enginesStr)}`
-    + `&strategies=${encodeURIComponent(JSON.stringify(strategies))}`;
-  if (apiKey) url += `&google_key=${encodeURIComponent(apiKey)}`;
-  return url;
-}
+
 
 const BRACKETS = [
   ['【', '】'],
