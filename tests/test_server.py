@@ -207,6 +207,50 @@ class TestServerAPI(unittest.TestCase):
         self.assertEqual(events[0]["type"], "init")
         self.assertEqual(events[-1]["type"], "done")
 
+    @patch("server.aggregator.resolve_work_editions_and_ol_rating")
+    @patch("server.aggregator.goodreads.fetch_ratings")
+    @patch("server.aggregator.google_books.fetch_ratings")
+    def test_post_api_work_details_minimal_and_empty_payload(self, mock_gb_ratings, mock_gr_ratings, mock_resolve):
+        target_work = Work(
+            work_id="/works/OL123W",
+            title="Mock Book",
+            author="Author",
+            isbn="9781234567890"
+        )
+        mock_resolve.return_value = (
+            SourceRating(source_name="Open Library", rate=4.0, rating_count=10, url="http://ol", status="MATCH"),
+            [Edition(edition_id="OL123E", title="Mock Book", isbn_13="9781234567890")],
+            target_work,
+            {"open_library": "Normal"}
+        )
+        mock_gb_ratings.return_value = SourceRating(
+            source_name="Google Books", rate=4.5, rating_count=20, url="http://gb", status="MATCH"
+        )
+
+        # 1. Minimal payload with only work_id
+        res_min = self.client.post("/api/work-details", json={"work_id": "/works/OL123W"})
+        self.assertEqual(res_min.status_code, 200)
+        data_min = res_min.json()
+        self.assertEqual(data_min["work_id"], "/works/OL123W")
+        self.assertIn("ratings", data_min)
+        self.assertIn("editions", data_min)
+
+        # 2. Payload with explicit empty collections
+        empty_payload = {
+            "work_id": "/works/OL123W",
+            "engines": [],
+            "strategies": {},
+            "title_list": [],
+            "title_zh_list": [],
+            "author_list": [],
+            "isbn_list": []
+        }
+        res_empty = self.client.post("/api/work-details", json=empty_payload)
+        self.assertEqual(res_empty.status_code, 200)
+        data_empty = res_empty.json()
+        self.assertEqual(data_empty["work_id"], "/works/OL123W")
+        self.assertIn("ratings", data_empty)
+
 
 if __name__ == "__main__":
     unittest.main()
