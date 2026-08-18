@@ -1,6 +1,5 @@
 import { state } from './state.js';
 import { SOURCES, SOURCE_PREFIX } from './constants.js';
-import { markCandidateSelected } from './candidates.js';
 import { removeBrackets, hasCjk } from './utils.js';
 
 // Injected dependency: avoids a circular import between wizard ↔ ratings.
@@ -97,10 +96,6 @@ export function appendAndLimitTextarea(textareaEl, newItems, maxLimit) {
 /** Marks a work as selected and fills the Step-2 metadata fields. */
 export function chooseCandidate(work) {
   state.currentSelectedWork = work;
-  markCandidateSelected(document.querySelector("#candidate-list"), work.key);
-
-  // Clear any active edition highlights
-  document.querySelectorAll(".edition-item").forEach((el) => el.classList.remove("selected"));
 
   const titleEl = document.querySelector("#bm-title");
   const titleZhEl = document.querySelector("#bm-title-zh");
@@ -141,9 +136,6 @@ export function chooseCandidate(work) {
 /** Selects a specific edition of a work and fills the Step-2 metadata fields. */
 export function chooseEdition(work, edition, itemEl) {
   chooseCandidate(work);
-
-  document.querySelectorAll(".edition-item").forEach((el) => el.classList.remove("selected"));
-  if (itemEl) itemEl.classList.add("selected");
 
   const titleEl = document.querySelector("#bm-title");
   const titleZhEl = document.querySelector("#bm-title-zh");

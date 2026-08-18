@@ -35,33 +35,7 @@ export function getShortStatus(status) {
   return { text: status, type: "info" };
 }
 
-// ---------------------------------------------------------------------------
-// Card selection UI (shared by wizard.js → chooseCandidate and ratings.js → selectWork)
-// ---------------------------------------------------------------------------
 
-/**
- * Updates the visual selected state of candidate cards.
- * Deselects all cards, then marks the one matching workKey as selected.
- * @param {HTMLElement|null} candidateList
- * @param {string} workKey
- */
-export function markCandidateSelected(candidateList, workKey) {
-  if (!candidateList) return;
-  candidateList.querySelectorAll(".candidate-card").forEach((card) => {
-    card.classList.remove("selected");
-    const btn = card.querySelector(".select-work");
-    if (btn) { btn.textContent = "Choose"; btn.disabled = false; }
-  });
-
-  const selectedCard = candidateList.querySelector(`[data-key="${workKey}"]`);
-  if (selectedCard) {
-    selectedCard.classList.add("selected");
-    const btn = selectedCard.querySelector(".select-work");
-    if (btn) { btn.textContent = "已選取"; btn.disabled = true; }
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Edition list renderer
 // ---------------------------------------------------------------------------
 
@@ -347,12 +321,7 @@ export function renderCandidates(works, { onChooseCandidate, onChooseEdition } =
       });
     }
 
-    // Restore selected state if this work was already chosen
-    if (state.currentSelectedWork && state.currentSelectedWork.key === work.key) {
-      if (cardEl) cardEl.classList.add("selected");
-      selectBtn.textContent = "已選取";
-      selectBtn.disabled = true;
-    }
+
 
     candidateList.append(fragment);
   });

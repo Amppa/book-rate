@@ -74,12 +74,9 @@
   border-bottom: 0;
 }
 
-.candidate-card.selected {
-  background: var(--surface-subtle);
-}
-
-.candidate-card.selected h3 {
-  color: var(--primary);
+.select-work:active {
+  transform: scale(0.95);
+  opacity: 0.85;
 }
 
 .candidate-card h3,
@@ -206,12 +203,9 @@ a.candidate-meta:hover {
   transform: translateX(4px);
 }
 
-.edition-item.selected {
-  background: var(--secondary);
-  border-color: var(--primary);
-  color: var(--primary);
-  font-weight: 600;
-  box-shadow: 0 0 0 2px rgba(23, 79, 60, 0.1);
+.edition-item:active {
+  background: var(--primary-alpha-15);
+  transform: translateX(2px);
 }
 
 .edition-more-btn {

@@ -10,7 +10,7 @@ import {
   getSourceDefaultStrat,
   goToStep
 } from './wizard.js';
-import { markCandidateSelected } from './candidates.js';
+
 
 // DOM references injected at startup via initRatings()
 let _resultBody, _step3Status, _tableWrap, _detailsHeading, _candidateList;
@@ -305,7 +305,6 @@ function buildWorkDetailsPayload(work, engines, strategies, apiKey) {
 /** Advances to Step 3, starts the SSE stream, and populates the rating table. */
 export async function selectWork(work) {
   state.currentSelectedWork = work;
-  markCandidateSelected(_candidateList, work.key);
 
   _detailsHeading.hidden = false;
   goToStep(3);
