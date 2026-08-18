@@ -82,49 +82,69 @@ class BaseSource:
                 return "", False
 
     def check_connectivity(self) -> Tuple[bool, str]:
-        """Test connection to the main domain of the source.
+        """Test connection to the actual service/API endpoint of the source.
         Returns a tuple of (is_connected, message_or_latency).
         """
-        target_url = getattr(self, "BASE_URL", None) or getattr(self, "SEARCH_URL", None) or getattr(self, "SUGGEST_URL", None)
-        if not target_url:
-            fallbacks = {
-                "Open Library": "https://openlibrary.org",
-                "Google Books": "https://www.googleapis.com",
-                "Google Play": "https://play.google.com",
-                "Goodreads": "https://www.goodreads.com",
-                "豆瓣": "https://book.douban.com",
-                "豆瓣 API": "https://book.douban.com",
-                "Amazon": "https://www.amazon.com",
-                "Amazon JP": "https://www.amazon.co.jp",
-                "StoryGraph": "https://app.thestorygraph.com",
-                "Readmoo": "https://readmoo.com",
-                "博客來": "https://www.books.com.tw"
-            }
-            target_url = fallbacks.get(self.name, "https://www.google.com")
+        health_endpoints = {
+            "Open Library": "https://openlibrary.org/search.json?q=test&limit=1",
+            "Google Books": "https://books.google.com",
+            "Google Play": "https://play.google.com/store/search?q=test&c=books",
+            "Goodreads": "https://www.goodreads.com/search?q=test",
+            "Douban": "https://book.douban.com/subject_search?search_text=test",
+            "豆瓣": "https://book.douban.com/subject_search?search_text=test",
+            "Douban API": "https://book.douban.com/subject_search?search_text=test",
+            "豆瓣 API": "https://book.douban.com/subject_search?search_text=test",
+            "Amazon": "https://www.amazon.com/s?k=test&i=stripbooks",
+            "Amazon JP": "https://www.amazon.co.jp/s?k=test&i=stripbooks",
+            "StoryGraph": "https://app.thestorygraph.com/browse?search_term=test",
+            "Readmoo": "https://readmoo.com/search/keyword?q=test",
+            "Books.tw": "https://search.books.com.tw/search/query/key/test",
+            "博客來": "https://search.books.com.tw/search/query/key/test"
+        }
+        target_url = health_endpoints.get(self.name) or getattr(self, "SEARCH_URL", None) or getattr(self, "BASE_URL", None) or "https://www.google.com"
 
-        from urllib.parse import urlparse
         import time
-        parsed = urlparse(target_url)
-        base_domain = f"{parsed.scheme}://{parsed.netloc}" if parsed.netloc else target_url
-
         start_time = time.time()
         try:
             headers = {
-                "User-Agent": self.DEFAULT_USER_AGENT
+                "User-Agent": self.DEFAULT_USER_AGENT,
+                "Accept": "application/json,text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
             }
-            resp = self.session.get(base_domain, headers=headers, timeout=5, allow_redirects=True)
+            resp = self.session.get(target_url, headers=headers, timeout=5, allow_redirects=True)
             latency = int((time.time() - start_time) * 1000)
-            if resp.status_code >= 500:
+
+            if resp.status_code >= 400:
+                if resp.status_code == 403:
+                    return False, "403 (WAF/Forbidden)"
+                if resp.status_code == 429:
+                    return False, "429 (Rate Limited)"
                 return False, f"HTTP {resp.status_code}"
+
+            text_lower = resp.text.lower()
+            down_indicators = [
+                "looks like you lost your connection",
+                "temporarily unavailable",
+                "scheduled maintenance",
+                "openlibrary is down",
+                "service unavailable",
+                "bm-verify"
+            ]
+            for indicator in down_indicators:
+                if indicator in text_lower:
+                    return False, "Down / Maintenance"
+
             return True, f"{latency}ms"
         except Exception as e:
             try:
-                cmd = ["curl.exe", "-s", "-I", "-m", "5", "-A", self.DEFAULT_USER_AGENT, base_domain]
+                cmd = ["curl.exe", "-s", "-I", "-m", "5", "-A", self.DEFAULT_USER_AGENT, target_url]
                 subprocess.check_call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=6)
                 latency = int((time.time() - start_time) * 1000)
                 return True, f"{latency}ms (curl)"
-            except Exception as curl_ex:
-                return False, f"Unreachable: {type(e).__name__}"
+            except Exception:
+                err_name = type(e).__name__
+                if "Timeout" in err_name:
+                    return False, f"Timeout (>5s)"
+                return False, f"Unreachable: {err_name}"
 
     @property
     def name(self) -> str:

@@ -17,17 +17,17 @@ export const CACHE_PREFIX = STORAGE_KEYS.CACHE_PREFIX;
 export const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 export const SOURCES = [
-  { id: "open_library", label: "Open Library", defaultStrategy: "title_list", lang: ["en"], enable_extend_editions: true },
-  { id: "google_books", label: "Google Book", defaultStrategy: "title_list", lang: ["en"] },
-  { id: "google_play", label: "Google Play", defaultStrategy: "title_list", lang: ["en", "zh"] },
-  { id: "goodreads", label: "Goodreads", defaultStrategy: "title_list", lang: ["en"], enable_extend_editions: true },
-  { id: "storygraph", label: "StoryGraph", defaultStrategy: "title_list", lang: ["en"] },
-  { id: "amazon", label: "Amazon", defaultStrategy: "title_list", lang: ["en"] },
-  { id: "amazon_jp", label: "Amazon JP", defaultStrategy: "title_list", lang: ["en"] },
-  { id: "douban", label: "豆瓣", defaultStrategy: "title_zh_list", lang: ["zh", "en"] },
-  { id: "douban_api", label: "豆瓣 API", defaultStrategy: "title_zh_list", lang: ["zh", "en"] },
-  { id: "readmoo", label: "讀墨", defaultStrategy: "title_zh_list", lang: ["zh"] },
-  { id: "books_tw", label: "博客來", defaultStrategy: "title_zh_list", lang: ["zh"] },
+  { id: "open_library", label: "Open Library", url: "https://openlibrary.org", defaultStrategy: "title_list", lang: ["en"], enable_extend_editions: true },
+  { id: "google_books", label: "Google Book", url: "https://books.google.com", defaultStrategy: "title_list", lang: ["en"] },
+  { id: "google_play", label: "Google Play", url: "https://play.google.com/store/books", defaultStrategy: "title_list", lang: ["en", "zh"] },
+  { id: "goodreads", label: "Goodreads", url: "https://www.goodreads.com", defaultStrategy: "title_list", lang: ["en"], enable_extend_editions: true },
+  { id: "storygraph", label: "StoryGraph", url: "https://app.thestorygraph.com", defaultStrategy: "title_list", lang: ["en"] },
+  { id: "amazon", label: "Amazon", url: "https://www.amazon.com", defaultStrategy: "title_list", lang: ["en"] },
+  { id: "amazon_jp", label: "Amazon JP", url: "https://www.amazon.co.jp", defaultStrategy: "title_list", lang: ["en"] },
+  { id: "douban", label: "豆瓣", url: "https://book.douban.com", defaultStrategy: "title_zh_list", lang: ["zh", "en"] },
+  { id: "douban_api", label: "豆瓣 API", url: "https://book.douban.com", defaultStrategy: "title_zh_list", lang: ["zh", "en"] },
+  { id: "readmoo", label: "讀墨", url: "https://readmoo.com", defaultStrategy: "title_zh_list", lang: ["zh"] },
+  { id: "books_tw", label: "博客來", url: "https://www.books.com.tw", defaultStrategy: "title_zh_list", lang: ["zh"] },
 ];
 
 export const STRATEGIES = [

@@ -188,6 +188,13 @@
 .source-status-name {
   color: var(--text-primary);
   font-weight: 500;
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+.source-status-name:hover {
+  color: var(--primary);
+  text-decoration: underline;
 }
 
 .source-status-light {

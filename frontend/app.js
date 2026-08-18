@@ -489,9 +489,15 @@ function initSourceStatus() {
       const light = document.createElement("span");
       light.className = "source-status-light";
       
-      const name = document.createElement("span");
+      const name = document.createElement("a");
       name.className = "source-status-name";
       name.textContent = source.label;
+      if (source.url) {
+        name.href = source.url;
+        name.target = "_blank";
+        name.rel = "noreferrer";
+        name.title = `前往 ${source.label} 首頁`;
+      }
 
       if (cachedResults && cachedResults[source.id]) {
         const res = cachedResults[source.id];
