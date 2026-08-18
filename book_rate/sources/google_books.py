@@ -31,29 +31,23 @@ class GoogleBooksSource(BaseSource):
         if not title:
             return title
 
-        if re.search(r'\+![a-zA-Z0-9\'!"#$%&()*+,\-./:;<=>?@\[\\\]^_`{|}~]{3,}', title):
+        if re.search(r'\+![\x21-\x7e]{3,}', title):
             url = f"https://books.google.com/books?id={volume_id}"
             try:
                 html_content, _ = self._fetch_html(url)
                 if html_content:
-                    m1 = re.search(r'<meta\s+name=["\']title["\']\s+content=["\'](.*?)["\']', html_content, re.IGNORECASE)
-                    if m1:
-                        scraped_title = html.unescape(m1.group(1).strip())
-                        if scraped_title:
-                            return scraped_title
-                    
-                    m2 = re.search(r'<meta\s+property=["\']og:title["\']\s+content=["\'](.*?)["\']', html_content, re.IGNORECASE)
-                    if m2:
-                        scraped_title = html.unescape(m2.group(1).strip())
-                        if scraped_title:
-                            return scraped_title
-
-                    m3 = re.search(r'<title>(.*?)</title>', html_content, re.IGNORECASE)
-                    if m3:
-                        scraped_title = html.unescape(m3.group(1).strip())
-                        scraped_title = re.sub(r'\s+-\s+Google\s+.*$', '', scraped_title, flags=re.IGNORECASE)
-                        if scraped_title:
-                            return scraped_title
+                    patterns = [
+                        r'<meta\s+name=["\']title["\']\s+content=["\'](.*?)["\']',
+                        r'<meta\s+property=["\']og:title["\']\s+content=["\'](.*?)["\']',
+                        r'<title>(.*?)</title>'
+                    ]
+                    for pat in patterns:
+                        m = re.search(pat, html_content, re.IGNORECASE)
+                        if m:
+                            scraped_title = html.unescape(m.group(1).strip())
+                            scraped_title = re.sub(r'\s+-\s+Google\s+.*$', '', scraped_title, flags=re.IGNORECASE)
+                            if scraped_title:
+                                return scraped_title
             except Exception as e:
                 logger.warning(f"Failed to scrape correct title for volume {volume_id}: {e}")
 
@@ -168,89 +162,78 @@ class GoogleBooksSource(BaseSource):
         except Exception as e:
             logger.warning(f"Google Books API search failed for '{query}': {e}")
             print(f"  [Google Books API] ❌ ERROR ({e}) for query '{query}'")
-            return []
-
-
-
-
-
-
-
-
-
         items = data.get("items", [])
         if not items:
             print(f"  [Google Books API] 🔍 0 RESULTS (No matching books) for query '{query}'")
 
-        works: List[Work] = []
+        return [self._parse_volume_item(item) for item in items]
 
-        for item in items:
-            volume_id = item.get("id", "")
-            vol_info = item.get("volumeInfo", {})
-            title = vol_info.get("title", "Unknown Title")
-            title = self._clean_title(title, volume_id)
-            authors = vol_info.get("authors", [])
-            author_str = ", ".join(authors) if authors else "Unknown Author"
+    def _parse_volume_item(self, item: dict) -> Work:
+        """Parse raw Google Books volume API item into a Work object."""
+        volume_id = item.get("id", "")
+        vol_info = item.get("volumeInfo", {})
+        title = vol_info.get("title", "Unknown Title")
+        title = self._clean_title(title, volume_id)
+        authors = vol_info.get("authors", [])
+        author_str = ", ".join(authors) if authors else "Unknown Author"
 
-            avg_rating = vol_info.get("averageRating")
-            ratings_count = vol_info.get("ratingsCount")
+        avg_rating = vol_info.get("averageRating")
+        ratings_count = vol_info.get("ratingsCount")
 
-            # ISBN extraction
-            isbn_10 = None
-            isbn_13 = None
-            for identifier in vol_info.get("industryIdentifiers", []):
-                id_type = identifier.get("type")
-                cleaned = clean_isbn(identifier.get("identifier"))
-                if id_type == "ISBN_10":
-                    isbn_10 = cleaned
-                elif id_type == "ISBN_13":
-                    isbn_13 = cleaned
+        # ISBN extraction
+        isbn_10 = None
+        isbn_13 = None
+        for identifier in vol_info.get("industryIdentifiers", []):
+            id_type = identifier.get("type")
+            cleaned = clean_isbn(identifier.get("identifier"))
+            if id_type == "ISBN_10":
+                isbn_10 = cleaned
+            elif id_type == "ISBN_13":
+                isbn_13 = cleaned
 
-            pub_date = vol_info.get("publishedDate")
-            pub_year: Optional[int] = None
-            if pub_date:
-                year_match = re.search(r'\b\d{4}\b', pub_date)
-                if year_match:
-                    pub_year = int(year_match.group(0))
+        pub_date = vol_info.get("publishedDate")
+        pub_year: Optional[int] = None
+        if pub_date:
+            year_match = re.search(r'\b\d{4}\b', pub_date)
+            if year_match:
+                pub_year = int(year_match.group(0))
 
-            orig_title = None
-            desc = vol_info.get("description", "")
-            if desc:
-                orig_match = re.search(r'《[^》]+》（([A-Za-z0-9\s:,]+)）', desc) or re.search(r'\((?:英文版|原文書名|Original Title)?\s*([A-Z][a-zA-Z0-9\s:]+)\)', desc)
-                if orig_match:
-                    orig_title = orig_match.group(1).strip()
+        orig_title = None
+        desc = vol_info.get("description", "")
+        if desc:
+            orig_match = re.search(r'《[^》]+》（([A-Za-z0-9\s:,]+)）', desc) or re.search(r'\((?:英文版|原文書名|Original Title)?\s*([A-Z][a-zA-Z0-9\s:]+)\)', desc)
+            if orig_match:
+                orig_title = orig_match.group(1).strip()
 
-            work = Work(
-                work_id=f"gb:{volume_id}",
-                title=title,
-                author=author_str,
-                first_publish_year=pub_year,
-                isbn=isbn_13 or isbn_10,
-                original_title=orig_title
+        work = Work(
+            work_id=f"gb:{volume_id}",
+            title=title,
+            author=author_str,
+            first_publish_year=pub_year,
+            isbn=isbn_13 or isbn_10,
+            original_title=orig_title
+        )
+
+        if avg_rating is not None or ratings_count is not None:
+            work.ratings[self.name] = SourceRating(
+                source_name=self.name,
+                rate=float(avg_rating) if avg_rating is not None else None,
+                rating_count=int(ratings_count) if ratings_count is not None else 0,
+                url=vol_info.get("infoLink"),
+                title=title
             )
 
-            if avg_rating is not None or ratings_count is not None:
-                work.ratings[self.name] = SourceRating(
-                    source_name=self.name,
-                    rate=float(avg_rating) if avg_rating is not None else None,
-                    rating_count=int(ratings_count) if ratings_count is not None else 0,
-                    url=vol_info.get("infoLink"),
-                    title=title
-                )
-
-            edition = Edition(
-                edition_id=volume_id,
-                title=title,
-                publish_year=vol_info.get("publishedDate"),
-                language=vol_info.get("language"),
-                isbn_10=isbn_10,
-                isbn_13=isbn_13,
-                publisher=vol_info.get("publisher")
-            )
-            work.editions.append(edition)
-            works.append(work)
-
-        return works
+        edition = Edition(
+            edition_id=volume_id,
+            title=title,
+            publish_year=pub_date,
+            language=vol_info.get("language"),
+            isbn_10=isbn_10,
+            isbn_13=isbn_13,
+            publisher=vol_info.get("publisher")
+        )
+        work.editions.append(edition)
+        return work
 
     def fetch_volume_by_id(self, volume_id: str) -> Optional[Work]:
         """Fetch a specific volume by Google Books volume ID."""
@@ -262,69 +245,7 @@ class GoogleBooksSource(BaseSource):
         try:
             resp = self.session.get(url, params=params, timeout=self.timeout)
             resp.raise_for_status()
-            item = resp.json()
-            vol_info = item.get("volumeInfo", {})
-            title = vol_info.get("title", "Unknown Title")
-            title = self._clean_title(title, volume_id)
-            authors = vol_info.get("authors", [])
-            author_str = ", ".join(authors) if authors else "Unknown Author"
-
-            avg_rating = vol_info.get("averageRating")
-            ratings_count = vol_info.get("ratingsCount")
-
-            isbn_10 = None
-            isbn_13 = None
-            for identifier in vol_info.get("industryIdentifiers", []):
-                id_type = identifier.get("type")
-                cleaned = clean_isbn(identifier.get("identifier"))
-                if id_type == "ISBN_10":
-                    isbn_10 = cleaned
-                elif id_type == "ISBN_13":
-                    isbn_13 = cleaned
-
-            pub_date = vol_info.get("publishedDate")
-            pub_year: Optional[int] = None
-            if pub_date:
-                year_match = re.search(r'\b\d{4}\b', pub_date)
-                if year_match:
-                    pub_year = int(year_match.group(0))
-
-            orig_title = None
-            desc = vol_info.get("description", "")
-            if desc:
-                orig_match = re.search(r'《[^》]+》（([A-Za-z0-9\s:,]+)）', desc) or re.search(r'\((?:英文版|原文書名|Original Title)?\s*([A-Z][a-zA-Z0-9\s:]+)\)', desc)
-                if orig_match:
-                    orig_title = orig_match.group(1).strip()
-
-            work = Work(
-                work_id=f"gb:{volume_id}",
-                title=title,
-                author=author_str,
-                first_publish_year=pub_year,
-                isbn=isbn_13 or isbn_10,
-                original_title=orig_title
-            )
-
-            if avg_rating is not None or ratings_count is not None:
-                work.ratings[self.name] = SourceRating(
-                    source_name=self.name,
-                    rate=float(avg_rating) if avg_rating is not None else None,
-                    rating_count=int(ratings_count) if ratings_count is not None else 0,
-                    url=vol_info.get("infoLink"),
-                    title=title
-                )
-
-            edition = Edition(
-                edition_id=volume_id,
-                title=title,
-                publish_year=pub_date,
-                language=vol_info.get("language"),
-                isbn_10=isbn_10,
-                isbn_13=isbn_13,
-                publisher=vol_info.get("publisher")
-            )
-            work.editions.append(edition)
-            return work
+            return self._parse_volume_item(resp.json())
         except Exception as e:
             logger.warning(f"Failed to fetch Google Books volume ID {volume_id}: {e}")
             return None

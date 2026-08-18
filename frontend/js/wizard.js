@@ -134,7 +134,7 @@ export function chooseCandidate(work) {
 }
 
 /** Selects a specific edition of a work and fills the Step-2 metadata fields. */
-export function chooseEdition(work, edition, itemEl) {
+export function chooseEdition(work, edition) {
   chooseCandidate(work);
 
   const titleEl = document.querySelector("#bm-title");

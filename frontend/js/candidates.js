@@ -45,7 +45,7 @@ export function getShortStatus(status) {
  * @param {object} work
  * @param {object[]} editions
  * @param {boolean} [showAll=false] - whether to skip the en/zh filter split
- * @param {((work: object, edition: object, itemEl: HTMLElement) => void)|null} [onChooseEdition]
+ * @param {((work: object, edition: object) => void)|null} [onChooseEdition]
  */
 export function renderEditionsList(container, work, editions, showAll = false, onChooseEdition = null) {
   container.replaceChildren();
@@ -107,7 +107,7 @@ export function renderEditionsList(container, work, editions, showAll = false, o
     itemEl.textContent = editionText;
     itemEl.addEventListener("click", (e) => {
       e.stopPropagation();
-      if (onChooseEdition) onChooseEdition(work, ed, itemEl);
+      if (onChooseEdition) onChooseEdition(work, ed);
     });
     targetContainer.appendChild(itemEl);
   };
@@ -182,7 +182,7 @@ export function renderEditionsList(container, work, editions, showAll = false, o
 /**
  * Renders the candidate work cards into #candidate-list.
  * @param {object[]} works
- * @param {{ onChooseCandidate: (work: object) => void, onChooseEdition: (work: object, edition: object, el: HTMLElement) => void }} callbacks
+ * @param {{ onChooseCandidate: (work: object) => void, onChooseEdition: (work: object, edition: object) => void }} callbacks
  */
 export function renderCandidates(works, { onChooseCandidate, onChooseEdition } = {}) {
   const candidateList = document.querySelector("#candidate-list");
