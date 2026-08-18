@@ -90,16 +90,13 @@ class BaseSource:
             "Google Books": "https://books.google.com",
             "Google Play": "https://play.google.com/store/search?q=test&c=books",
             "Goodreads": "https://www.goodreads.com/search?q=test",
-            "Douban": "https://book.douban.com/subject_search?search_text=test",
             "豆瓣": "https://book.douban.com/subject_search?search_text=test",
-            "Douban API": "https://book.douban.com/subject_search?search_text=test",
             "豆瓣 API": "https://book.douban.com/subject_search?search_text=test",
             "Amazon": "https://www.amazon.com/s?k=test&i=stripbooks",
             "Amazon JP": "https://www.amazon.co.jp/s?k=test&i=stripbooks",
             "StoryGraph": "https://app.thestorygraph.com/browse?search_term=test",
             "Readmoo": "https://readmoo.com/search/keyword?q=test",
-            "Books.tw": "https://search.books.com.tw/search/query/key/test",
-            "博客來": "https://search.books.com.tw/search/query/key/test"
+            "博客來": "https://search.books.com.tw/search/query/key/test",
         }
         target_url = health_endpoints.get(self.name) or getattr(self, "SEARCH_URL", None) or getattr(self, "BASE_URL", None) or "https://www.google.com"
 
