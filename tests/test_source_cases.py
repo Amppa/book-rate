@@ -169,6 +169,64 @@ class TestUnratedBookWithUrlCase(unittest.TestCase):
         self.assertEqual(items[0]["first_publish_year"], 2025)
 
 
+class TestGoogleBooksTitleCleaner(unittest.TestCase):
+    """Test unit for clean_title functionality in Google Books Source."""
+
+    def test_clean_title_normal_title(self):
+        source = GoogleBooksSource()
+        title = "Thinking, Fast and Slow"
+        cleaned = source._clean_title(title, "vol_123")
+        self.assertEqual(cleaned, title)
+
+    @patch("book_rate.sources.base.BaseSource._fetch_html")
+    def test_clean_title_garbled_title(self, mock_fetch_html):
+        mock_fetch_html.return_value = (
+            '<html><head>'
+            '<meta name="title" content="哈利·波特与魔法石 ((Harry Potter and the Philosopher&#39;s Stone)"/>'
+            '</head></html>',
+            False
+        )
+        source = GoogleBooksSource()
+        garbled = "哈利+!JY'T2!ar!G*!N( (Harry Potter and the Philosopher's Stone)"
+        cleaned = source._clean_title(garbled, "Ztg2zgEACAAJ")
+        self.assertEqual(cleaned, "哈利·波特与魔法石 ((Harry Potter and the Philosopher's Stone)")
+        mock_fetch_html.assert_called_once_with("https://books.google.com/books?id=Ztg2zgEACAAJ")
+
+    @patch("book_rate.sources.base.BaseSource._fetch_html")
+    @patch("requests.Session.get")
+    def test_search_works_cleans_garbled_title(self, mock_get, mock_fetch_html):
+        # Mock Google Books API search response containing a garbled title
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "items": [
+                {
+                    "id": "Ztg2zgEACAAJ",
+                    "volumeInfo": {
+                        "title": "哈利+!JY'T2!ar!G*!N( (Harry Potter and the Philosopher's Stone)",
+                        "authors": ["J.K. Rowling"]
+                    }
+                }
+            ]
+        }
+        mock_get.return_value = mock_resp
+
+        # Mock webpage scraper response
+        mock_fetch_html.return_value = (
+            '<html><head>'
+            '<meta name="title" content="哈利·波特与魔法石 ((Harry Potter and the Philosopher&#39;s Stone)"/>'
+            '</head></html>',
+            False
+        )
+
+        source = GoogleBooksSource()
+        works = source.search_works("哈利·波特与魔法石", limit=1)
+        
+        self.assertEqual(len(works), 1)
+        self.assertEqual(works[0].title, "哈利·波特与魔法石 ((Harry Potter and the Philosopher's Stone)")
+        self.assertEqual(works[0].editions[0].title, "哈利·波特与魔法石 ((Harry Potter and the Philosopher's Stone)")
+
+
 if __name__ == "__main__":
     unittest.main()
 

@@ -1,3 +1,4 @@
+import html
 import json
 import logging
 import os
@@ -24,6 +25,39 @@ class GoogleBooksSource(BaseSource):
         self.session.headers.update({
             "User-Agent": "BookScoreAggregator/1.0 (https://github.com/books-score)"
         })
+
+    def _clean_title(self, title: str, volume_id: str) -> str:
+        """Detect and fix garbled titles caused by EACC/MARC-8 decoding errors in Google Books API."""
+        if not title:
+            return title
+
+        if re.search(r'\+![a-zA-Z0-9\'!"#$%&()*+,\-./:;<=>?@\[\\\]^_`{|}~]{3,}', title):
+            url = f"https://books.google.com/books?id={volume_id}"
+            try:
+                html_content, _ = self._fetch_html(url)
+                if html_content:
+                    m1 = re.search(r'<meta\s+name=["\']title["\']\s+content=["\'](.*?)["\']', html_content, re.IGNORECASE)
+                    if m1:
+                        scraped_title = html.unescape(m1.group(1).strip())
+                        if scraped_title:
+                            return scraped_title
+                    
+                    m2 = re.search(r'<meta\s+property=["\']og:title["\']\s+content=["\'](.*?)["\']', html_content, re.IGNORECASE)
+                    if m2:
+                        scraped_title = html.unescape(m2.group(1).strip())
+                        if scraped_title:
+                            return scraped_title
+
+                    m3 = re.search(r'<title>(.*?)</title>', html_content, re.IGNORECASE)
+                    if m3:
+                        scraped_title = html.unescape(m3.group(1).strip())
+                        scraped_title = re.sub(r'\s+-\s+Google\s+.*$', '', scraped_title, flags=re.IGNORECASE)
+                        if scraped_title:
+                            return scraped_title
+            except Exception as e:
+                logger.warning(f"Failed to scrape correct title for volume {volume_id}: {e}")
+
+        return title
 
     @property
     def name(self) -> str:
@@ -154,6 +188,7 @@ class GoogleBooksSource(BaseSource):
             volume_id = item.get("id", "")
             vol_info = item.get("volumeInfo", {})
             title = vol_info.get("title", "Unknown Title")
+            title = self._clean_title(title, volume_id)
             authors = vol_info.get("authors", [])
             author_str = ", ".join(authors) if authors else "Unknown Author"
 
@@ -230,6 +265,7 @@ class GoogleBooksSource(BaseSource):
             item = resp.json()
             vol_info = item.get("volumeInfo", {})
             title = vol_info.get("title", "Unknown Title")
+            title = self._clean_title(title, volume_id)
             authors = vol_info.get("authors", [])
             author_str = ", ".join(authors) if authors else "Unknown Author"
 
