@@ -11,39 +11,32 @@
 .other-title-sources-buttons {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
-  border-bottom: 2px solid var(--border);
+  gap: 6px;
   position: relative;
   z-index: 1;
+  margin-bottom: 12px;
 }
 
 .title-source-tab-btn {
-  padding: 0.7rem 0.5rem;
-  font-size: var(--fs-md);
+  padding: 0.4rem 0.8rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
-  border-radius: var(--radius-md) var(--radius-md) 0 0;
-  border: 2px solid transparent;
-  border-bottom: none;
-  background: transparent;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border);
+  background: var(--surface-card);
   color: var(--text-primary);
   cursor: pointer;
   transition: all 0.2s ease;
-  margin-bottom: -2px;
 }
 
 .title-source-tab-btn:hover {
-  background: var(--surface-subtle);
+  background: var(--secondary);
 }
 
 .title-source-tab-btn.active {
-  background: var(--surface-card);
-  color: var(--primary);
-  border: 2px solid var(--border);
-  border-bottom: 2px solid var(--surface-card);
-  margin-bottom: -2px;
-  position: relative;
-  z-index: var(--z-index-tab-active);
-  box-shadow: none;
+  background: var(--primary);
+  color: var(--text-contrast);
+  border-color: var(--primary);
 }
 
 #section-title-source-tabs+.step2-block {
@@ -56,10 +49,9 @@
   flex-direction: column;
   overflow: hidden;
   background: var(--surface-card);
-  border: 2px solid var(--border);
-  border-top: none;
-  border-radius: 0 0 var(--radius-md) var(--radius-md);
-  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
 }
 
 .no-results {
