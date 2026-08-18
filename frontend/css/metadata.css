@@ -140,6 +140,7 @@ textarea.bm-input:focus {
 
 .step3-split-layout.s3-meta-collapsed .step3-left-panel {
   width: 0;
+  height: 0;
   opacity: 0;
   pointer-events: none;
 }
