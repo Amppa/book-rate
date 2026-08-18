@@ -2,16 +2,10 @@ import { state } from './state.js';
 import { SOURCES, SOURCE_PREFIX } from './constants.js';
 import { removeBrackets, hasCjk } from './utils.js';
 
-// Injected dependency: avoids a circular import between wizard ↔ ratings.
-let _onSelectWork = null;
-
 /**
- * Call once at startup to inject the selectWork function from ratings.js.
- * @param {{ onSelectWork: (work: object) => void }} deps
+ * Initialises wizard event listeners.
  */
-export function initWizard({ onSelectWork }) {
-  _onSelectWork = onSelectWork;
-
+export function initWizard() {
   // Monitor the bracket removal checkbox and clean existing fields when checked
   const removeBracketsCb = document.querySelector("#bm-remove-brackets");
   if (removeBracketsCb) {
@@ -304,5 +298,5 @@ export function confirmToStep3() {
     };
   }
 
-  if (_onSelectWork) _onSelectWork(workToUse);
+  window.dispatchEvent(new CustomEvent("bookrate:select-work", { detail: workToUse }));
 }

@@ -205,8 +205,8 @@
 }
 
 .source-status-light.status-ok {
-  background-color: #10b981; /* Green ok */
-  box-shadow: 0 0 6px #10b981;
+  background-color: var(--status-ok); /* Green ok */
+  box-shadow: 0 0 6px var(--status-ok);
 }
 
 .source-status-light.status-failed {

@@ -219,37 +219,156 @@ class BaseSource:
 
 
 
+    @staticmethod
+    def _resolve_status(rating: Optional[SourceRating], is_match: bool) -> str:
+        if not is_match:
+            return SourceStatus.NO_MATCH.value
+        if rating and rating.status == SourceStatus.CURL_MATCH.value:
+            return SourceStatus.CURL_MATCH.value
+        return SourceStatus.MATCH.value
+
+    def _search_titles_short_circuit(
+        self,
+        titles: List[str],
+        strat: str,
+        search: Callable[[str], List[Work]]
+    ) -> Optional[SourceRating]:
+        """Iterate through candidate queries, short-circuiting on the first result with rating."""
+        fallback_rating = None
+        for q in titles:
+            q = q.strip()
+            if not q:
+                continue
+            try:
+                res_works = search(q)
+                if res_works:
+                    best_rating = self._select_best_rating(res_works, target_title=q if strat != SearchStrategy.ISBN else None)
+                    if best_rating:
+                        is_match = (best_rating.rate is not None or best_rating.rating_count is not None)
+                        if is_match:
+                            best_rating.strategy = strat
+                            best_rating.query = q
+                            best_rating.status = self._resolve_status(best_rating, True)
+                            return best_rating
+                        elif best_rating.url and fallback_rating is None:
+                            best_rating.strategy = strat
+                            best_rating.query = q
+                            best_rating.status = SourceStatus.NO_MATCH.value
+                            fallback_rating = best_rating
+            except SourceNetworkError as ne:
+                self.last_network_error = ne.message
+                break
+            except Exception as e:
+                self.last_network_error = f"Error: {e}"
+                break
+        return fallback_rating
+
+    def _fetch_full_list_ratings(
+        self,
+        titles: List[str],
+        strat: str,
+        search: Callable[[str], List[Work]]
+    ) -> SourceRating:
+        """Fetch ratings for full list of titles with 1s delay between calls."""
+        import time
+        results_list = []
+        best_rating = None
+
+        for i, t in enumerate(titles[:4]):
+            t = t.strip()
+            if not t:
+                continue
+            if i > 0:
+                time.sleep(1.0)
+
+            try:
+                res_works = search(t)
+                if res_works:
+                    r = self._select_best_rating(res_works, target_title=t)
+                    if r and (r.rate is not None or r.rating_count is not None or r.url):
+                        if hasattr(self, "_enrich_with_book_page"):
+                            r = self._enrich_with_book_page(r)
+                        is_r_match = (r.rate is not None or r.rating_count is not None)
+                        results_list.append({
+                            "average": r.rate,
+                            "count": r.rating_count,
+                            "url": r.url,
+                            "title": r.title or t,
+                            "status": self._resolve_status(r, is_r_match),
+                            "query": t
+                        })
+                        if not best_rating or (r.rating_count or 0) > (best_rating.rating_count or 0):
+                            best_rating = r
+                    else:
+                        results_list.append({
+                            "average": None,
+                            "count": None,
+                            "url": None,
+                            "title": t,
+                            "status": SourceStatus.NO_MATCH.value,
+                            "query": t
+                        })
+                else:
+                    results_list.append({
+                        "average": None,
+                        "count": None,
+                        "url": None,
+                        "title": t,
+                        "status": SourceStatus.NO_MATCH.value,
+                        "query": t
+                    })
+            except Exception as e:
+                results_list.append({
+                    "average": None,
+                    "count": None,
+                    "url": None,
+                    "title": t,
+                    "status": f"Error: {e}",
+                    "query": t
+                })
+
+        query_str = ", ".join(t for t in titles[:4])
+        if best_rating:
+            from copy import copy
+            copied_rating = copy(best_rating)
+            copied_rating.strategy = strat
+            copied_rating.query = query_str
+            is_best_match = (best_rating.rate is not None or best_rating.rating_count is not None)
+            copied_rating.status = self._resolve_status(best_rating, is_best_match)
+            copied_rating.results = results_list
+            return copied_rating
+
+        return SourceRating(
+            source_name=self.name,
+            rate=None,
+            rating_count=None,
+            url=None,
+            strategy=strat,
+            query=query_str,
+            status=SourceStatus.NO_MATCH.value,
+            results=results_list
+        )
+
     def _fetch_ratings(
         self,
         work: Work,
         strategy: Optional[str] = None,
         custom_search: Optional[Callable[[str], List[Work]]] = None
     ) -> SourceRating:
-        """
-        Execute explicit SearchStrategy for the given Work object.
-        No silent fallback.
-        """
+        """Execute explicit SearchStrategy for the given Work object without silent fallback."""
         self.last_network_error = None
         strat = strategy or self.default_strategy
         if strat == "isbn_primary":
-            # If work has ISBN, route to ISBN search, else fall back to TITLE_AUTHOR
             has_valid_isbn = (work.isbn and clean_isbn(work.isbn)) or (work.isbn_list and any(clean_isbn(i) for i in work.isbn_list))
             strat = SearchStrategy.ISBN if has_valid_isbn else SearchStrategy.TITLE_AUTHOR
 
         search = custom_search or (lambda q: self.search_works(q, limit=5))
         target_title = work.original_title or work.title
-
         candidate_works: List[Work] = []
         query_used = ""
         network_error_msg = None
 
-        def _resolve_status(rating: Optional[SourceRating], is_match: bool) -> str:
-            if not is_match:
-                return SourceStatus.NO_MATCH.value
-            if rating and rating.status == SourceStatus.CURL_MATCH.value:
-                return SourceStatus.CURL_MATCH.value
-            return SourceStatus.MATCH.value
-
+        # 1. SOURCE_ID
         if strat == SearchStrategy.SOURCE_ID:
             query_used = work.work_id
             if self.name in work.ratings and work.ratings[self.name].rate is not None:
@@ -259,7 +378,6 @@ class BaseSource:
                 r.status = SourceStatus.MATCH.value
                 return r
 
-            # Handle source ID search if prefix matches
             prefix_map = {
                 "Goodreads": "gr:",
                 "Google Books": "gb:",
@@ -279,6 +397,7 @@ class BaseSource:
                 except Exception as e:
                     network_error_msg = f"Error: {e}"
 
+        # 2. SEARCH_NAME
         elif strat == SearchStrategy.SEARCH_NAME:
             query_used = work.search_name or work.title
             if query_used:
@@ -287,6 +406,7 @@ class BaseSource:
                 except Exception as e:
                     network_error_msg = f"Error: {e}"
 
+        # 3. TITLE_LIST & TITLE_AUTHOR
         elif strat in (SearchStrategy.TITLE_LIST, SearchStrategy.TITLE_AUTHOR):
             titles_to_try = work.title_list if work.title_list else ([work.title] if work.title else [])
             if strat == SearchStrategy.TITLE_AUTHOR and work.author:
@@ -296,69 +416,19 @@ class BaseSource:
                     extended_titles.append(f"{t}{author_suffix}")
                     extended_titles.append(t)
                 titles_to_try = extended_titles
-            
-            fallback_rating = None
-            for t in titles_to_try:
-                t = t.strip()
-                if not t:
-                    continue
-                try:
-                    res_works = search(t)
-                    if res_works:
-                        best_rating = self._select_best_rating(res_works, target_title=t)
-                        if best_rating:
-                            is_match = (best_rating.rate is not None or best_rating.rating_count is not None)
-                            if is_match:
-                                best_rating.strategy = strat
-                                best_rating.query = t
-                                best_rating.status = _resolve_status(best_rating, True)
-                                return best_rating
-                            elif best_rating.url and fallback_rating is None:
-                                best_rating.strategy = strat
-                                best_rating.query = t
-                                best_rating.status = SourceStatus.NO_MATCH.value
-                                fallback_rating = best_rating
-                except SourceNetworkError as ne:
-                    network_error_msg = ne.message
-                    break
-                except Exception as e:
-                    network_error_msg = f"Error: {e}"
-                    break
-            if fallback_rating:
-                return fallback_rating
 
+            rating = self._search_titles_short_circuit(titles_to_try, strat, search)
+            if rating:
+                return rating
+
+        # 4. TITLE_ZH_LIST
         elif strat == SearchStrategy.TITLE_ZH_LIST:
             titles_to_try = work.title_zh_list if work.title_zh_list else ([work.title] if work.title else [])
-            fallback_rating = None
-            for t in titles_to_try:
-                t = t.strip()
-                if not t:
-                    continue
-                try:
-                    res_works = search(t)
-                    if res_works:
-                        best_rating = self._select_best_rating(res_works, target_title=t)
-                        if best_rating:
-                            is_match = (best_rating.rate is not None or best_rating.rating_count is not None)
-                            if is_match:
-                                best_rating.strategy = strat
-                                best_rating.query = t
-                                best_rating.status = _resolve_status(best_rating, True)
-                                return best_rating
-                            elif best_rating.url and fallback_rating is None:
-                                best_rating.strategy = strat
-                                best_rating.query = t
-                                best_rating.status = SourceStatus.NO_MATCH.value
-                                fallback_rating = best_rating
-                except SourceNetworkError as ne:
-                    network_error_msg = ne.message
-                    break
-                except Exception as e:
-                    network_error_msg = f"Error: {e}"
-                    break
-            if fallback_rating:
-                return fallback_rating
+            rating = self._search_titles_short_circuit(titles_to_try, strat, search)
+            if rating:
+                return rating
 
+        # 5. ISBN
         elif strat == SearchStrategy.ISBN:
             raw_isbns = work.isbn_list if work.isbn_list else ([work.isbn] if work.isbn else [])
             cleaned_isbns = []
@@ -366,123 +436,25 @@ class BaseSource:
                 c = clean_isbn(r_isbn)
                 if c and c not in cleaned_isbns:
                     cleaned_isbns.append(c)
-            
-            fallback_rating = None
-            for isbn in cleaned_isbns[:5]:
-                try:
-                    res_works = search(isbn)
-                    if res_works:
-                        best_rating = self._select_best_rating(res_works, target_title=None)
-                        if best_rating:
-                            is_match = (best_rating.rate is not None or best_rating.rating_count is not None)
-                            if is_match:
-                                best_rating.strategy = strat
-                                best_rating.query = isbn
-                                best_rating.status = _resolve_status(best_rating, True)
-                                return best_rating
-                            elif best_rating.url and fallback_rating is None:
-                                best_rating.strategy = strat
-                                best_rating.query = isbn
-                                best_rating.status = SourceStatus.NO_MATCH.value
-                                fallback_rating = best_rating
-                except SourceNetworkError as ne:
-                    network_error_msg = ne.message
-                    break
-                except Exception as e:
-                    network_error_msg = f"Error: {e}"
-                    break
-            if fallback_rating:
-                return fallback_rating
 
+            rating = self._search_titles_short_circuit(cleaned_isbns[:5], strat, search)
+            if rating:
+                return rating
+
+        # 6. FULL LIST STRATEGIES
         elif strat in (SearchStrategy.TITLE_LIST_FULL, SearchStrategy.TITLE_ZH_LIST_FULL):
             titles_to_try = work.title_list if strat == SearchStrategy.TITLE_LIST_FULL else work.title_zh_list
             if not titles_to_try:
                 titles_to_try = [work.title] if work.title else []
-            
-            results_list = []
-            best_rating = None
-            
-            import time
-            for i, t in enumerate(titles_to_try[:4]):
-                t = t.strip()
-                if not t:
-                    continue
-                if i > 0:
-                    time.sleep(1.0)
-                
-                try:
-                    res_works = search(t)
-                    if res_works:
-                        r = self._select_best_rating(res_works, target_title=t)
-                        if r and (r.rate is not None or r.rating_count is not None or r.url):
-                            if hasattr(self, "_enrich_with_book_page"):
-                                r = self._enrich_with_book_page(r)
-                            is_r_match = (r.rate is not None or r.rating_count is not None)
-                            results_list.append({
-                                "average": r.rate,
-                                "count": r.rating_count,
-                                "url": r.url,
-                                "title": r.title or t,
-                                "status": _resolve_status(r, is_r_match),
-                                "query": t
-                            })
-                            if not best_rating or (r.rating_count or 0) > (best_rating.rating_count or 0):
-                                best_rating = r
-                        else:
-                            results_list.append({
-                                "average": None,
-                                "count": None,
-                                "url": None,
-                                "title": t,
-                                "status": SourceStatus.NO_MATCH.value,
-                                "query": t
-                            })
-                    else:
-                        results_list.append({
-                            "average": None,
-                            "count": None,
-                            "url": None,
-                            "title": t,
-                            "status": SourceStatus.NO_MATCH.value,
-                            "query": t
-                        })
-                except Exception as e:
-                    results_list.append({
-                        "average": None,
-                        "count": None,
-                        "url": None,
-                        "title": t,
-                        "status": f"Error: {e}",
-                        "query": t
-                    })
-            
-            if best_rating:
-                from copy import copy
-                copied_rating = copy(best_rating)
-                copied_rating.strategy = strat
-                copied_rating.query = ", ".join(t for t in titles_to_try[:4])
-                is_best_match = (best_rating.rate is not None or best_rating.rating_count is not None)
-                copied_rating.status = _resolve_status(best_rating, is_best_match)
-                copied_rating.results = results_list
-                return copied_rating
-            else:
-                return SourceRating(
-                    source_name=self.name,
-                    rate=None,
-                    rating_count=None,
-                    url=None,
-                    strategy=strat,
-                    query=", ".join(t for t in titles_to_try[:4]),
-                    status=SourceStatus.NO_MATCH.value,
-                    results=results_list
-                )
+            return self._fetch_full_list_ratings(titles_to_try, strat, search)
 
+        # Fallback candidate selection
         best_rating = self._select_best_rating(candidate_works, target_title=target_title)
         if best_rating and (best_rating.rate is not None or best_rating.rating_count is not None or best_rating.url):
             best_rating.strategy = strat
             best_rating.query = query_used
             is_match = (best_rating.rate is not None or best_rating.rating_count is not None)
-            best_rating.status = _resolve_status(best_rating, is_match)
+            best_rating.status = self._resolve_status(best_rating, is_match)
             return best_rating
 
         return SourceRating(

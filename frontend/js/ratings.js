@@ -39,6 +39,13 @@ export function initRatings({ resultBody, step3Status, tableWrap, detailsHeading
       splitLayout.classList.remove("s3-meta-collapsed");
     });
   }
+
+  // Listen to work selection event dispatched from wizard metadata panel
+  window.addEventListener("bookrate:select-work", (e) => {
+    if (e.detail) {
+      selectWork(e.detail);
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------

@@ -52,7 +52,7 @@ const scoreStrategyRowEl = document.querySelector("#score-strategy-row");
 // Module initialisation
 // ---------------------------------------------------------------------------
 initRatings({ resultBody, step3Status, tableWrap, detailsHeading, candidateList });
-initWizard({ onSelectWork: selectWork });
+initWizard();
 
 // ---------------------------------------------------------------------------
 // Settings

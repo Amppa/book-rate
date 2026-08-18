@@ -56,7 +56,7 @@ class RatingOrchestrator:
             return engine_key_clean, format_rating_response(engine_key_clean, rating, fallback_title, quota_exceeded=quota_exceeded)
         except Exception as e:
             logger.error(f"Error fetching rating from {engine_key_clean}: {e}")
-            err_rating = SourceRating(source_name=engine_key_clean, status=SourceStatus.ERROR, error_message=str(e))
+            err_rating = SourceRating(source_name=engine_key_clean, status=SourceStatus.ERROR.value, error_message=str(e))
             return engine_key_clean, format_rating_response(engine_key_clean, err_rating, fallback_title)
 
     def prepare_target_work(

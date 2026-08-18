@@ -6,10 +6,9 @@ from book_rate.models import Work, SourceRating
 from book_rate.sources.readmoo import ReadmooSource
 from book_rate.sources.storygraph import StoryGraphSource
 from book_rate.sources.books_tw import BooksTwSource
-from book_rate.sources.amazon_jp import AmazonJPSource
+from book_rate.sources.amazon import AmazonSource, AmazonJPSource
 from book_rate.sources.goodreads import GoodreadsSource
 from book_rate.sources.douban import DoubanSource
-from book_rate.sources.amazon import AmazonSource
 from book_rate.sources.google_books import GoogleBooksSource
 from book_rate.sources.open_library import OpenLibrarySource
 

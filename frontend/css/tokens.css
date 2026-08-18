@@ -45,6 +45,7 @@
 
   /* Stars Color & Primary opacity colors */
   --star-color: #f59e0b;
+  --status-ok: #10b981;
   --primary-alpha-6: rgba(23, 79, 60, 0.06);
   --primary-alpha-10: rgba(23, 79, 60, 0.1);
   --primary-alpha-15: rgba(23, 79, 60, 0.15);
