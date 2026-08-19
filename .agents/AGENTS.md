@@ -14,7 +14,7 @@ graph TD
     API_Search -->|Returns candidate Works| Step2[Step 2: Selection & Metadata Editor]
     Step2 -->|User reviews/edits metadata lists| Step3[Step 3: Compare & Aggregation]
     Step3 -->|SSE stream request| API_Stream[/api/work-details-stream]
-    API_Stream -->|Parallel fetchers| Sources[(8 Platforms)]
+    API_Stream -->|Parallel fetchers| Sources[(10 UI Platforms)]
     Sources -->|Streamed updates| Table[Comparison Table]
 ```
 
@@ -33,7 +33,7 @@ graph TD
 ### Step 3: Compare & Aggregation
 * **User action**: Clicks "Compare" (or triggers search from the Metadata Editor Card).
 * **Backend flow**: Frontend serializes the reviewed metadata lists and requests the SSE stream endpoint `/api/work-details-stream` (or `/api/work-details`) via POST payload.
-* **Processing**: The backend queries the 8 active rating sources concurrently under a ThreadPoolExecutor. Each source evaluates the user's selected **Search Strategy** (specified in the column header dropdowns of the comparison table) to find the best matching book on that platform.
+* **Processing**: The backend queries the 10 active rating sources concurrently under a ThreadPoolExecutor. Each source evaluates the user's selected **Search Strategy** (specified in the column header dropdowns of the comparison table) to find the best matching book on that platform.
 * **Output**: Renders a side-by-side comparison table showing ratings, review counts, matching links, and search queries for each platform.
 
 ---
@@ -45,10 +45,10 @@ The codebase distinguishes between engines used for finding *candidate books* an
 * **Title Provider (or Title Source)**:
   * Used in **Step 1** to locate and map search queries to candidate books (`Work` objects).
   * Main title providers: Open Library (`open_library`) and Google Books (`google_books`).
-  * Fallbacks: If Open Library and Google Books are inactive, the backend queries the first active platform in the priority list `TITLE_SOURCES = ["goodreads", "storygraph", "amazon", "amazon_jp", "douban", "readmoo"]`.
+  * Fallbacks: If Open Library and Google Books are inactive, the backend queries the first active platform in the priority list `TITLE_SOURCES = ["google_play", "goodreads", "storygraph", "amazon", "amazon_jp", "douban", "douban_api", "readmoo", "books_tw"]`.
 * **Rate Provider (or Rating Source/Engine)**:
   * Used in **Step 3** to fetch score ratings and review counts for a specific work.
-  * Supported platforms (8 total): Open Library, Google Books, Goodreads, Douban, Amazon, Amazon JP, StoryGraph, and Readmoo.
+  * Supported platforms (10 UI platforms & 11 adapters): Open Library, Google Books, Google Play Books, Goodreads, Douban, Amazon, Amazon JP, StoryGraph, Readmoo, and Books.com.tw (plus Douban API fallback adapter).
   * All rate providers implement the `BaseSource` class and support multiple search strategies to query rating endpoints.
 
 ---
@@ -83,18 +83,25 @@ In Step 3, rate providers fetch ratings using one of 6 single-factor search stra
 ## 5. Codebase Mapping
 
 ### Backend (Python + FastAPI)
-* **[server.py](../server.py)**: The entry point. Hosts API endpoints (`/api/search`, POST `/api/work-details`, POST `/api/work-details-stream`, `/api/work-editions`).
-* **[book_rate/models.py](../book_rate/models.py)**: Dataclasses for `Work`, `Edition`, and `SourceRating`.
-* **[book_rate/aggregator.py](../book_rate/aggregator.py)**: Instantiates and groups rating sources.
+* **[server.py](../server.py)**: The entry point. Hosts API endpoints (`GET /api/search`, `GET /api/work-editions`, `POST /api/work-details`, `POST /api/work-details-stream`, `GET /api/source-status`).
+* **[book_rate/models.py](../book_rate/models.py)**: Dataclasses for `Work`, `Edition`, `SourceRating`, `SourceStatus`, and `RatingRequestPayload`.
+* **[book_rate/aggregator.py](../book_rate/aggregator.py)**: Main coordinator instantiating adapters and providing query interfaces.
+* **[book_rate/orchestrator.py](../book_rate/orchestrator.py)**: Orchestrates concurrent rating execution and SSE streaming events.
+* **[book_rate/resolver.py](../book_rate/resolver.py)**: Implements `WorkResolver` and `EditionResolver`.
+* **[book_rate/registry.py](../book_rate/registry.py)**: Central registry discovering and instantiating 11 source adapters.
+* **[book_rate/work_preparer.py](../book_rate/work_preparer.py)**: Candidate work creation and edition resolution.
 * **[book_rate/sources/base.py](../book_rate/sources/base.py)**: The `BaseSource` class implementing the execution of `SearchStrategy` and fallback query matching logic.
-* **[book_rate/sources/](../book_rate/sources/)**: Individual crawler and API fetcher modules for each platform (e.g., `douban.py`, `goodreads.py`, `google_books.py`, `open_library.py`).
+* **[book_rate/sources/](../book_rate/sources/)**: Individual crawler and API fetcher modules (`amazon.py`, `books_tw.py`, `douban.py`, `goodreads.py`, `google_books.py`, `google_play.py`, `open_library.py`, `readmoo.py`, `storygraph.py`).
 
 ### Frontend (Pure JavaScript / CSS / HTML)
-* **[frontend/index.html](../frontend/index.html)**: Main UI layout, containing search inputs, wizard steps panels, and the ratings comparison table.
+* **[frontend/index.html](../frontend/index.html)**: Main UI layout, containing search inputs, wizard steps panels, settings modals, and the ratings comparison table.
 * **[frontend/app.js](../frontend/app.js)**: Orchestrates wizard state transitions and handles server-sent events (SSE) parsing.
 * **[frontend/js/wizard.js](../frontend/js/wizard.js)**: Renders step sections and wizard step progression.
 * **[frontend/js/candidates.js](../frontend/js/candidates.js)**: Handles rendering search results and metadata card editing fields for Step 2.
 * **[frontend/js/ratings.js](../frontend/js/ratings.js)**: Renders comparison table rows, dropdowns, and rating details.
 * **[frontend/js/constants.js](../frontend/js/constants.js)**: Configurations for search strategies, defaults, and API engine codes.
-* **[frontend/js/cache.js](../frontend/js/cache.js)**: Manages localStorage caching for rating records.
-
+* **[frontend/js/cache.js](../frontend/js/cache.js)**: Manages localStorage caching for rating records and source connectivity status.
+* **[frontend/js/api.js](../frontend/js/api.js)**: Client HTTP/SSE network handler functions.
+* **[frontend/js/ui.js](../frontend/js/ui.js)**: Header controls, strategy dropdowns, source connectivity badges.
+* **[frontend/js/modals.js](../frontend/js/modals.js)**: Dynamic modal manager for editions and raw response payloads.
+* **[frontend/js/history.js](../frontend/js/history.js)**: Client search history manager.
