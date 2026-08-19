@@ -9,19 +9,23 @@
   --text-contrast: #ffffff;
 
   /* Primary & Secondary Color Palette */
-  --primary: #174f3c;        /* 主色綠 (包含原連結色) */
-  --secondary: #edf2ea;      /* 輔助淡綠灰 (包含原面版背景、按鈕等) */
-  --accent: #a44d28;         /* 強調橘 (如載入動畫、醒目提示) */
-  --error: #c5221f;          /* 錯誤紅 */
+  --primary: #174f3c;
+  /* 主色綠 (包含原連結色) */
+  --secondary: #edf2ea;
+  /* 輔助淡綠灰 (包含原面版背景、按鈕等) */
+  --accent: #a44d28;
+  /* 強調橘 (如載入動畫、醒目提示) */
+  --error: #c5221f;
+  /* 錯誤紅 */
 
   /* Semantic Status Colors (Background, Text, Border) */
   --status-success-bg: #e6f4ea;
   --status-success-text: #137333;
-  --status-success-border: #c4eed0;
+  --status-success-border: #60a875;
 
   --status-info-bg: #f1f3f4;
   --status-info-text: #5f6368;
-  --status-info-border: #dadce0;
+  --status-info-border: #9b9da0;
 
   --status-warning-bg: #fef7e0;
   --status-warning-text: #b06000;
