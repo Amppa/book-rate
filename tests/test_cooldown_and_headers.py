@@ -8,6 +8,7 @@ from book_rate.utils.rate_limiter import DomainRateLimiter
 from book_rate.sources.base import BaseSource, SearchStrategy
 from book_rate.sources.douban import DoubanSource
 from book_rate.sources.books_tw import BooksTwSource
+from book_rate.sources.amazon import AmazonSource, AmazonJPSource
 from server import app
 
 
@@ -86,14 +87,40 @@ class TestRateLimiterAndAntiBlocking(unittest.TestCase):
         r_none = engine._evaluate_single_query("Nonexistent", SearchStrategy.TITLE_LIST, lambda q: [])
         self.assertEqual(r_none.status, SourceStatus.NO_MATCH.value)
 
-    def test_douban_and_books_tw_default_cooldown(self):
-        """Verify Douban and Books.com.tw have default cooldown set to 1.0s."""
+    def test_sources_default_cooldown(self):
+        """Verify Douban, Books.com.tw, Amazon, and Amazon JP have default cooldown set to 1.0s."""
         db = DoubanSource()
         bk = BooksTwSource()
+        am = AmazonSource()
+        am_jp = AmazonJPSource()
         self.assertEqual(db.cooldown, 1.0)
         self.assertEqual(bk.cooldown, 1.0)
+        self.assertEqual(am.cooldown, 1.0)
+        self.assertEqual(am_jp.cooldown, 1.0)
         self.assertIn("Referer", db.session.headers)
         self.assertIn("Referer", bk.session.headers)
+
+    @patch.object(AmazonSource, "_fetch_html")
+    def test_amazon_search_works_with_fetch_html(self, mock_fetch):
+        """Verify AmazonSource.search_works uses _fetch_html and parses item block correctly."""
+        sample_html = '''
+        <div data-component-type="s-search-result">
+            <h2><span class="a-size-medium">Dune: Deluxe Edition</span></h2>
+            <a href="/dp/0441013597">Link</a>
+            <span>by <a href="/author">Frank Herbert</a></span>
+            <span>4.8 out of 5 stars</span>
+            <a href="#customerReviews"><span>12,345</span></a>
+        </div>
+        '''
+        mock_fetch.return_value = (sample_html, True)
+        am = AmazonSource()
+        works = am.search_works("Dune")
+        self.assertEqual(len(works), 1)
+        self.assertEqual(works[0].title, "Dune: Deluxe Edition")
+        self.assertEqual(works[0].author, "Frank Herbert")
+        self.assertEqual(works[0].work_id, "am:0441013597")
+        self.assertEqual(works[0].ratings["Amazon"].rate, 4.8)
+        self.assertEqual(works[0].ratings["Amazon"].rating_count, 12345)
 
     @patch("server.aggregator.search_works")
     def test_api_search_cooldown_param(self, mock_search):

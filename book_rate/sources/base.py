@@ -142,6 +142,14 @@ class BaseSource:
             latency = int((time.time() - start_time) * 1000)
 
             if resp.status_code >= 400:
+                try:
+                    cmd = ["curl.exe", "-s", "-I", "-m", "5", "-A", self.DEFAULT_USER_AGENT, target_url]
+                    subprocess.check_call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=6)
+                    latency = int((time.time() - start_time) * 1000)
+                    return True, f"{latency}ms (curl)"
+                except Exception:
+                    pass
+
                 if resp.status_code == 403:
                     return False, "403 (WAF/Forbidden)"
                 if resp.status_code == 429:

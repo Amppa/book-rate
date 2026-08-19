@@ -29,8 +29,8 @@ class AmazonSource(BaseSource):
         }
     }
 
-    def __init__(self, region: str = "us", timeout: int = 10):
-        super().__init__(timeout=timeout)
+    def __init__(self, region: str = "us", timeout: int = 10, cooldown: float = 1.0):
+        super().__init__(timeout=timeout, cooldown=cooldown)
         self.region = region.lower()
         cfg = self.REGIONS.get(self.region, self.REGIONS["us"])
 
@@ -130,15 +130,21 @@ class AmazonSource(BaseSource):
         if not clean_query:
             return []
 
+        search_url = f"{self.SEARCH_URL}?k={quote_plus(clean_query)}&i=stripbooks&page={page}"
+        headers = {
+            "Accept-Language": self.REGIONS.get(self.region, self.REGIONS["us"])["accept_language"]
+        }
         try:
-            resp = self.session.get(
-                self.SEARCH_URL,
-                params={"k": clean_query, "i": "stripbooks", "page": page},
-                timeout=self.timeout
-            )
-            if resp.status_code != 200:
-                raise SourceNetworkError(f"HTTP {resp.status_code}", status_code=resp.status_code)
-            html_str = resp.text
+            fetch_res = self._fetch_html(search_url, headers=headers)
+            if isinstance(fetch_res, tuple):
+                html_str, used_curl = fetch_res
+            else:
+                html_str, used_curl = str(fetch_res), False
+
+            if not html_str:
+                if self.last_network_error:
+                    raise SourceNetworkError(self.last_network_error)
+                raise SourceNetworkError("Failed to fetch Amazon search page")
         except Exception as e:
             if isinstance(e, SourceNetworkError):
                 raise e
@@ -170,5 +176,5 @@ class AmazonSource(BaseSource):
 
 class AmazonJPSource(AmazonSource):
     """Amazon JP adapter interface."""
-    def __init__(self, timeout: int = 10):
-        super().__init__(region="jp", timeout=timeout)
+    def __init__(self, timeout: int = 10, cooldown: float = 1.0):
+        super().__init__(region="jp", timeout=timeout, cooldown=cooldown)
