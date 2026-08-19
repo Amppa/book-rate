@@ -4,6 +4,7 @@ import subprocess
 from typing import List, Optional, Callable, Tuple
 from book_rate.models import Work, SourceRating, SourceStatus
 from book_rate.utils.isbn import clean_isbn, extract_isbns_from_work
+from book_rate.utils.rate_limiter import global_rate_limiter
 
 logger = logging.getLogger(__name__)
 
@@ -29,20 +30,35 @@ class SourceNetworkError(Exception):
 class BaseSource:
     """Base abstract class for all book rating sources."""
 
-    DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+    DEFAULT_HEADERS = {
+        "User-Agent": DEFAULT_USER_AGENT,
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+        "Accept-Language": "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Sec-Ch-Ua": '"Chromium";v="128", "Not;A=Brand";v="24", "Google Chrome";v="128"',
+        "Sec-Ch-Ua-Mobile": "?0",
+        "Sec-Ch-Ua-Platform": '"Windows"',
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "same-origin",
+        "Sec-Fetch-User": "?1",
+        "Upgrade-Insecure-Requests": "1"
+    }
 
-    def __init__(self, timeout: int = 10):
+    def __init__(self, timeout: int = 10, cooldown: float = 0.0):
         self.timeout = timeout
+        self.cooldown = cooldown
+        self.rate_limiter = global_rate_limiter
         import requests
         self.session = requests.Session()
-        self.session.headers.update({
-            "User-Agent": self.DEFAULT_USER_AGENT
-        })
+        self.session.headers.update(self.DEFAULT_HEADERS)
         self.last_network_error = None
 
-        # Wrap self.session.get to capture network errors
+        # Wrap self.session.get to capture network errors and enforce cooldown
         orig_get = self.session.get
         def wrapped_get(*args, **kwargs):
+            if self.cooldown > 0:
+                self.rate_limiter.wait_if_needed(self.name, custom_cooldown=self.cooldown)
             try:
                 resp = orig_get(*args, **kwargs)
                 self.last_network_error = None
@@ -52,31 +68,46 @@ class BaseSource:
                 raise e
         self.session.get = wrapped_get
 
-    def _fetch_html(self, url: str) -> Tuple[str, bool]:
+    def _fetch_html(self, url: str, headers: Optional[dict] = None) -> Tuple[str, bool]:
         """Fetch URL using curl.exe to pass Cloudflare TLS fingerprinting checks on Windows.
         Returns a tuple of (html_content, used_curl).
         """
         self.last_network_error = None
+        if self.cooldown > 0:
+            self.rate_limiter.wait_if_needed(self.name, custom_cooldown=self.cooldown)
+
+        req_headers = dict(self.DEFAULT_HEADERS)
+        if headers:
+            req_headers.update(headers)
+
         try:
             cmd = [
                 "curl.exe", "-s", "-L",
-                "-A", self.DEFAULT_USER_AGENT,
-                url
+                "-A", req_headers.get("User-Agent", self.DEFAULT_USER_AGENT),
             ]
+            for h_key, h_val in req_headers.items():
+                if h_key.lower() != "user-agent":
+                    cmd.extend(["-H", f"{h_key}: {h_val}"])
+            cmd.append(url)
+
             output = subprocess.check_output(cmd, timeout=self.timeout)
             return output.decode("utf-8", errors="ignore"), True
         except Exception as e:
             logger.warning(f"Failed to fetch HTML via curl for URL '{url}': {e}")
             self.last_network_error = f"curl Error: {type(e).__name__}"
             try:
-                resp = self.session.get(url, timeout=self.timeout)
+                resp = self.session.get(url, headers=req_headers, timeout=self.timeout)
                 resp.raise_for_status()
                 return resp.text, False
             except Exception as ex:
                 logger.warning(f"Fallback requests.get also failed for '{url}': {ex}")
                 import requests
                 if isinstance(ex, requests.exceptions.HTTPError):
-                    self.last_network_error = f"HTTP Error: {ex.response.status_code}"
+                    code = ex.response.status_code
+                    if code in (403, 429):
+                        self.last_network_error = SourceStatus.RATE_LIMITED.value
+                    else:
+                        self.last_network_error = f"HTTP Error: {code}"
                 else:
                     self.last_network_error = f"Network Error: {type(ex).__name__}"
                 return "", False
@@ -237,12 +268,100 @@ class BaseSource:
 
 
     @staticmethod
+    def _deduplicate_queries(titles: List[str]) -> List[str]:
+        """Normalize and deduplicate candidate queries while preserving original order."""
+        seen = set()
+        unique = []
+        for t in titles:
+            if not t:
+                continue
+            clean = t.strip()
+            if not clean:
+                continue
+            norm_key = clean.lower().replace("　", " ")
+            norm_key = re.sub(r'\s*[:：]\s*', ':', norm_key)
+            norm_key = re.sub(r'\s+', ' ', norm_key).strip()
+            if norm_key not in seen:
+                seen.add(norm_key)
+                unique.append(clean)
+        return unique
+
+    @staticmethod
     def _resolve_status(rating: Optional[SourceRating], is_match: bool) -> str:
         if not is_match:
             return SourceStatus.NO_MATCH.value
         if rating and rating.status == SourceStatus.CURL_MATCH.value:
             return SourceStatus.CURL_MATCH.value
         return SourceStatus.MATCH.value
+
+    def _evaluate_single_query(
+        self,
+        q: str,
+        strat: str,
+        search: Callable[[str], List[Work]],
+        is_isbn: bool = False
+    ) -> SourceRating:
+        """Evaluate a single query keyword and return a normalized SourceRating with precise status."""
+        clean_q = q.strip()
+        if not clean_q:
+            return SourceRating(
+                source_name=self.name,
+                strategy=strat,
+                query=q,
+                status=SourceStatus.NO_MATCH.value
+            )
+
+        try:
+            res_works = search(clean_q)
+            if res_works:
+                best_rating = self._select_best_rating(res_works, target_title=clean_q if not is_isbn else None)
+                if best_rating:
+                    if hasattr(self, "_enrich_with_book_page"):
+                        best_rating = self._enrich_with_book_page(best_rating)
+
+                    has_rate = (best_rating.rate is not None and best_rating.rate > 0)
+                    has_count = (best_rating.rating_count is not None and best_rating.rating_count > 0)
+                    is_match = has_rate or has_count
+
+                    if is_match:
+                        status = self._resolve_status(best_rating, True)
+                    elif best_rating.url:
+                        status = SourceStatus.UNRATED.value
+                    else:
+                        status = SourceStatus.NO_MATCH.value
+
+                    best_rating.strategy = strat
+                    best_rating.query = clean_q
+                    best_rating.status = status
+                    return best_rating
+
+            return SourceRating(
+                source_name=self.name,
+                strategy=strat,
+                query=clean_q,
+                status=SourceStatus.NO_MATCH.value
+            )
+        except SourceNetworkError as ne:
+            self.last_network_error = ne.message
+            err_status = SourceStatus.RATE_LIMITED.value if (ne.status_code in (403, 429) or "WAF" in ne.message or "Rate Limit" in ne.message) else f"Error: {ne.message}"
+            return SourceRating(
+                source_name=self.name,
+                strategy=strat,
+                query=clean_q,
+                status=err_status,
+                error_message=ne.message
+            )
+        except Exception as e:
+            err_msg = str(e)
+            self.last_network_error = f"Error: {err_msg}"
+            err_status = SourceStatus.RATE_LIMITED.value if any(k in err_msg for k in ["403", "429", "WAF", "Forbidden"]) else f"Error: {err_msg}"
+            return SourceRating(
+                source_name=self.name,
+                strategy=strat,
+                query=clean_q,
+                status=err_status,
+                error_message=err_msg
+            )
 
     def _search_titles_short_circuit(
         self,
@@ -252,32 +371,18 @@ class BaseSource:
     ) -> Optional[SourceRating]:
         """Iterate through candidate queries, short-circuiting on the first result with rating."""
         fallback_rating = None
-        for q in titles:
-            q = q.strip()
-            if not q:
-                continue
-            try:
-                res_works = search(q)
-                if res_works:
-                    best_rating = self._select_best_rating(res_works, target_title=q if strat != SearchStrategy.ISBN else None)
-                    if best_rating:
-                        is_match = (best_rating.rate is not None or best_rating.rating_count is not None)
-                        if is_match:
-                            best_rating.strategy = strat
-                            best_rating.query = q
-                            best_rating.status = self._resolve_status(best_rating, True)
-                            return best_rating
-                        elif best_rating.url and fallback_rating is None:
-                            best_rating.strategy = strat
-                            best_rating.query = q
-                            best_rating.status = SourceStatus.NO_MATCH.value
-                            fallback_rating = best_rating
-            except SourceNetworkError as ne:
-                self.last_network_error = ne.message
-                break
-            except Exception as e:
-                self.last_network_error = f"Error: {e}"
-                break
+        unique_titles = self._deduplicate_queries(titles)
+        is_isbn = (strat == SearchStrategy.ISBN)
+
+        for q in unique_titles:
+            rating = self._evaluate_single_query(q, strat, search, is_isbn=is_isbn)
+            if rating.status in (SourceStatus.MATCH.value, SourceStatus.CURL_MATCH.value):
+                return rating
+            elif rating.status == SourceStatus.UNRATED.value and fallback_rating is None:
+                fallback_rating = rating
+            elif rating.status == SourceStatus.RATE_LIMITED.value:
+                return rating
+
         return fallback_rating
 
     def _fetch_full_list_ratings(
@@ -286,72 +391,31 @@ class BaseSource:
         strat: str,
         search: Callable[[str], List[Work]]
     ) -> SourceRating:
-        """Fetch ratings for full list of titles with 1s delay between calls."""
-        import time
+        """Fetch ratings for full list of titles, evaluating each item and collecting results."""
         results_list = []
         best_rating = None
+        unique_titles = self._deduplicate_queries(titles)
 
-        for i, t in enumerate(titles[:4]):
-            t = t.strip()
-            if not t:
-                continue
-            if i > 0:
-                time.sleep(1.0)
+        for t in unique_titles[:4]:
+            r = self._evaluate_single_query(t, strat, search)
+            results_list.append({
+                "average": r.rate,
+                "count": r.rating_count,
+                "url": r.url,
+                "title": r.title or t,
+                "status": r.status,
+                "query": t
+            })
+            if r.status in (SourceStatus.MATCH.value, SourceStatus.CURL_MATCH.value):
+                if not best_rating or (r.rating_count or 0) > (best_rating.rating_count or 0):
+                    best_rating = r
 
-            try:
-                res_works = search(t)
-                if res_works:
-                    r = self._select_best_rating(res_works, target_title=t)
-                    if r and (r.rate is not None or r.rating_count is not None or r.url):
-                        if hasattr(self, "_enrich_with_book_page"):
-                            r = self._enrich_with_book_page(r)
-                        is_r_match = (r.rate is not None or r.rating_count is not None)
-                        results_list.append({
-                            "average": r.rate,
-                            "count": r.rating_count,
-                            "url": r.url,
-                            "title": r.title or t,
-                            "status": self._resolve_status(r, is_r_match),
-                            "query": t
-                        })
-                        if not best_rating or (r.rating_count or 0) > (best_rating.rating_count or 0):
-                            best_rating = r
-                    else:
-                        results_list.append({
-                            "average": None,
-                            "count": None,
-                            "url": None,
-                            "title": t,
-                            "status": SourceStatus.NO_MATCH.value,
-                            "query": t
-                        })
-                else:
-                    results_list.append({
-                        "average": None,
-                        "count": None,
-                        "url": None,
-                        "title": t,
-                        "status": SourceStatus.NO_MATCH.value,
-                        "query": t
-                    })
-            except Exception as e:
-                results_list.append({
-                    "average": None,
-                    "count": None,
-                    "url": None,
-                    "title": t,
-                    "status": f"Error: {e}",
-                    "query": t
-                })
-
-        query_str = ", ".join(t for t in titles[:4])
+        query_str = ", ".join(t for t in unique_titles[:4])
         if best_rating:
             from copy import copy
             copied_rating = copy(best_rating)
             copied_rating.strategy = strat
             copied_rating.query = query_str
-            is_best_match = (best_rating.rate is not None or best_rating.rating_count is not None)
-            copied_rating.status = self._resolve_status(best_rating, is_best_match)
             copied_rating.results = results_list
             return copied_rating
 

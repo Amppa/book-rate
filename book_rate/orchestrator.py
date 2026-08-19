@@ -38,7 +38,8 @@ class RatingOrchestrator:
         target_work: Work,
         strategy: Optional[str],
         ol_rating: Optional[SourceRating],
-        google_key: Optional[str]
+        google_key: Optional[str],
+        cooldown: Optional[float] = None
     ) -> Tuple[str, dict]:
         engine_key_clean = engine_key.strip()
         fallback_title = target_work.title or "Unknown"
@@ -49,6 +50,9 @@ class RatingOrchestrator:
         source_inst = self._get_source(engine_key_clean, api_key=google_key if engine_key_clean == "google_books" else None)
         if not source_inst:
             return engine_key_clean, format_rating_response(engine_key_clean, None, fallback_title)
+
+        if cooldown is not None and hasattr(source_inst, "cooldown"):
+            source_inst.cooldown = cooldown
 
         try:
             rating = source_inst.fetch_ratings(target_work, strategy=strategy)
@@ -102,7 +106,7 @@ class RatingOrchestrator:
             future_to_engine = {
                 executor.submit(
                     self._fetch_rating_for_engine,
-                    e_key, target_work, req.strategies.get(e_key), ol_rating, req.google_key
+                    e_key, target_work, req.strategies.get(e_key), ol_rating, req.google_key, req.cooldown
                 ): e_key for e_key in active_rate_sources
             }
             for future in as_completed(future_to_engine):
@@ -171,7 +175,7 @@ class RatingOrchestrator:
             future_to_engine = {
                 executor.submit(
                     self._fetch_rating_for_engine,
-                    e_key, target_work, req.strategies.get(e_key), ol_rating, req.google_key
+                    e_key, target_work, req.strategies.get(e_key), ol_rating, req.google_key, req.cooldown
                 ): e_key for e_key in active_rate_sources
             }
             for future in as_completed(future_to_engine):

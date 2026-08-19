@@ -17,6 +17,12 @@ class BooksTwSource(BaseSource):
     BASE_URL = "https://www.books.com.tw"
     SEARCH_URL = "https://search.books.com.tw/search/query/cat/1/sort/1/v/0/page/{page}/spell/3/key/{query}"
 
+    def __init__(self, timeout: int = 10, cooldown: float = 1.0):
+        super().__init__(timeout=timeout, cooldown=cooldown)
+        self.session.headers.update({
+            "Referer": "https://search.books.com.tw/"
+        })
+
     @property
     def name(self) -> str:
         return "博客來"
@@ -34,14 +40,17 @@ class BooksTwSource(BaseSource):
 
     def _fetch_books_html(self, url: str, referer: Optional[str] = None) -> Tuple[Optional[str], bool]:
         """Fetch URL with Accept-Language header and optional Referer to bypass Books.com.tw WAF."""
-        res = self._fetch_html(url)
+        headers = {
+            "Referer": referer or "https://search.books.com.tw/"
+        }
+        res = self._fetch_html(url, headers=headers)
         if isinstance(res, tuple):
             html_str, used_curl = res
         else:
             html_str, used_curl = str(res), False
 
         if html_str and ("waf/logo.svg" in html_str or "Connection is temporarily unavailable" in html_str):
-            raise SourceNetworkError("Connection Unavailable (WAF Rate Limit)")
+            raise SourceNetworkError("Connection Unavailable (WAF Rate Limit)", status_code=429)
         return html_str, used_curl
 
     def _fetch_book_page(self, item_id: str) -> Tuple[dict, bool]:

@@ -30,6 +30,7 @@ class RatingRequestPayload(BaseModel):
     title_zh_list: List[str] = Field(default_factory=list)
     author_list: List[str] = Field(default_factory=list)
     isbn_list: List[str] = Field(default_factory=list)
+    cooldown: Optional[float] = None
 
 
 @dataclass

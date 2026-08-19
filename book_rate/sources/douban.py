@@ -67,6 +67,12 @@ class DoubanSource(BaseSource):
     SUGGEST_URL = "https://book.douban.com/j/subject_suggest"
     ISBN_LOOKUP_URL = "https://book.douban.com/isbn/{isbn}/"
 
+    def __init__(self, timeout: int = 10, cooldown: float = 1.0):
+        super().__init__(timeout=timeout, cooldown=cooldown)
+        self.session.headers.update({
+            "Referer": "https://book.douban.com/"
+        })
+
     @property
     def name(self) -> str:
         return "Douban"
@@ -202,7 +208,7 @@ class DoubanSource(BaseSource):
         search_url = f"https://search.douban.com/book/subject_search?search_text={urllib.parse.quote(clean_query)}&cat=1001&start={start_index}"
         
         try:
-            fetch_res = self._fetch_html(search_url)
+            fetch_res = self._fetch_html(search_url, headers={"Referer": "https://book.douban.com/"})
             if isinstance(fetch_res, tuple):
                 html_content, used_curl = fetch_res
             else:

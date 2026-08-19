@@ -83,12 +83,21 @@
   border-color: var(--status-success-border);
 }
 
-.search-status-tag.status-no_match {
+.search-status-tag.status-unrated {
+  background: rgba(148, 163, 184, 0.15);
+  color: #94a3b8;
+  border-color: rgba(148, 163, 184, 0.3);
+}
+
+.search-status-tag.status-no_match,
+.search-status-tag.status-not_found {
   background: var(--status-info-bg);
   color: var(--status-info-text);
   border-color: var(--status-info-border);
 }
 
+.search-status-tag.status-rate_limited,
+.search-status-tag.status-rate-limited,
 .search-status-tag.status-quota_exceeded,
 .search-status-tag.status-error,
 .search-status-tag[class*="status-http-"],

@@ -20,10 +20,16 @@ def api_search(
     q: str = Query(..., description="Search query"),
     page: int = Query(1, description="Page number"),
     google_key: str = Query(None, description="Optional Google Books API Key"),
-    engines: str = Query("open_library,google_books,google_play,goodreads,storygraph,amazon,amazon_jp,douban,douban_api,readmoo,books_tw", description="Comma-separated engines to use")
+    engines: str = Query("open_library,google_books,google_play,goodreads,storygraph,amazon,amazon_jp,douban,douban_api,readmoo,books_tw", description="Comma-separated engines to use"),
+    cooldown: Optional[float] = Query(None, description="Optional minimum request cooldown in seconds")
 ):
-    print(f"\n[Search API] User query: '{q}', page: {page}, engines: '{engines}'")
+    print(f"\n[Search API] User query: '{q}', page: {page}, engines: '{engines}', cooldown: {cooldown}")
     active_title_sources = [e.strip() for e in engines.split(",") if e.strip()]
+    if cooldown is not None:
+        for e_key in active_title_sources:
+            inst = aggregator.source_instances.get(e_key)
+            if inst and hasattr(inst, "cooldown"):
+                inst.cooldown = cooldown
     return aggregator.search_works(q, page=page, active_title_sources=active_title_sources, google_key=google_key)
 
 @app.get("/api/work-editions")

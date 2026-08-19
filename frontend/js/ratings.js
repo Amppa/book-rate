@@ -170,37 +170,55 @@ export function renderSourceCell(row, prefix, data, maxRate = 5) {
       const small = document.createElement("small");
 
       const rScore = typeof res.average === "number" && res.average > 0;
-      const resStatus = res.status || (rScore ? "MATCH" : "NO_MATCH");
+      let resStatus = res.status || (rScore ? "MATCH" : (res.url ? "UNRATED" : "NOT_FOUND"));
+
       const isResNetworkError = resStatus
         && resStatus !== "MATCH"
         && resStatus !== "CURL_MATCH"
+        && resStatus !== "UNRATED"
         && resStatus !== "NO_MATCH"
+        && resStatus !== "NOT_FOUND"
         && resStatus !== "QUOTA_EXCEEDED"
         && resStatus !== "ERROR";
 
+      const badge = document.createElement("span");
+      const normStatusClass = resStatus.toLowerCase().replace(/[^a-z0-9_]/g, "-");
+      badge.className = `search-status-tag status-${normStatusClass}`;
+
       if (resStatus === "QUOTA_EXCEEDED") {
-        strong.innerHTML = '<span class="error">額度超限 (429) ⚠️</span>';
-        small.textContent = "請在上方設定個人 API Key。";
+        badge.textContent = "429 額度";
+        strong.innerHTML = '<span class="error">額度超限 ⚠️</span>';
+        small.textContent = "請設定 API Key";
+      } else if (resStatus === "RATE_LIMITED" || resStatus === "RATE_LIMIT") {
+        badge.textContent = "風控(429/403)";
+        strong.innerHTML = '<span class="error">連線異常(風控) ⚠️</span>';
+        small.textContent = "請求過密或遭阻擋";
       } else if (resStatus === "ERROR") {
+        badge.textContent = "錯誤";
         strong.innerHTML = '<span class="error">讀取錯誤 ⚠️</span>';
-        small.textContent = "請檢查主機連線。";
+        small.textContent = "請檢查主機連線";
       } else if (isResNetworkError) {
+        badge.textContent = "連線異常";
         strong.innerHTML = '<span class="error">連線異常 ⚠️</span>';
         small.textContent = resStatus;
       } else if (rScore) {
+        badge.textContent = "MATCH";
         const rateText = displayRate(res.average, res.count, maxRate);
         strong.textContent = rateText;
         renderCountCell(small, res.count, res.url);
-      } else if (res.url) {
+      } else if (res.url || resStatus === "UNRATED") {
+        badge.textContent = "暫無評分";
         strong.textContent = "暫無評分";
-        small.innerHTML = `<a href="${res.url}" target="_blank" rel="noreferrer">連結 ↗</a>`;
+        small.innerHTML = res.url ? `<a href="${res.url}" target="_blank" rel="noreferrer">連結 ↗</a>` : "-";
       } else {
+        badge.textContent = "無此書籍";
         strong.textContent = "無此書籍";
         small.textContent = "-";
       }
 
       item.appendChild(strong);
       item.appendChild(small);
+      item.appendChild(badge);
       listContainer.appendChild(item);
     });
 
@@ -210,8 +228,6 @@ export function renderSourceCell(row, prefix, data, maxRate = 5) {
     if (cell) {
       const oldTag = cell.querySelector(".search-status-tag");
       if (oldTag) oldTag.remove();
-      const tag = _buildStatusTag(status, data);
-      cell.appendChild(tag);
     }
     return;
   }
