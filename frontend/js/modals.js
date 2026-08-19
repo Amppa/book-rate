@@ -12,7 +12,7 @@ export function initPresetsModal(searchInput) {
   const presetsModal = document.querySelector("#presets-modal");
   const openPresetsBtn = document.querySelector("#open-presets-btn");
   const closePresetsBtn = document.querySelector("#close-presets-btn");
-  const presetsTableBody = document.querySelector("#presets-table-body");
+  const presetsContainer = document.querySelector("#presets-container");
   if (!presetsModal || !openPresetsBtn || !closePresetsBtn) return;
 
   let cachedPresets = null;
@@ -32,21 +32,12 @@ export function initPresetsModal(searchInput) {
     }
   }
 
-  function renderPresetsTable(presets) {
-    if (!presetsTableBody) return;
+  function renderPresetsList(presets) {
+    if (!presetsContainer) return;
     const fragment = document.createDocumentFragment();
     (presets || []).forEach((item) => {
-      const tr = document.createElement("tr");
-
-      const tdTitle = document.createElement("td");
-      tdTitle.className = "clickable-preset";
-      tdTitle.dataset.query = item.title || "";
-      tdTitle.textContent = item.title || "";
-
-      const tdIsbn = document.createElement("td");
-      tdIsbn.className = "clickable-preset";
-      tdIsbn.dataset.query = item.isbn || "";
-      tdIsbn.textContent = item.isbn || "";
+      const bubble = document.createElement("div");
+      bubble.className = "preset-bubble";
 
       const selectPreset = (q) => {
         if (q && searchInput) searchInput.value = q;
@@ -57,18 +48,47 @@ export function initPresetsModal(searchInput) {
         }
         close();
       };
-      tdTitle.addEventListener("click", () => selectPreset(item.title));
-      tdIsbn.addEventListener("click", () => selectPreset(item.isbn));
 
-      tr.append(tdTitle, tdIsbn);
-      fragment.append(tr);
+      const titleEl = document.createElement("div");
+      titleEl.className = "preset-bubble-title";
+      titleEl.title = "點擊填入書名並複製";
+      titleEl.textContent = item.title || "";
+      titleEl.addEventListener("click", (e) => {
+        e.stopPropagation();
+        selectPreset(item.title);
+      });
+      bubble.appendChild(titleEl);
+
+      if (item.isbn) {
+        const isbnEl = document.createElement("div");
+        isbnEl.className = "preset-bubble-isbn";
+        isbnEl.title = "點擊填入 ISBN 並複製";
+
+        const isbnTag = document.createElement("span");
+        isbnTag.className = "preset-isbn-badge";
+        isbnTag.textContent = "ISBN";
+
+        const isbnText = document.createElement("span");
+        isbnText.className = "preset-isbn-text";
+        isbnText.textContent = item.isbn;
+
+        isbnEl.append(isbnTag, isbnText);
+        isbnEl.addEventListener("click", (e) => {
+          e.stopPropagation();
+          selectPreset(item.isbn);
+        });
+        bubble.appendChild(isbnEl);
+      }
+
+      bubble.addEventListener("click", () => selectPreset(item.title));
+      fragment.append(bubble);
     });
-    presetsTableBody.replaceChildren(fragment);
+    presetsContainer.replaceChildren(fragment);
   }
 
   openPresetsBtn.addEventListener("click", async () => {
     const presets = await loadPresets();
-    renderPresetsTable(presets);
+    renderPresetsList(presets);
     openModal(presetsModal);
   });
   closePresetsBtn.addEventListener("click", close);
