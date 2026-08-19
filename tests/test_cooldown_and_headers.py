@@ -97,11 +97,13 @@ class TestRateLimiterAndAntiBlocking(unittest.TestCase):
 
     @patch("server.aggregator.search_works")
     def test_api_search_cooldown_param(self, mock_search):
-        """Verify /api/search accepts cooldown parameter."""
+        """Verify /api/search accepts cooldown parameter and updates source instance cooldown."""
         mock_search.return_value = []
         response = self.client.get("/api/search?q=test&engines=douban,books_tw&cooldown=0.5")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(server_app_aggregator_cooldown := app, app)
+        from server import aggregator
+        self.assertEqual(aggregator.douban.cooldown, 0.5)
+        self.assertEqual(aggregator.books_tw.cooldown, 0.5)
 
     def test_full_list_ratings_collection(self):
         """Verify _fetch_full_list_ratings collects individual query results with distinct statuses."""

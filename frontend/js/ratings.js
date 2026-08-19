@@ -235,6 +235,9 @@ export function renderSourceCell(row, prefix, data, maxRate = 5) {
   if (data.quota_exceeded || status === "QUOTA_EXCEEDED") {
     rateEl.innerHTML = '<span class="error">額度超限 (429) ⚠️</span>';
     countEl.textContent = "請在上方設定個人 API Key，或設定環境變數。";
+  } else if (status === "RATE_LIMITED" || status === "RATE_LIMIT") {
+    rateEl.innerHTML = '<span class="error">連線異常 (風控/429) ⚠️</span>';
+    countEl.textContent = "請求過密或遭阻擋";
   } else if (status === "ERROR") {
     rateEl.innerHTML = '<span class="error">讀取錯誤 ⚠️</span>';
     countEl.textContent = "請檢查主機連線。";
@@ -245,9 +248,9 @@ export function renderSourceCell(row, prefix, data, maxRate = 5) {
     const rateText = displayRate(data.average, data.count, maxRate);
     rateEl.textContent = rateText;
     renderCountCell(countEl, data.count, data.url);
-  } else if (hasUrl) {
+  } else if (hasUrl || status === "UNRATED") {
     rateEl.textContent = "暫無評分";
-    countEl.innerHTML = `<a href="${data.url}" target="_blank" rel="noreferrer">連結 ↗</a>`;
+    countEl.innerHTML = data.url ? `<a href="${data.url}" target="_blank" rel="noreferrer">連結 ↗</a>` : "-";
   } else {
     rateEl.textContent = "無此書籍";
     countEl.textContent = "-";
