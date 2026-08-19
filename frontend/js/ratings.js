@@ -128,6 +128,9 @@ export function renderSourceCell(row, prefix, data, maxRate = 5) {
     const oldTitles = cell.querySelectorAll(".source-book-title");
     oldTitles.forEach(el => el.remove());
 
+    const oldDirectTags = cell.querySelectorAll(":scope > .search-status-tag");
+    oldDirectTags.forEach(el => el.remove());
+
     // In single-result mode, display the matched title above the rating
     if (data.title && (!data.results || data.results.length === 0)) {
       const titleDiv = document.createElement("div");
@@ -224,11 +227,6 @@ export function renderSourceCell(row, prefix, data, maxRate = 5) {
 
     rateEl.appendChild(listContainer);
     countEl.replaceChildren();
-
-    if (cell) {
-      const oldTag = cell.querySelector(".search-status-tag");
-      if (oldTag) oldTag.remove();
-    }
     return;
   }
 
@@ -256,8 +254,8 @@ export function renderSourceCell(row, prefix, data, maxRate = 5) {
   }
 
   if (cell) {
-    const oldTag = cell.querySelector(".search-status-tag");
-    if (oldTag) oldTag.remove();
+    const oldDirectTags = cell.querySelectorAll(":scope > .search-status-tag");
+    oldDirectTags.forEach(el => el.remove());
     const tag = _buildStatusTag(status, data);
     cell.appendChild(tag);
   }
