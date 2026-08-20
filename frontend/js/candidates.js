@@ -208,7 +208,9 @@ export function renderCandidates(works, { onChooseCandidate, onChooseEdition } =
 
     const authorText = `作者：${(work.author_name || ["Unknown"]).join("、")}`;
     const publishText = work.first_publish_year ? `出版日期 ${work.first_publish_year}` : "";
-    const editionText = work.edition_count ? `${work.edition_count.toLocaleString()} 個版本` : "";
+    const editionText = work.edition_count
+      ? `${work.edition_count.toLocaleString()} 個版本`
+      : (enableExtend ? "查看版本" : "");
 
     let ratingText = "";
     if (work.rating) {
@@ -222,16 +224,22 @@ export function renderCandidates(works, { onChooseCandidate, onChooseEdition } =
       }
     }
 
-    const metaText = [authorText, publishText, editionText, ratingText].filter(Boolean).join(" · ") + " ↗";
-    const metaLink = fragment.querySelector(".candidate-meta");
     const extUrl = getWorkExternalUrl(work.key);
+    const metaText = [authorText, publishText, ratingText].filter(Boolean).join(" · ") + (extUrl ? " ↗" : "");
+    const metaLink = fragment.querySelector(".candidate-meta");
     if (metaLink) {
       metaLink.textContent = metaText;
       if (extUrl) { metaLink.href = extUrl; } else { metaLink.removeAttribute("href"); }
     }
 
-    const chevronEl = fragment.querySelector(".candidate-chevron");
-    if (chevronEl) chevronEl.hidden = !enableExtend;
+    const editionToggle = fragment.querySelector(".candidate-edition-toggle");
+    const editionTextEl = fragment.querySelector(".candidate-edition-text");
+    if (editionToggle && enableExtend) {
+      editionToggle.hidden = false;
+      if (editionTextEl) editionTextEl.textContent = editionText;
+    } else if (editionToggle) {
+      editionToggle.hidden = true;
+    }
 
     const selectBtn = fragment.querySelector(".select-work");
     selectBtn.addEventListener("click", (e) => {

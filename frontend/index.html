@@ -287,10 +287,14 @@
       <div class="candidate-main-row">
         <div>
           <h3 class="candidate-title"></h3>
-          <div style="display: flex; gap: var(--space-2); align-items: center; margin-top: var(--space-1);">
+          <div style="display: flex; gap: var(--space-2); align-items: center; margin-top: var(--space-1); flex-wrap: wrap;">
             <a class="candidate-meta candidate-link" target="_blank" rel="noopener noreferrer"
               style="margin-top: 0;"></a>
-            <span class="candidate-chevron" hidden>▼</span>
+            <span class="candidate-edition-toggle" style="color: var(--text-muted); font-size: 0.85rem; display: inline-flex; align-items: center; gap: 4px;" hidden>
+              <span>·</span>
+              <span class="candidate-edition-text"></span>
+              <span class="candidate-chevron">▼</span>
+            </span>
           </div>
         </div>
         <button type="button" class="select-work">Choose</button>
