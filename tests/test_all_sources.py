@@ -234,6 +234,90 @@ class TestRatingOrchestrator(unittest.TestCase):
         cleaned = source._clean_text(raw_text)
         self.assertEqual(cleaned, "An Analysis of Daniel Kahneman’s Thinking, Fast and Slow")
 
+    @patch("book_rate.sources.goodreads.GoodreadsSource._fetch_html")
+    def test_goodreads_autocomplete_search_parsing(self, mock_fetch_html):
+        import json
+        from book_rate.sources.goodreads import GoodreadsSource
+        from book_rate.utils.formatters import format_work_to_dict
+
+        mock_json = json.dumps([
+            {
+                "bookId": "3",
+                "workId": "4640799",
+                "bookUrl": "/book/show/3.Harry_Potter_and_the_Sorcerer_s_Stone",
+                "title": "Harry Potter and the Sorcerer's Stone (Harry Potter, #1)",
+                "avgRating": "4.47",
+                "ratingsCount": 11765295,
+                "author": {"name": "J.K. Rowling"}
+            }
+        ])
+        mock_fetch_html.return_value = (mock_json, True)
+
+        source = GoodreadsSource()
+        works = source.search_works("Harry Potter and the Sorcerer's Stone")
+
+        self.assertEqual(len(works), 1)
+        w = works[0]
+        self.assertEqual(w.work_id, "gr:work/4640799/book/3.Harry_Potter_and_the_Sorcerer_s_Stone")
+        self.assertEqual(w.title, "Harry Potter and the Sorcerer's Stone (Harry Potter, #1)")
+        self.assertEqual(w.author, "J.K. Rowling")
+        self.assertIn("Goodreads", w.ratings)
+        self.assertEqual(w.ratings["Goodreads"].rate, 4.47)
+        self.assertEqual(w.ratings["Goodreads"].rating_count, 11765295)
+        self.assertEqual(w.ratings["Goodreads"].status, "CURL_MATCH")
+
+        dict_w = format_work_to_dict(w)
+        self.assertIsNotNone(dict_w["rating"])
+        self.assertEqual(dict_w["rating"]["rate"], 4.47)
+        self.assertEqual(dict_w["rating"]["rating_count"], 11765295)
+
+    @patch("book_rate.sources.goodreads.GoodreadsSource._fetch_html")
+    def test_goodreads_search_html_parsing(self, mock_fetch_html):
+        from book_rate.sources.goodreads import _parse_goodreads_search_html
+
+        mock_html = """
+        <table class="tableList">
+          <tr itemscope itemtype="http://schema.org/Book">
+            <td>
+              <a class="bookTitle" itemprop="url" href="/book/show/3.Harry_Potter_and_the_Sorcerer_s_Stone?from_search=true">
+                <span itemprop="name">Harry Potter and the Sorcerer's Stone (Harry Potter, #1)</span>
+              </a>
+              by
+              <span itemprop="author"><a class="authorName"><span itemprop="name">J.K. Rowling</span></a></span>
+              <div>
+                <span class="minirating"> 4.47 avg rating &mdash; 11,765,261 ratings</span>
+                &mdash; published 1997 &mdash;
+                <a class="greyText" href="/work/editions/4640799-harry-potter-and-the-philosopher-s-stone">19 editions</a>
+              </div>
+            </td>
+          </tr>
+        </table>
+        """
+        works = _parse_goodreads_search_html(mock_html, used_curl=True, limit=5)
+        self.assertEqual(len(works), 1)
+        w = works[0]
+        self.assertEqual(w.work_id, "gr:work/4640799/book/3.Harry_Potter_and_the_Sorcerer_s_Stone")
+        self.assertEqual(w.title, "Harry Potter and the Sorcerer's Stone (Harry Potter, #1)")
+        self.assertEqual(w.author, "J.K. Rowling")
+        self.assertEqual(w.first_publish_year, 1997)
+        self.assertEqual(w.edition_count, 19)
+        self.assertIn("Goodreads", w.ratings)
+        self.assertEqual(w.ratings["Goodreads"].rate, 4.47)
+        self.assertEqual(w.ratings["Goodreads"].rating_count, 11765261)
+
+    @patch("requests.Session.get")
+    def test_goodreads_waf_connectivity_red_status(self, mock_get):
+        from book_rate.sources.goodreads import GoodreadsSource
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = "<html><head><script>window.awsWafCookieDomainList=[];window.gokuProps={};</script></head></html>"
+        mock_get.return_value = mock_resp
+
+        source = GoodreadsSource()
+        is_conn, msg = source.check_connectivity()
+        self.assertFalse(is_conn)
+        self.assertEqual(msg, "WAF Challenge")
+
 
 if __name__ == "__main__":
     unittest.main()

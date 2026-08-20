@@ -120,7 +120,7 @@ class BaseSource:
             "Open Library": "https://openlibrary.org/search.json?q=test&limit=1",
             "Google Books": "https://books.google.com",
             "Google Play": "https://play.google.com/store/search?q=test&c=books",
-            "Goodreads": "https://www.goodreads.com/search?q=test",
+            "Goodreads": "https://www.goodreads.com/book/auto_complete?q=test",
             "豆瓣": "https://book.douban.com/subject_search?search_text=test",
             "豆瓣 API": "https://book.douban.com/subject_search?search_text=test",
             "Amazon": "https://www.amazon.com/s?k=test&i=stripbooks",
@@ -157,13 +157,24 @@ class BaseSource:
                 return False, f"HTTP {resp.status_code}"
 
             text_lower = resp.text.lower()
+            waf_indicators = [
+                "awswaf",
+                "gokuprops",
+                "interstitialchallenge",
+                "challenge-platform",
+                "cf-chl-bypass",
+                "bm-verify"
+            ]
+            for indicator in waf_indicators:
+                if indicator in text_lower:
+                    return False, "WAF Challenge"
+
             down_indicators = [
                 "looks like you lost your connection",
                 "temporarily unavailable",
                 "scheduled maintenance",
                 "openlibrary is down",
-                "service unavailable",
-                "bm-verify"
+                "service unavailable"
             ]
             for indicator in down_indicators:
                 if indicator in text_lower:

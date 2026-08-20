@@ -20,13 +20,25 @@ def format_work_to_dict(work: Work) -> dict:
         status = work.ratings["Google Play"].status
 
     rating_data = None
-    db_rating = work.ratings.get("Douban")
-    if db_rating:
-        rating_data = {
-            "rate": db_rating.rate,
-            "rating_count": db_rating.rating_count,
-            "rating_text": getattr(db_rating, "rating_text", None)
-        }
+    for src_name in ("Douban", "Goodreads", "Google Books", "Open Library"):
+        r = work.ratings.get(src_name)
+        if r and (r.rate is not None or r.rating_count is not None or getattr(r, "rating_text", None)):
+            rating_data = {
+                "rate": r.rate,
+                "rating_count": r.rating_count,
+                "rating_text": getattr(r, "rating_text", None)
+            }
+            break
+
+    if not rating_data:
+        for r in work.ratings.values():
+            if r and (r.rate is not None or r.rating_count is not None or getattr(r, "rating_text", None)):
+                rating_data = {
+                    "rate": r.rate,
+                    "rating_count": r.rating_count,
+                    "rating_text": getattr(r, "rating_text", None)
+                }
+                break
 
     return {
         "key": work.work_id,

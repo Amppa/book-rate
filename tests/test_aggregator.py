@@ -49,13 +49,13 @@ from book_rate.sources.douban import DoubanSource
 
 
 class TestGoodreadsSource(unittest.TestCase):
-    @patch('requests.Session.get')
-    def test_search_works(self, mock_get):
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = [
+    @patch('book_rate.sources.goodreads.GoodreadsSource._fetch_html')
+    def test_search_works(self, mock_fetch_html):
+        import json
+        items = [
             {
                 "bookId": "40121378",
+                "workId": "62221762",
                 "title": "Atomic Habits",
                 "avgRating": "4.31",
                 "ratingsCount": 1397637,
@@ -63,26 +63,15 @@ class TestGoodreadsSource(unittest.TestCase):
                 "author": {"name": "James Clear"}
             }
         ]
-        mock_get.return_value = mock_response
+        mock_fetch_html.return_value = (json.dumps(items), True)
 
         source = GoodreadsSource()
-        source.fetch_book_details = MagicMock(return_value={
-            "isbn": "9780735211292",
-            "pub_year": "2018",
-            "editions_count": 256,
-            "work_id": "62221762",
-            "title": "Atomic Habits",
-            "author": "James Clear",
-            "crawler_status": "Normal"
-        })
         works = source.search_works("Atomic Habits", limit=1)
 
         self.assertEqual(len(works), 1)
         self.assertEqual(works[0].work_id, "gr:work/62221762/book/40121378-atomic-habits")
         self.assertEqual(works[0].title, "Atomic Habits")
         self.assertEqual(works[0].author, "James Clear")
-        self.assertEqual(works[0].first_publish_year, 2018)
-        self.assertEqual(works[0].edition_count, 256)
         self.assertIn("Goodreads", works[0].ratings)
         self.assertEqual(works[0].ratings["Goodreads"].rate, 4.31)
         self.assertEqual(works[0].ratings["Goodreads"].rating_count, 1397637)

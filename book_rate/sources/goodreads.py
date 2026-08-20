@@ -5,11 +5,120 @@ import re
 from datetime import datetime
 from typing import List, Optional
 
-from book_rate.models import Work, Edition, SourceRating
+from book_rate.models import Work, Edition, SourceRating, SourceStatus
 from book_rate.sources.base import BaseSource
 from book_rate.utils.isbn import clean_isbn
 
 logger = logging.getLogger(__name__)
+
+
+def _parse_goodreads_search_html(html_str: str, used_curl: bool, limit: int = 5) -> List[Work]:
+    """Parse Goodreads search results page HTML."""
+    if not html_str:
+        return []
+
+    works: List[Work] = []
+    # Match each book table row
+    row_pattern = re.compile(r'<tr[^>]*itemtype="http://schema\.org/Book"[^>]*>(.*?)</tr>', re.DOTALL | re.IGNORECASE)
+    
+    for row_match in row_pattern.finditer(html_str):
+        if len(works) >= limit:
+            break
+        row_html = row_match.group(1)
+
+        # 1. Book title, URL, and book_id
+        title_m = re.search(r'<a[^>]*class="bookTitle"[^>]*href="([^"]+)"[^>]*>(.*?)</a>', row_html, re.DOTALL)
+        if not title_m:
+            continue
+        book_href = title_m.group(1)
+        raw_title_inner = title_m.group(2)
+        title = html.unescape(re.sub(r'<[^>]+>', '', raw_title_inner).strip())
+
+        id_m = re.search(r'/book/show/(\d+)', book_href)
+        book_id = id_m.group(1) if id_m else ""
+        book_slug = book_href.split("/book/show/")[-1].split("?")[0] if "/book/show/" in book_href else (book_id or "")
+        book_url = f"https://www.goodreads.com/book/show/{book_slug}" if book_slug else None
+
+        # 2. Author
+        author_m = re.search(r'<a[^>]*class="authorName"[^>]*>(.*?)</a>', row_html, re.DOTALL)
+        author_name = "Unknown Author"
+        if author_m:
+            author_name = html.unescape(re.sub(r'<[^>]+>', '', author_m.group(1)).strip())
+
+        # 3. Rating and rating count
+        rate: Optional[float] = None
+        rating_count: Optional[int] = None
+        rating_text: Optional[str] = None
+        rating_m = re.search(r'class="minirating".*?([\d.]+)\s+avg\s+rating\s*(?:&mdash;|—|-)\s*([\d,]+)\s+ratings?', row_html, re.DOTALL | re.IGNORECASE)
+        if rating_m:
+            try:
+                rate = float(rating_m.group(1))
+            except ValueError:
+                pass
+            try:
+                rating_count = int(rating_m.group(2).replace(",", ""))
+            except ValueError:
+                pass
+
+        if rate is not None and rate > 0:
+            count_str = f"{rating_count:,} ratings" if rating_count else ""
+            rating_text = f"{rate:.2f} ({count_str})" if count_str else f"{rate:.2f}"
+
+        # 4. Publish year
+        pub_year: Optional[int] = None
+        pub_m = re.search(r'published\s*(\d{4})', row_html, re.IGNORECASE)
+        if pub_m:
+            try:
+                pub_year = int(pub_m.group(1))
+            except ValueError:
+                pass
+
+        # 5. Work ID and Editions count
+        work_id_str = None
+        editions_count: Optional[int] = None
+        ed_m = re.search(r'href="[^"]*?/work/editions/(\d+)[^"]*"[^>]*>([\d,]+)\s+editions?</a>', row_html, re.IGNORECASE)
+        if ed_m:
+            work_id_str = ed_m.group(1)
+            try:
+                editions_count = int(ed_m.group(2).replace(",", ""))
+            except ValueError:
+                pass
+
+        if work_id_str:
+            work_key = f"gr:work/{work_id_str}/book/{book_slug}"
+        elif book_slug:
+            work_key = f"gr:book/{book_slug}"
+        else:
+            work_key = f"gr:{title}"
+
+        is_match = (rate is not None or bool(title))
+        status_val = (SourceStatus.CURL_MATCH.value if used_curl else SourceStatus.MATCH.value) if is_match else SourceStatus.NO_MATCH.value
+
+        work = Work(
+            work_id=work_key,
+            title=title,
+            author=author_name,
+            edition_count=editions_count,
+            first_publish_year=pub_year,
+            isbn=None
+        )
+        work.ratings["Goodreads"] = SourceRating(
+            source_name="Goodreads",
+            rate=rate,
+            rating_count=rating_count,
+            rating_text=rating_text,
+            url=book_url,
+            title=title,
+            status=status_val
+        )
+        work.editions.append(Edition(
+            edition_id=book_id or "1",
+            title=title,
+            publish_year=str(pub_year) if pub_year else None
+        ))
+        works.append(work)
+
+    return works
 
 
 class GoodreadsSource(BaseSource):
@@ -91,33 +200,37 @@ class GoodreadsSource(BaseSource):
 
         return res
 
-
-    def search_works(self, query: str, limit: int = 5, page: int = 1) -> List[Work]:
-        """Search Goodreads auto_complete endpoint for query."""
-        clean_query = query.strip()
-        if not clean_query:
-            return []
-
+    def _search_works_autocomplete(self, clean_query: str, limit: int = 5) -> List[Work]:
+        """Search Goodreads using auto_complete endpoint via _fetch_html."""
+        import urllib.parse
+        auto_url = f"{self.AUTOCOMPLETE_URL}?q={urllib.parse.quote(clean_query)}"
         try:
-            resp = self.session.get(
-                self.AUTOCOMPLETE_URL,
-                params={"q": clean_query},
-                timeout=self.timeout
-            )
-            resp.raise_for_status()
-            items = resp.json()
+            fetch_res = self._fetch_html(auto_url, headers={"Accept": "application/json"})
+            content, used_curl = fetch_res if isinstance(fetch_res, tuple) else (str(fetch_res), False)
+            if not content:
+                return []
+
+            content_lower = content.lower()
+            if "awswaf" in content_lower or "gokuprops" in content_lower or "interstitialchallenge" in content_lower:
+                logger.warning(f"Goodreads autocomplete blocked by WAF challenge for '{clean_query}'")
+                self.last_network_error = "WAF Challenge"
+                return []
+
+            items = json.loads(content)
         except Exception as e:
-            logger.warning(f"Goodreads search failed for '{query}': {e}")
+            logger.warning(f"Goodreads autocomplete search failed for '{clean_query}': {e}")
             return []
 
         if not isinstance(items, list):
             return []
 
-        def process_single_item(item):
+        works: List[Work] = []
+        for item in items[:limit]:
             if not isinstance(item, dict):
-                return None
+                continue
 
             book_id = str(item.get("bookId", ""))
+            work_id = str(item.get("workId", ""))
             title = item.get("title", item.get("bookTitleBare", "Unknown Title"))
             author_info = item.get("author", {})
             author_name = author_info.get("name", "Unknown Author") if isinstance(author_info, dict) else "Unknown Author"
@@ -142,58 +255,77 @@ class GoodreadsSource(BaseSource):
                 except (ValueError, TypeError):
                     pass
 
+            rating_text: Optional[str] = None
+            if avg_rating is not None:
+                count_str = f"{ratings_count:,} ratings" if ratings_count else ""
+                rating_text = f"{avg_rating:.2f} ({count_str})" if count_str else f"{avg_rating:.2f}"
+
             book_url_rel = item.get("bookUrl", "")
             book_url = f"https://www.goodreads.com{book_url_rel}" if book_url_rel else None
             book_slug = book_url_rel.split("/book/show/")[-1] if "/book/show/" in book_url_rel else (book_id or "")
 
-            # Fetch details concurrently to get actual editions count and status
-            details = {"isbn": None, "pub_year": None, "editions_count": None, "crawler_status": "Normal"}
-            if book_id:
-                try:
-                    details = self.fetch_book_details(book_id)
-                except Exception:
-                    pass
-
-            if details.get('work_id'):
-                work_key = f"gr:work/{details.get('work_id')}/book/{book_slug}"
-            elif book_id:
+            if work_id:
+                work_key = f"gr:work/{work_id}/book/{book_slug}"
+            elif book_slug:
                 work_key = f"gr:book/{book_slug}"
             else:
                 work_key = f"gr:{title}"
+
+            status_val = SourceStatus.CURL_MATCH.value if used_curl else SourceStatus.MATCH.value
+
             work = Work(
                 work_id=work_key,
                 title=title,
                 author=author_name,
-                edition_count=details.get("editions_count"),
-                first_publish_year=int(details.get("pub_year")) if details.get("pub_year") and str(details.get("pub_year")).isdigit() else None,
-                isbn=details.get("isbn")
+                edition_count=None,
+                first_publish_year=None,
+                isbn=None
             )
 
             work.ratings[self.name] = SourceRating(
                 source_name=self.name,
                 rate=avg_rating,
                 rating_count=ratings_count,
+                rating_text=rating_text,
                 url=book_url,
                 title=title,
-                status=details.get("crawler_status") or "Normal"
+                status=status_val
             )
 
             edition = Edition(
                 edition_id=book_id or "1",
-                title=title,
-                isbn_13=details.get("isbn") if details.get("isbn") and len(details.get("isbn")) == 13 else None,
-                isbn_10=details.get("isbn") if details.get("isbn") and len(details.get("isbn")) == 10 else None
+                title=title
             )
             work.editions.append(edition)
-            return work
-
-        from concurrent.futures import ThreadPoolExecutor
-        works: List[Work] = []
-        with ThreadPoolExecutor(max_workers=limit) as executor:
-            resolved_works = list(executor.map(process_single_item, items[:limit]))
-            works = [w for w in resolved_works if w is not None]
+            works.append(work)
 
         return works
+
+    def search_works(self, query: str, limit: int = 5, page: int = 1) -> List[Work]:
+        """Search Goodreads using auto_complete endpoint with HTML search fallback."""
+        clean_query = query.strip()
+        if not clean_query:
+            return []
+
+        # 1. Primary: auto_complete endpoint via _fetch_html
+        works = self._search_works_autocomplete(clean_query, limit=limit)
+        if works:
+            return works
+
+        # 2. Fallback: search results page HTML
+        import urllib.parse
+        search_url = f"https://www.goodreads.com/search?q={urllib.parse.quote(clean_query)}&search_type=books&page={page}"
+        try:
+            fetch_res = self._fetch_html(search_url, headers={"Referer": "https://www.goodreads.com/"})
+            html_content, used_curl = fetch_res if isinstance(fetch_res, tuple) else (str(fetch_res), False)
+            if html_content:
+                html_works = _parse_goodreads_search_html(html_content, used_curl, limit=limit)
+                if html_works:
+                    return html_works
+        except Exception as e:
+            logger.warning(f"Goodreads HTML search fallback failed for '{query}': {e}")
+
+        return []
 
     def fetch_editions(self, work_id: str, limit: int = 10) -> List[Edition]:
         """Fetch editions associated with a specific Goodreads Work ID."""
