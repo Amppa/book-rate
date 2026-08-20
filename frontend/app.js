@@ -61,6 +61,7 @@ function initSettings() {
   initTableVisibilityStyles();
   renderTableHeaders(document.querySelector("#table-header-row"));
   renderTitleSourceTabs(document.querySelector("#title-source-tabs-container"), state.currentTitleSource);
+  updateSourceHint(state.currentTitleSource);
   renderSourceToggles(scoreToggleBarEl);
   renderStrategySelects(scoreStrategyRowEl);
 
@@ -130,6 +131,14 @@ function updateManualSearchLinks(query) {
   }
 }
 
+function updateSourceHint(titleSource) {
+  const hintEl = document.querySelector("#source-hint");
+  if (!hintEl) return;
+  const sourceObj = SOURCES.find((s) => s.id === titleSource);
+  const hintText = (sourceObj && sourceObj.hint) ? sourceObj.hint.trim() : "";
+  hintEl.textContent = hintText || "\u00A0";
+}
+
 function updateTitleSourceTabs(titleSource) {
   const tabsContainer = document.querySelector("#title-source-tabs-container");
   if (tabsContainer) {
@@ -137,6 +146,7 @@ function updateTitleSourceTabs(titleSource) {
       btn.classList.toggle("active", btn.dataset.sourceId === titleSource);
     });
   }
+  updateSourceHint(titleSource);
 }
 
 function updatePagination(itemsCount) {
