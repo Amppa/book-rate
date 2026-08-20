@@ -234,6 +234,22 @@ class TestRatingOrchestrator(unittest.TestCase):
         cleaned = source._clean_text(raw_text)
         self.assertEqual(cleaned, "An Analysis of Daniel Kahneman’s Thinking, Fast and Slow")
 
+    def test_amazon_jp_html_unescape_title_and_author(self):
+        from book_rate.sources.amazon import AmazonJPSource
+        source = AmazonJPSource()
+        sample_block = """
+        <div data-component-type="s-search-result" data-asin="B08CXK9C2T">
+          <h2><span>Harry Potter and the Sorcerer&#x27;s Stone: Minalima Edition</span></h2>
+          <span>by <a href="#">J.K. Rowling &amp; MinaLima</a></span>
+          <span class="a-size-base s-underline-text">1,234</span>
+          <span>5つ星のうち 4.8</span>
+        </div>
+        """
+        work = source._parse_search_block(sample_block, "Harry Potter")
+        self.assertIsNotNone(work)
+        self.assertEqual(work.title, "Harry Potter and the Sorcerer's Stone: Minalima Edition")
+        self.assertEqual(work.author, "J.K. Rowling & MinaLima")
+
     @patch("book_rate.sources.goodreads.GoodreadsSource._fetch_html")
     def test_goodreads_autocomplete_search_parsing(self, mock_fetch_html):
         import json

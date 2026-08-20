@@ -18,7 +18,7 @@ export const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 export const SOURCES = [
   { id: "open_library", label: "Open Library", url: "https://openlibrary.org", defaultStrategy: "title_list", enable_extend_editions: true, hint: "💡 官方API；中文書:少" },
-  { id: "google_books", label: "Google Book", url: "https://books.google.com", defaultStrategy: "title_list", hint: "💡 官方API；中文書:有" },
+  { id: "google_books", label: "Google Book", url: "https://books.google.com", defaultStrategy: "title_list", hint: "💡 官方API；中文書:有。舊版Google Book有評分功能，現在已移除。" },
   { id: "google_play", label: "Google Play", url: "https://play.google.com/store/books", defaultStrategy: "title_list", hint: "" },
   { id: "goodreads", label: "Goodreads", url: "https://www.goodreads.com", defaultStrategy: "title_list", enable_extend_editions: true, hint: "💡 反爬蟲(WAF):中等" },
   { id: "storygraph", label: "StoryGraph", url: "https://app.thestorygraph.com", defaultStrategy: "title_list", hint: "💡 中文搜尋:不支援。反爬蟲(WAF):嚴格。注意：不支持中文書名！當找不到書的時候爬蟲會爬錯書。" },

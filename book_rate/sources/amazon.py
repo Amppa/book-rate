@@ -1,3 +1,4 @@
+import html
 import logging
 import re
 from typing import List, Optional
@@ -68,7 +69,7 @@ class AmazonSource(BaseSource):
         if not title_match:
             return None
 
-        raw_title = re.sub(r'<[^>]+>', '', title_match.group(1)).strip()
+        raw_title = html.unescape(re.sub(r'<[^>]+>', '', title_match.group(1)).strip())
         if not raw_title:
             return None
 
@@ -89,7 +90,7 @@ class AmazonSource(BaseSource):
             re.search(r'(?:著者|作者|著)\s*[:：]?\s*<a[^>]*>(.*?)</a>', block) or
             re.search(r'<span class="a-size-base"[^>]*>\s*by\s+(.*?)\s*</span>', block, re.IGNORECASE)
         )
-        author_name = re.sub(r'<[^>]+>', '', author_match.group(1)).strip() if author_match else "Unknown"
+        author_name = html.unescape(re.sub(r'<[^>]+>', '', author_match.group(1)).strip()) if author_match else "Unknown"
 
         # Rating extraction
         rate_match = (
