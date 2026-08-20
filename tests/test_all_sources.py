@@ -10,6 +10,7 @@ from book_rate.sources.amazon import AmazonSource, AmazonJPSource
 from book_rate.sources.goodreads import GoodreadsSource
 from book_rate.sources.douban import DoubanSource
 from book_rate.sources.google_books import GoogleBooksSource
+from book_rate.sources.google_play import GooglePlaySource
 from book_rate.sources.open_library import OpenLibrarySource
 
 
@@ -420,6 +421,406 @@ class TestRatingOrchestrator(unittest.TestCase):
         self.assertEqual(details["editions_count"], 1500)
         self.assertEqual(details["title"], "Harry Potter and the Philosopher's Stone")
         self.assertEqual(details["author"], "J.K. Rowling")
+
+
+class TestAmazonSource(unittest.TestCase):
+    def test_source_name_us(self):
+        source = AmazonSource()
+        self.assertEqual(source.name, "Amazon")
+        self.assertEqual(source.SEARCH_URL, "https://www.amazon.com/s")
+
+    def test_source_name_jp(self):
+        source = AmazonJPSource()
+        self.assertEqual(source.name, "Amazon JP")
+        self.assertEqual(source.SEARCH_URL, "https://www.amazon.co.jp/s")
+
+    @patch("requests.Session.get")
+    def test_search_works_parsing_us(self, mock_get):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = '''
+        <div data-component-type="s-search-result" data-asin="B0875.">
+          <h2><a href="/dp/B0875"><span>Atomic Habits</span></a></h2>
+          by <a href="/James-Clear">James Clear</a>
+          <span>4.8 out of 5 stars</span>
+          <span class="a-size-base s-underline-text">125,000</span>
+        </div>
+        '''
+        mock_get.return_value = mock_resp
+
+        source = AmazonSource()
+        works = source.search_works("Atomic Habits")
+        self.assertTrue(len(works) > 0)
+        self.assertEqual(works[0].title, "Atomic Habits")
+        self.assertEqual(works[0].author, "James Clear")
+        rating = works[0].ratings.get("Amazon")
+        self.assertIsNotNone(rating)
+        self.assertEqual(rating.rate, 4.8)
+        self.assertEqual(rating.rating_count, 125000)
+
+    @patch("requests.Session.get")
+    def test_search_works_parsing_jp(self, mock_get):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = '''
+        <div data-component-type="s-search-result" data-asin="4150119876">
+          <h2><span>リーダブルコード</span></h2>
+          著者 : <a href="/author">Dustin Boswell</a>
+          <span>5つ星のうち4.6</span>
+          <span class="a-size-base s-underline-text">3,800</span>
+        </div>
+        '''
+        mock_get.return_value = mock_resp
+
+        source = AmazonJPSource()
+        works = source.search_works("リーダブルコード")
+        self.assertTrue(len(works) > 0)
+        self.assertEqual(works[0].title, "リーダブルコード")
+        self.assertEqual(works[0].author, "Dustin Boswell")
+        rating = works[0].ratings.get("Amazon JP")
+        self.assertIsNotNone(rating)
+        self.assertEqual(rating.rate, 4.6)
+        self.assertEqual(rating.rating_count, 3800)
+
+    @patch("requests.Session.get")
+    def test_search_works_waf_challenge(self, mock_get):
+        from book_rate.sources.base import SourceNetworkError
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = '''
+        <!DOCTYPE html><html><head>
+        <meta http-equiv="refresh" content="5; URL='/s?k=test&bm-verify=AAQAAAAN'" />
+        </head><body><script>function triggerInterstitialChallenge(){}</script></body></html>
+        '''
+        mock_get.return_value = mock_resp
+
+        source = AmazonJPSource()
+        with self.assertRaises(SourceNetworkError) as ctx:
+            source.search_works("モリー先生との火曜日")
+        self.assertEqual(ctx.exception.status_code, 403)
+        self.assertIn("WAF Challenge", str(ctx.exception))
+
+    @patch("requests.Session.get")
+    def test_fetch_ratings_fallback(self, mock_get):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 404
+        mock_get.return_value = mock_resp
+
+        source = AmazonSource()
+        work = Work(work_id="ol1", title="Test Book", author="Test Author")
+        rating = source.fetch_ratings(work)
+        self.assertEqual(rating.source_name, "Amazon")
+        self.assertIsNone(rating.rate)
+        self.assertIsNone(rating.rating_count)
+
+
+class TestGooglePlayScraper(unittest.TestCase):
+    def test_extract_volume_id_from_url(self):
+        source = GooglePlaySource()
+        url1 = "https://books.google.com.tw/books?id=z2z_6hLoPmgC&dq=isbn:978957&hl=&source=gbs_api"
+        self.assertEqual(source._extract_volume_id_from_url(url1), "z2z_6hLoPmgC")
+        
+        url2 = "https://play.google.com/store/books/details?id=ZuKTvERuPG8C&source=gbs_api"
+        self.assertEqual(source._extract_volume_id_from_url(url2), "ZuKTvERuPG8C")
+        
+        url3 = "https://play.google.com/store/books/details/z2z_6hLoPmgC"
+        self.assertEqual(source._extract_volume_id_from_url(url3), "z2z_6hLoPmgC")
+        
+        self.assertIsNone(source._extract_volume_id_from_url(None))
+        self.assertIsNone(source._extract_volume_id_from_url(""))
+
+    @patch("book_rate.sources.google_play.GooglePlaySource._fetch_html")
+    def test_fetch_google_play_rating_json_ld(self, mock_fetch_html):
+        source = GooglePlaySource()
+        mock_fetch_html.return_value = """
+        <html>
+          <head>
+            <script type="application/ld+json">
+            {
+              "@context": "http://schema.org",
+              "@type": "Book",
+              "name": "Test Book",
+              "aggregateRating": {
+                "@type": "AggregateRating",
+                "ratingValue": "4.7528",
+                "ratingCount": "975"
+              }
+            }
+            </script>
+          </head>
+        </html>
+        """
+        rate, count, used_curl = source._parse_play_rating("test_id")
+        self.assertEqual(rate, 4.7528)
+        self.assertEqual(count, 975)
+
+    @patch("book_rate.sources.google_play.GooglePlaySource._fetch_html")
+    def test_fetch_google_play_rating_regex_fallback(self, mock_fetch_html):
+        source = GooglePlaySource()
+        mock_fetch_html.return_value = """
+        <html>
+          <body>
+            <div>Some random text</div>
+            "ratingValue" : "4.487"
+            "ratingCount" : "630"
+          </body>
+        </html>
+        """
+        rate, count, used_curl = source._parse_play_rating("test_id")
+        self.assertEqual(rate, 4.487)
+        self.assertEqual(count, 630)
+
+    @patch("book_rate.sources.google_play.GooglePlaySource._fetch_html")
+    def test_fetch_google_play_rating_failed(self, mock_fetch_html):
+        source = GooglePlaySource()
+        mock_fetch_html.return_value = "<html><body>No ratings here</body></html>"
+        rate, count, used_curl = source._parse_play_rating("test_id")
+        self.assertIsNone(rate)
+        self.assertIsNone(count)
+
+    @patch("book_rate.sources.google_play.GooglePlaySource._parse_play_rating")
+    def test_fetch_ratings_direct(self, mock_parse_play):
+        source = GooglePlaySource()
+        mock_parse_play.return_value = (4.487, 630, False)
+        dummy_work = Work(work_id="gb:ZuKTvERuPG8C", title="Test Title", author="Test Author")
+        result_rating = source.fetch_ratings(dummy_work)
+        self.assertEqual(result_rating.rate, 4.487)
+        self.assertEqual(result_rating.rating_count, 630)
+        self.assertEqual(result_rating.url, "https://play.google.com/store/books/details?id=ZuKTvERuPG8C")
+        self.assertEqual(result_rating.status, "MATCH")
+        mock_parse_play.assert_called_once_with("ZuKTvERuPG8C")
+
+    @patch("book_rate.sources.google_play.GooglePlaySource._fetch_html")
+    @patch("book_rate.sources.google_play.GooglePlaySource._parse_play_rating")
+    def test_search_works_chinese_slug(self, mock_parse_play, mock_fetch_html):
+        source = GooglePlaySource()
+        mock_fetch_html.return_value = (
+            '<html><body>'
+            '<a href="/store/books/details/%E7%98%9F%E7%96%AB%E8%88%87%E6%96%87%E6%98%8E_%E4%BA%BA%E9%A1%9E%E7%96%BE%E7%97%85%E5%A4%A7%E6%AD%B7%E5%8F%B2?id=wOzaEAAAQBAJ">Link</a>'
+            '</body></html>',
+            False
+        )
+        mock_parse_play.return_value = (4.5, 10, False)
+        works = source.search_works("人類大歷史")
+        self.assertEqual(len(works), 1)
+        self.assertEqual(works[0].title, "瘟疫與文明 人類疾病大歷史")
+        self.assertEqual(works[0].author, "Unknown")
+        self.assertEqual(works[0].work_id, "play:wOzaEAAAQBAJ")
+
+    @patch("book_rate.sources.google_play.GooglePlaySource._fetch_html")
+    @patch("book_rate.sources.google_play.GooglePlaySource._parse_play_rating")
+    def test_google_play_search_thinking_fast_and_slow(self, mock_parse_play, mock_fetch_html):
+        source = GooglePlaySource()
+        mock_fetch_html.return_value = (
+            '<html><body>'
+            '<a href="/store/books/details/Daniel_Kahneman_Thinking_Fast_and_Slow?id=oV1tXT3HigoC">Link</a>'
+            '</body></html>',
+            True
+        )
+        mock_parse_play.return_value = (4.6, 12000, True)
+        works = source.search_works("Thinking, Fast and Slow")
+        self.assertEqual(len(works), 1)
+        self.assertEqual(works[0].title, "Thinking Fast and Slow")
+        self.assertEqual(works[0].author, "Daniel Kahneman")
+        self.assertEqual(works[0].work_id, "play:oV1tXT3HigoC")
+        self.assertEqual(works[0].ratings["Google Play"].status, "CURL_MATCH")
+        self.assertEqual(works[0].ratings["Google Play"].rate, 4.6)
+
+
+class TestNonExistentBookCase(unittest.TestCase):
+    def setUp(self):
+        self.dummy_work = Work(
+            work_id="non_existent_123",
+            title="NonExistentBook_XYZ999",
+            author="UnknownAuthor_XYZ999"
+        )
+
+    @patch("requests.Session.get")
+    def test_amazon_non_existent_book(self, mock_get):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = "<html><body><div>No results found for your search</div></body></html>"
+        mock_get.return_value = mock_resp
+
+        source = AmazonSource()
+        rating = source.fetch_ratings(self.dummy_work)
+        self.assertEqual(rating.source_name, "Amazon")
+        self.assertIsNone(rating.url)
+        self.assertIsNone(rating.rate)
+        self.assertIsNone(rating.rating_count)
+
+    @patch("book_rate.sources.base.BaseSource._fetch_html")
+    @patch("requests.Session.get")
+    def test_douban_non_existent_book(self, mock_get, mock_fetch_html):
+        mock_fetch_html.return_value = ""
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = []
+        mock_get.return_value = mock_resp
+
+        source = DoubanSource()
+        rating = source.fetch_ratings(self.dummy_work)
+        self.assertEqual(rating.source_name, "Douban")
+        self.assertIsNone(rating.url)
+        self.assertIsNone(rating.rate)
+        self.assertIsNone(rating.rating_count)
+
+    @patch("requests.Session.get")
+    def test_goodreads_non_existent_book(self, mock_get):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = []
+        mock_get.return_value = mock_resp
+
+        source = GoodreadsSource()
+        rating = source.fetch_ratings(self.dummy_work)
+        self.assertEqual(rating.source_name, "Goodreads")
+        self.assertIsNone(rating.url)
+        self.assertIsNone(rating.rate)
+        self.assertIsNone(rating.rating_count)
+
+    @patch("requests.Session.get")
+    def test_google_books_non_existent_book(self, mock_get):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"totalItems": 0, "items": []}
+        mock_get.return_value = mock_resp
+
+        source = GoogleBooksSource()
+        rating = source.fetch_ratings(self.dummy_work)
+        self.assertEqual(rating.source_name, "Google Books")
+        self.assertIsNone(rating.url)
+        self.assertIsNone(rating.rate)
+        self.assertIsNone(rating.rating_count)
+
+
+class TestUnratedBookWithUrlCase(unittest.TestCase):
+    def setUp(self):
+        self.unrated_work = Work(
+            work_id="unrated_book_123",
+            title="Unrated Modern Novel",
+            author="New Author"
+        )
+
+    @patch("requests.Session.get")
+    def test_amazon_unrated_book_with_url(self, mock_get):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = '''
+        <div data-component-type="s-search-result">
+          <h2><a href="/Unrated-Novel/dp/B000000111"><span>Unrated Modern Novel</span></a></h2>
+          by New Author
+        </div>
+        '''
+        mock_get.return_value = mock_resp
+
+        source = AmazonSource()
+        rating = source.fetch_ratings(self.unrated_work)
+        self.assertEqual(rating.source_name, "Amazon")
+        self.assertIsNotNone(rating.url)
+        self.assertIn("B000000111", rating.url)
+        self.assertIsNone(rating.rate)
+        self.assertIsNone(rating.rating_count)
+
+    @patch("book_rate.sources.base.BaseSource._fetch_html")
+    @patch("requests.Session.get")
+    def test_douban_unrated_book_with_url(self, mock_get, mock_fetch_html):
+        mock_fetch_html.return_value = ""
+        def side_effect(url, **kwargs):
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            if "subject_suggest" in url:
+                mock_resp.json.return_value = [
+                    {
+                        "id": "999888777",
+                        "title": "Unrated Modern Novel",
+                        "author_name": "New Author",
+                        "url": "https://book.douban.com/subject/999888777/"
+                    }
+                ]
+            else:
+                mock_resp.text = "<html><body><h1>Unrated Modern Novel</h1><div>目前無評價數據</div></body></html>"
+            return mock_resp
+
+        mock_get.side_effect = side_effect
+        source = DoubanSource()
+        rating = source.fetch_ratings(self.unrated_work)
+        self.assertEqual(rating.source_name, "Douban")
+        self.assertIsNotNone(rating.url)
+        self.assertEqual(rating.url, "https://book.douban.com/subject/999888777/")
+        self.assertIsNone(rating.rate)
+        self.assertIsNone(rating.rating_count)
+
+    def test_books_tw_search_parsing_additional(self):
+        source = BooksTwSource()
+        sample_html = '''
+        <table class="table-search">
+          <tr>
+            <td>
+              <h4><a target="_blank" rel="mid_name" href="//search.books.com.tw/redirect/move/item/0011032772/" title="牧羊少年奇幻之旅">牧羊少年奇幻之旅</a></h4>
+              <ul class="list-date clearfix">
+                <li><span>中文書</span> , <a rel='go_author' href='//search.books.com.tw/adv_author/1' title='保羅．科爾賀'>保羅．科爾賀</a>, 出版日期: 2025-10-07</li>
+              </ul>
+            </td>
+          </tr>
+        </table>
+        '''
+        items = source._parse_search_items(sample_html)
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]["book_id"], "0011032772")
+        self.assertEqual(items[0]["author"], "保羅．科爾賀")
+        self.assertEqual(items[0]["first_publish_year"], 2025)
+
+
+class TestGoogleBooksTitleCleaner(unittest.TestCase):
+    def test_clean_title_normal_title(self):
+        source = GoogleBooksSource()
+        title = "Thinking, Fast and Slow"
+        cleaned = source._clean_title(title, "vol_123")
+        self.assertEqual(cleaned, title)
+
+    @patch("book_rate.sources.base.BaseSource._fetch_html")
+    def test_clean_title_garbled_title(self, mock_fetch_html):
+        mock_fetch_html.return_value = (
+            '<html><head>'
+            '<meta name="title" content="哈利·波特与魔法石 ((Harry Potter and the Philosopher&#39;s Stone)"/>'
+            '</head></html>',
+            False
+        )
+        source = GoogleBooksSource()
+        garbled = "哈利+!JY'T2!ar!G*!N( (Harry Potter and the Philosopher's Stone)"
+        cleaned = source._clean_title(garbled, "Ztg2zgEACAAJ")
+        self.assertEqual(cleaned, "哈利·波特与魔法石 ((Harry Potter and the Philosopher's Stone)")
+        mock_fetch_html.assert_called_once_with("https://books.google.com/books?id=Ztg2zgEACAAJ")
+
+    @patch("book_rate.sources.base.BaseSource._fetch_html")
+    @patch("requests.Session.get")
+    def test_search_works_cleans_garbled_title(self, mock_get, mock_fetch_html):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "items": [
+                {
+                    "id": "Ztg2zgEACAAJ",
+                    "volumeInfo": {
+                        "title": "哈利+!JY'T2!ar!G*!N( (Harry Potter and the Philosopher's Stone)",
+                        "authors": ["J.K. Rowling"]
+                    }
+                }
+            ]
+        }
+        mock_get.return_value = mock_resp
+        mock_fetch_html.return_value = (
+            '<html><head>'
+            '<meta name="title" content="哈利·波特与魔法石 ((Harry Potter and the Philosopher&#39;s Stone)"/>'
+            '</head></html>',
+            False
+        )
+        source = GoogleBooksSource()
+        works = source.search_works("哈利·波特与魔法石", limit=1)
+        self.assertEqual(len(works), 1)
+        self.assertEqual(works[0].title, "哈利·波特与魔法石 ((Harry Potter and the Philosopher's Stone)")
+        self.assertEqual(works[0].editions[0].title, "哈利·波特与魔法石 ((Harry Potter and the Philosopher's Stone)")
 
 
 if __name__ == "__main__":
