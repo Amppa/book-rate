@@ -335,12 +335,15 @@ class TestRatingOrchestrator(unittest.TestCase):
         self.assertEqual(msg, "WAF Challenge")
 
     def test_enable_extend_editions_flags(self):
+        from book_rate.sources.storygraph import StoryGraphSource
         douban = DoubanSource()
         douban_api = DoubanApiSource()
         goodreads = GoodreadsSource()
+        storygraph = StoryGraphSource()
         self.assertTrue(douban.enable_extend_editions)
         self.assertFalse(douban_api.enable_extend_editions)
         self.assertTrue(goodreads.enable_extend_editions)
+        self.assertTrue(storygraph.enable_extend_editions)
 
     @patch("requests.Session.get")
     def test_douban_api_single_request_suggest(self, mock_get):
@@ -365,6 +368,58 @@ class TestRatingOrchestrator(unittest.TestCase):
         self.assertEqual(works[0].author, "Daniel Kahneman")
         self.assertIsNone(works[0].edition_count)
         self.assertEqual(mock_get.call_count, 1)
+
+    @patch("book_rate.sources.base.BaseSource._fetch_html")
+    def test_storygraph_fetch_editions(self, mock_fetch_html):
+        from book_rate.sources.storygraph import StoryGraphSource
+        mock_html = """
+        <div class="book-pane">
+          <h3><a href="/books/8e9a4f6d-2d93-4b68-80f2-b8e7343e0618">Harry Potter and the Philosopher's Stone</a></h3>
+          <span>Publisher: Bloomsbury Publishing</span>
+          <span>Edition Pub Date: 2014</span>
+          <span>ISBN/UID: 9781408855652</span>
+          <span>Language: English</span>
+        </div>
+        <div class="book-pane">
+          <h3><a href="/books/7a1b2c3d-4e5f-6a7b-8c9d-0e1f2a3b4c5d">Harry Potter à l'école des sorciers</a></h3>
+          <span>Publisher: Gallimard</span>
+          <span>Edition Pub Date: 2016</span>
+          <span>ISBN/UID: 9782070584628</span>
+          <span>Language: French</span>
+        </div>
+        """
+        mock_fetch_html.return_value = (mock_html, False)
+        source = StoryGraphSource()
+        editions = source.fetch_editions("sg:8e9a4f6d-2d93-4b68-80f2-b8e7343e0618", limit=5)
+        self.assertEqual(len(editions), 2)
+        self.assertEqual(editions[0].edition_id, "8e9a4f6d-2d93-4b68-80f2-b8e7343e0618")
+        self.assertEqual(editions[0].title, "Harry Potter and the Philosopher's Stone")
+        self.assertEqual(editions[0].publisher, "Bloomsbury Publishing")
+        self.assertEqual(editions[0].publish_year, "2014")
+        self.assertEqual(editions[0].isbn_13, "9781408855652")
+        self.assertEqual(editions[0].language, "English")
+
+        self.assertEqual(editions[1].edition_id, "7a1b2c3d-4e5f-6a7b-8c9d-0e1f2a3b4c5d")
+        self.assertEqual(editions[1].title, "Harry Potter à l'école des sorciers")
+        self.assertEqual(editions[1].publisher, "Gallimard")
+        self.assertEqual(editions[1].language, "French")
+
+    @patch("book_rate.sources.base.BaseSource._fetch_html")
+    def test_storygraph_fetch_book_details_compact_editions_count(self, mock_fetch_html):
+        from book_rate.sources.storygraph import StoryGraphSource
+        mock_html = """
+        <a href="/books/6717e73a-6ab8-448a-b92c-7a7ac25be732/editions" class="browse-editions-link">See all 1.5k editions</a>
+        <h3 class="text-2xl">Harry Potter and the Philosopher's Stone</h3>
+        <a href="/authors/123">J.K. Rowling</a>
+        <span>Edition Pub Date: 2015</span>
+        <span>ISBN/UID: 9781408855652</span>
+        """
+        mock_fetch_html.return_value = (mock_html, False)
+        source = StoryGraphSource()
+        details = source.fetch_book_details("6717e73a-6ab8-448a-b92c-7a7ac25be732")
+        self.assertEqual(details["editions_count"], 1500)
+        self.assertEqual(details["title"], "Harry Potter and the Philosopher's Stone")
+        self.assertEqual(details["author"], "J.K. Rowling")
 
 
 if __name__ == "__main__":
