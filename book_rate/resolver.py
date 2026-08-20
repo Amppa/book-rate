@@ -106,11 +106,11 @@ class EditionResolver:
         }
         for prefix, s_key in prefix_map.items():
             if work_id.startswith(prefix):
-                return s_key, work_id, 2000
+                return s_key, work_id, 100
 
         if work_id.startswith(("/works/", "OL")) or ":" not in work_id:
             full_id = work_id if work_id.startswith("/works/") else f"/works/{work_id}"
-            return "open_library", full_id, 2000
+            return "open_library", full_id, 500
 
         return None, work_id, 0
 

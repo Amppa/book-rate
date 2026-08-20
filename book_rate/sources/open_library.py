@@ -121,10 +121,11 @@ class OpenLibrarySource(BaseSource):
 
         full_id = work_id if work_id.startswith("/works/") else f"/works/{work_id}"
         editions: List[Edition] = []
+        safe_limit = min(max(1, limit), 1000)
 
         try:
             url = f"{self.BASE_URL}{full_id}/editions.json"
-            resp = self.session.get(url, params={"limit": limit}, timeout=self.timeout)
+            resp = self.session.get(url, params={"limit": safe_limit}, timeout=self.timeout)
             resp.raise_for_status()
             data = resp.json()
 

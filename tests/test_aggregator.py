@@ -109,11 +109,9 @@ class TestGoodreadsSource(unittest.TestCase):
         self.assertEqual(details["work_id"], "62221762")
         self.assertEqual(details["editions_count"], 256)
 
-    @patch('requests.Session.get')
-    def test_fetch_editions(self, mock_get):
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.text = """
+    @patch('book_rate.sources.goodreads.GoodreadsSource._fetch_html')
+    def test_fetch_editions(self, mock_fetch_html):
+        mock_html = """
         <html><body>
           <div class="elementList clearFix">
             <div class="editionData">
@@ -137,7 +135,7 @@ class TestGoodreadsSource(unittest.TestCase):
           </div>
         </body></html>
         """
-        mock_get.return_value = mock_resp
+        mock_fetch_html.return_value = (mock_html, True)
 
         source = GoodreadsSource()
         editions = source.fetch_editions("62221762", limit=1)

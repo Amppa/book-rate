@@ -195,7 +195,7 @@ export function renderCandidates(works, { onChooseCandidate, onChooseEdition } =
   const currentSourceObj = SOURCES.find(p => p.id === state.currentTitleSource);
 
   works.forEach((work) => {
-    const hasMultipleEditions = typeof work.edition_count === "number" && work.edition_count > 1;
+    const hasMultipleEditions = typeof work.edition_count === "number" ? work.edition_count > 1 : true;
     const enableExtend = currentSourceObj && currentSourceObj.enable_extend_editions === true && hasMultipleEditions;
 
     const fragment = candidateTemplate.content.cloneNode(true);

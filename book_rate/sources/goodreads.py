@@ -350,20 +350,22 @@ class GoodreadsSource(BaseSource):
         while len(editions) < limit and page <= max_pages:
             try:
                 url = f"https://www.goodreads.com/work/editions/{resolved_work_id}?per_page=100&page={page}&utf8=%E2%9C%93"
-                resp = self.session.get(url, timeout=self.timeout)
-                if page == 1 and (resp.status_code != 200 or "bookTitle" not in resp.text):
+                fetch_res = self._fetch_html(url, headers={"Referer": "https://www.goodreads.com/"})
+                html_str, used_curl = fetch_res if isinstance(fetch_res, tuple) else (str(fetch_res), False)
+
+                if page == 1 and (not html_str or "bookTitle" not in html_str):
                     alt_url = f"https://www.goodreads.com/book/editions/{work_id}?per_page=100&page=1&utf8=%E2%9C%93"
-                    alt_resp = self.session.get(alt_url, timeout=self.timeout)
-                    if alt_resp.status_code == 200 and "bookTitle" in alt_resp.text:
-                        resp = alt_resp
+                    alt_res = self._fetch_html(alt_url, headers={"Referer": "https://www.goodreads.com/"})
+                    alt_html, alt_curl = alt_res if isinstance(alt_res, tuple) else (str(alt_res), False)
+                    if alt_html and "bookTitle" in alt_html:
+                        html_str = alt_html
 
-                if resp.url and isinstance(resp.url, str):
-                    work_id_m = re.search(r'/work/editions/(\d+)', resp.url)
-                    if work_id_m:
-                        resolved_work_id = work_id_m.group(1)
+                if not html_str:
+                    break
 
-                resp.raise_for_status()
-                html_str = resp.text
+                work_id_m = re.search(r'/work/editions/(\d+)', html_str)
+                if work_id_m:
+                    resolved_work_id = work_id_m.group(1)
 
                 blocks = html_str.split('<div class="elementList clearFix">')
                 page_editions_count = 0
