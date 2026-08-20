@@ -164,6 +164,10 @@ class DoubanSource(BaseSource):
     def name(self) -> str:
         return "Douban"
 
+    @property
+    def enable_extend_editions(self) -> bool:
+        return True
+
     def fetch_subject_details(self, subject_url_or_id: str) -> dict:
         """Fetch subject detail HTML page from Douban and parse metadata."""
         url = subject_url_or_id if subject_url_or_id.startswith("http") else _build_subject_url(subject_url_or_id)
@@ -241,21 +245,17 @@ class DoubanSource(BaseSource):
             pub_year: Optional[int] = int(pub_year_str) if pub_year_str and pub_year_str.isdigit() else None
             subject_url = item.get("url") or _build_subject_url(sub_id)
 
-            details = self.fetch_subject_details(subject_url)
-
             work = Work(
                 work_id=f"db:{sub_id}" if sub_id else f"db:{title}",
                 title=title,
                 author=author_name,
                 first_publish_year=pub_year,
-                edition_count=details.get("editions_count")
+                edition_count=None
             )
 
-            if details["rate"] is not None or details["votes"] is not None or subject_url:
+            if subject_url:
                 work.ratings[self.name] = SourceRating(
                     source_name=self.name,
-                    rate=details["rate"],
-                    rating_count=details["votes"],
                     url=subject_url,
                     title=title
                 )
@@ -411,6 +411,10 @@ class DoubanApiSource(DoubanSource):
     @property
     def name(self) -> str:
         return "Douban API"
+
+    @property
+    def enable_extend_editions(self) -> bool:
+        return False
 
     def search_works(self, query: str, limit: int = 5, page: int = 1) -> List[Work]:
         return self._search_works_suggest(query, limit=limit, page=page)

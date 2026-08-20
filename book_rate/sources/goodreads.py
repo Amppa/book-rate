@@ -131,6 +131,10 @@ class GoodreadsSource(BaseSource):
     def name(self) -> str:
         return "Goodreads"
 
+    @property
+    def enable_extend_editions(self) -> bool:
+        return True
+
     def fetch_book_details(self, book_url_or_id: str) -> dict:
         """Fetch book detail HTML page from Goodreads and extract ISBN, pub_year, and editions_count."""
         url = book_url_or_id if book_url_or_id.startswith("http") else self.BOOK_SHOW_URL.format(book_id=book_url_or_id)

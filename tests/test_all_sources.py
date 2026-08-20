@@ -318,6 +318,38 @@ class TestRatingOrchestrator(unittest.TestCase):
         self.assertFalse(is_conn)
         self.assertEqual(msg, "WAF Challenge")
 
+    def test_enable_extend_editions_flags(self):
+        douban = DoubanSource()
+        douban_api = DoubanApiSource()
+        goodreads = GoodreadsSource()
+        self.assertTrue(douban.enable_extend_editions)
+        self.assertFalse(douban_api.enable_extend_editions)
+        self.assertTrue(goodreads.enable_extend_editions)
+
+    @patch("requests.Session.get")
+    def test_douban_api_single_request_suggest(self, mock_get):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = [
+            {
+                "id": "10785583",
+                "title": "Thinking, Fast and Slow",
+                "author_name": "Daniel Kahneman",
+                "year": "2012",
+                "type": "b",
+                "url": "https://book.douban.com/subject/10785583/"
+            }
+        ]
+        mock_get.return_value = mock_resp
+
+        source = DoubanApiSource()
+        works = source.search_works("Thinking Fast and Slow")
+        self.assertEqual(len(works), 1)
+        self.assertEqual(works[0].title, "Thinking, Fast and Slow")
+        self.assertEqual(works[0].author, "Daniel Kahneman")
+        self.assertIsNone(works[0].edition_count)
+        self.assertEqual(mock_get.call_count, 1)
+
 
 if __name__ == "__main__":
     unittest.main()
