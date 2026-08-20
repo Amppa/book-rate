@@ -1,6 +1,6 @@
 import { state } from './state.js';
 import { SOURCES, LANGUAGE_NAME_MAP } from './constants.js';
-import { getWorkExternalUrl, getOrCreateTask } from './utils.js';
+import { getWorkExternalUrl, getOrCreateTask, displayCount } from './utils.js';
 import { getCachedData, setCachedData } from './cache.js';
 
 // ---------------------------------------------------------------------------
@@ -210,24 +210,11 @@ export function renderCandidates(works, { onChooseCandidate, onChooseEdition } =
     const publishText = work.first_publish_year ? `出版日期 ${work.first_publish_year}` : "";
     const editionText = work.edition_count ? `${work.edition_count.toLocaleString()} 個版本` : "";
 
-    const statusTag = fragment.querySelector(".candidate-status-tag");
-    if (statusTag && work.key && (work.key.startsWith("gr:") || work.key.startsWith("sg:")) && work.status) {
-      const shortInfo = getShortStatus(work.status);
-      if (shortInfo) {
-        statusTag.textContent = shortInfo.text;
-        statusTag.title = work.status;
-        statusTag.hidden = false;
-        statusTag.className = `candidate-status-tag status-tag-${shortInfo.type}`;
-      } else {
-        statusTag.hidden = true;
-      }
-    }
-
     let ratingText = "";
     if (work.rating) {
       if (typeof work.rating.rate === "number" && work.rating.rate > 0) {
         const countStr = typeof work.rating.rating_count === "number" && work.rating.rating_count > 0
-          ? `${work.rating.rating_count.toLocaleString()}人評價`
+          ? displayCount(work.rating.rating_count)
           : "";
         ratingText = countStr ? `⭐ ${work.rating.rate.toFixed(1)} (${countStr})` : `⭐ ${work.rating.rate.toFixed(1)}`;
       } else if (work.rating.rating_text) {
