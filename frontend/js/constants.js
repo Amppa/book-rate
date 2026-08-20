@@ -17,17 +17,17 @@ export const CACHE_PREFIX = STORAGE_KEYS.CACHE_PREFIX;
 export const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 export const SOURCES = [
-  { id: "open_library", label: "Open Library", url: "https://openlibrary.org", defaultStrategy: "title_list", lang: ["en"], enable_extend_editions: true, hint: "💡 中文書:少" },
-  { id: "google_books", label: "Google Book", url: "https://books.google.com", defaultStrategy: "title_list", lang: ["en"], hint: "💡 官方API；中文書:有" },
-  { id: "google_play", label: "Google Play", url: "https://play.google.com/store/books", defaultStrategy: "title_list", lang: ["en", "zh"], hint: " " },
-  { id: "goodreads", label: "Goodreads", url: "https://www.goodreads.com", defaultStrategy: "title_list", lang: ["en"], enable_extend_editions: true, hint: "💡 反爬蟲(WAF):中等" },
-  { id: "storygraph", label: "StoryGraph", url: "https://app.thestorygraph.com", defaultStrategy: "title_list", lang: ["en"], hint: "💡 中文搜尋:不支援。反爬蟲(WAF):嚴格" },
-  { id: "amazon", label: "Amazon", url: "https://www.amazon.com", defaultStrategy: "title_list", lang: ["en"], hint: "💡 反爬蟲(WAF):嚴格。搜尋冷卻:1秒 (防封鎖)" },
-  { id: "amazon_jp", label: "Amazon JP", url: "https://www.amazon.co.jp", defaultStrategy: "title_list", lang: ["en"], hint: "💡 反爬蟲(WAF):嚴格。搜尋冷卻:1秒 (防封鎖)" },
-  { id: "douban", label: "豆瓣", url: "https://book.douban.com", defaultStrategy: "title_zh_list", lang: ["zh", "en"], hint: "💡 搜尋冷卻:1秒 (防封鎖)" },
-  { id: "douban_api", label: "豆瓣 API", url: "https://book.douban.com", defaultStrategy: "title_zh_list", lang: ["zh", "en"], hint: "💡 官方 API" },
-  { id: "readmoo", label: "讀墨", url: "https://readmoo.com", defaultStrategy: "title_zh_list", lang: ["zh"], hint: " " },
-  { id: "books_tw", label: "博客來", url: "https://www.books.com.tw", defaultStrategy: "title_zh_list", lang: ["zh"], hint: "💡 搜尋冷卻:1秒 (防封鎖)" },
+  { id: "open_library", label: "Open Library", url: "https://openlibrary.org", defaultStrategy: "title_list", enable_extend_editions: true, hint: "💡 官方API；中文書:少" },
+  { id: "google_books", label: "Google Book", url: "https://books.google.com", defaultStrategy: "title_list", hint: "💡 官方API；中文書:有" },
+  { id: "google_play", label: "Google Play", url: "https://play.google.com/store/books", defaultStrategy: "title_list", hint: "" },
+  { id: "goodreads", label: "Goodreads", url: "https://www.goodreads.com", defaultStrategy: "title_list", enable_extend_editions: true, hint: "💡 反爬蟲(WAF):中等" },
+  { id: "storygraph", label: "StoryGraph", url: "https://app.thestorygraph.com", defaultStrategy: "title_list", hint: "💡 中文搜尋:不支援。反爬蟲(WAF):嚴格" },
+  { id: "amazon", label: "Amazon", url: "https://www.amazon.com", defaultStrategy: "title_list", hint: "💡 反爬蟲(WAF):嚴格。搜尋冷卻:1秒 (防封鎖)" },
+  { id: "amazon_jp", label: "Amazon JP", url: "https://www.amazon.co.jp", defaultStrategy: "title_list", hint: "💡 反爬蟲(WAF):嚴格。搜尋冷卻:1秒 (防封鎖)" },
+  { id: "douban", label: "豆瓣", url: "https://book.douban.com", defaultStrategy: "title_zh_list", hint: "💡 搜尋冷卻:1秒 (防封鎖)" },
+  { id: "douban_api", label: "豆瓣 API", url: "https://book.douban.com", defaultStrategy: "title_zh_list", hint: "💡 官方 API" },
+  { id: "readmoo", label: "讀墨", url: "https://readmoo.com", defaultStrategy: "title_zh_list", hint: "" },
+  { id: "books_tw", label: "博客來", url: "https://www.books.com.tw", defaultStrategy: "title_zh_list", hint: "💡 搜尋冷卻:1秒 (防封鎖)" },
 ];
 
 export const STRATEGIES = [
