@@ -45,6 +45,7 @@ class SourceRating:
     query: Optional[str] = None
     status: str = "NO_MATCH"
     error_message: Optional[str] = None
+    rating_text: Optional[str] = None
     results: List[dict] = field(default_factory=list)
 
 

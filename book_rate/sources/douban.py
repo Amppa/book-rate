@@ -61,6 +61,93 @@ def _parse_subject_html(html_str: str, url: str) -> dict:
     return res
 
 
+def _parse_search_item(item: dict, used_curl: bool, source_name: str = "Douban") -> Optional[Work]:
+    """Parse a single search_subject item from Douban search window.__DATA__."""
+    if not isinstance(item, dict) or item.get("tpl_name") != "search_subject":
+        return None
+
+    sub_id = str(item.get("id", "")).strip()
+    if not sub_id:
+        return None
+
+    title = item.get("title", "Unknown Title")
+    subject_url = item.get("url") or _build_subject_url(sub_id)
+
+    # 1. Parse rating info
+    rating_data = item.get("rating") or {}
+    rate_val = rating_data.get("value")
+    votes_val = rating_data.get("count")
+    null_reason = (rating_data.get("rating_info") or rating_data.get("null_reason") or "").strip()
+
+    rate = None
+    votes = None
+    if rate_val is not None:
+        try:
+            r_float = float(rate_val)
+            if r_float > 0:
+                rate = r_float
+        except ValueError:
+            pass
+
+    if votes_val is not None:
+        try:
+            v_int = int(votes_val)
+            if v_int > 0:
+                votes = v_int
+        except ValueError:
+            pass
+
+    if rate is not None:
+        votes_str = f"{votes}人评价" if votes is not None else ""
+        rating_text = f"{rate:.1f} ({votes_str})" if votes_str else f"{rate:.1f}"
+    elif null_reason:
+        rating_text = null_reason
+    else:
+        rating_text = "暂无评分"
+
+    # 2. Parse abstract for author and pub_year
+    abstract_str = item.get("abstract", "")
+    author_name = "Unknown Author"
+    pub_year_str = ""
+    pub_year = None
+    if abstract_str:
+        parts = [p.strip() for p in abstract_str.split("/") if p.strip()]
+        if parts:
+            author_name = parts[0]
+            for p in parts[1:]:
+                year_match = re.search(r'\b(\d{4})\b', p)
+                if year_match:
+                    pub_year_str = year_match.group(1)
+                    pub_year = int(pub_year_str)
+                    break
+
+    is_match = (rate is not None or bool(null_reason))
+    status_val = (SourceStatus.CURL_MATCH.value if used_curl else SourceStatus.MATCH.value) if is_match else SourceStatus.NO_MATCH.value
+
+    work = Work(
+        work_id=f"db:{sub_id}",
+        title=title,
+        author=author_name,
+        first_publish_year=pub_year,
+        edition_count=None
+    )
+    work.ratings[source_name] = SourceRating(
+        source_name=source_name,
+        rate=rate,
+        rating_count=votes,
+        rating_text=rating_text,
+        url=subject_url,
+        title=title,
+        status=status_val
+    )
+    work.editions.append(Edition(
+        edition_id=sub_id,
+        title=title,
+        publish_year=pub_year_str
+    ))
+    return work
+
+
 class DoubanSource(BaseSource):
     """Source for querying Douban (豆瓣) ratings and book subjects."""
 
@@ -209,88 +296,17 @@ class DoubanSource(BaseSource):
         
         try:
             fetch_res = self._fetch_html(search_url, headers={"Referer": "https://book.douban.com/"})
-            if isinstance(fetch_res, tuple):
-                html_content, used_curl = fetch_res
-            else:
-                html_content, used_curl = str(fetch_res), False
+            html_content, used_curl = fetch_res if isinstance(fetch_res, tuple) else (str(fetch_res), False)
 
             match = re.search(r'window\.__DATA__\s*=\s*(\{.*?\});', html_content)
             if match:
                 data = json.loads(match.group(1))
                 items = data.get("items", [])
-                
                 works: List[Work] = []
                 for item in items:
-                    if not isinstance(item, dict) or item.get("tpl_name") != "search_subject":
-                        continue
-
-                    sub_id = str(item.get("id", ""))
-                    if not sub_id:
-                        continue
-
-                    title = item.get("title", "Unknown Title")
-                    subject_url = item.get("url") or _build_subject_url(sub_id)
-                    
-                    rating_data = item.get("rating", {})
-                    rate_val = rating_data.get("value")
-                    votes_val = rating_data.get("count")
-                    
-                    rate = None
-                    votes = None
-                    if rate_val is not None:
-                        try:
-                            rate = float(rate_val)
-                        except ValueError:
-                            pass
-                    if votes_val is not None:
-                        try:
-                            votes = int(votes_val)
-                        except ValueError:
-                            pass
-
-                    # Parse abstract to extract author and pub_year
-                    abstract_str = item.get("abstract", "")
-                    author_name = "Unknown Author"
-                    pub_year_str = ""
-                    pub_year = None
-                    if abstract_str:
-                        parts = [p.strip() for p in abstract_str.split("/") if p.strip()]
-                        if parts:
-                            author_name = parts[0]
-                            for p in parts[1:]:
-                                year_match = re.search(r'\b(\d{4})\b', p)
-                                if year_match:
-                                    pub_year_str = year_match.group(1)
-                                    pub_year = int(pub_year_str)
-                                    break
-
-                    work = Work(
-                        work_id=f"db:{sub_id}",
-                        title=title,
-                        author=author_name,
-                        first_publish_year=pub_year,
-                        edition_count=None
-                    )
-
-                    is_match = (rate is not None)
-                    status_val = (SourceStatus.CURL_MATCH.value if used_curl else SourceStatus.MATCH.value) if is_match else SourceStatus.NO_MATCH.value
-
-                    work.ratings[self.name] = SourceRating(
-                        source_name=self.name,
-                        rate=rate,
-                        rating_count=votes,
-                        url=subject_url,
-                        title=title,
-                        status=status_val
-                    )
-
-                    edition = Edition(
-                        edition_id=sub_id,
-                        title=title,
-                        publish_year=pub_year_str
-                    )
-                    work.editions.append(edition)
-                    works.append(work)
+                    work = _parse_search_item(item, used_curl, self.name)
+                    if work is not None:
+                        works.append(work)
 
                 if works:
                     return works

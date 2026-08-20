@@ -19,6 +19,15 @@ def format_work_to_dict(work: Work) -> dict:
     elif work.work_id.startswith("play:") and "Google Play" in work.ratings:
         status = work.ratings["Google Play"].status
 
+    rating_data = None
+    db_rating = work.ratings.get("Douban")
+    if db_rating:
+        rating_data = {
+            "rate": db_rating.rate,
+            "rating_count": db_rating.rating_count,
+            "rating_text": getattr(db_rating, "rating_text", None)
+        }
+
     return {
         "key": work.work_id,
         "title": work.title,
@@ -26,7 +35,8 @@ def format_work_to_dict(work: Work) -> dict:
         "first_publish_year": work.first_publish_year,
         "edition_count": work.edition_count,
         "isbn": work.isbn,
-        "status": status
+        "status": status,
+        "rating": rating_data
     }
 
 

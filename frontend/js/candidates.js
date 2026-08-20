@@ -223,7 +223,19 @@ export function renderCandidates(works, { onChooseCandidate, onChooseEdition } =
       }
     }
 
-    const metaText = [authorText, publishText, editionText].filter(Boolean).join(" · ") + " ↗";
+    let ratingText = "";
+    if (work.rating) {
+      if (typeof work.rating.rate === "number" && work.rating.rate > 0) {
+        const countStr = typeof work.rating.rating_count === "number" && work.rating.rating_count > 0
+          ? `${work.rating.rating_count.toLocaleString()}人評價`
+          : "";
+        ratingText = countStr ? `⭐ ${work.rating.rate.toFixed(1)} (${countStr})` : `⭐ ${work.rating.rate.toFixed(1)}`;
+      } else if (work.rating.rating_text) {
+        ratingText = `(${work.rating.rating_text})`;
+      }
+    }
+
+    const metaText = [authorText, publishText, editionText, ratingText].filter(Boolean).join(" · ") + " ↗";
     const metaLink = fragment.querySelector(".candidate-meta");
     const extUrl = getWorkExternalUrl(work.key);
     if (metaLink) {

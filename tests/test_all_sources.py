@@ -164,27 +164,28 @@ class TestRatingOrchestrator(unittest.TestCase):
 
     @patch("book_rate.sources.douban.DoubanSource._fetch_html")
     def test_douban_search_and_editions_unpacked(self, mock_fetch_html):
+        from book_rate.utils.formatters import format_work_to_dict
         source = DoubanSource()
         import json
 
-        # Mock HTML returned for search page containing multiple works
+        # Mock HTML returned for search page containing multiple works including ratings and null_reason
         search_json = {
             "items": [
                 {
                     "tpl_name": "search_subject",
-                    "id": "12345",
-                    "title": "Thinking, Fast and Slow (Edition 1)",
-                    "url": "https://book.douban.com/subject/12345/",
-                    "rating": {"value": "9.0", "count": 500},
-                    "abstract": "Daniel Kahneman / 2012 / Translation Pub"
+                    "id": "26260838",
+                    "title": "Harry Potter and the Philosopher's Stone",
+                    "url": "https://book.douban.com/subject/26260838/",
+                    "rating": {"value": 9.6, "count": 2417, "star_count": 5.0, "rating_info": ""},
+                    "abstract": "J.K. Rowling / Bloosbury Publishing / 2014-9 / GBP 12.99"
                 },
                 {
                     "tpl_name": "search_subject",
-                    "id": "67890",
-                    "title": "Thinking, Fast and Slow (Edition 2)",
-                    "url": "https://book.douban.com/subject/67890/",
-                    "rating": {"value": "8.8", "count": 250},
-                    "abstract": "Daniel Kahneman / 2013 / Translation Pub"
+                    "id": "19061774",
+                    "title": "Harry Potter and the Philosophers Stone",
+                    "url": "https://book.douban.com/subject/19061774/",
+                    "rating": {"value": 0, "count": 0, "star_count": 0, "rating_info": "评价人数不足"},
+                    "abstract": "Miller, Frederic P.; Vandome, Agnes F.; McBrewster, John"
                 }
             ]
         }
@@ -193,12 +194,39 @@ class TestRatingOrchestrator(unittest.TestCase):
             True
         )
 
-        works = source.search_works("Thinking, Fast and Slow")
+        works = source.search_works("Harry Potter and the philosopher's stone")
         self.assertEqual(len(works), 2)
-        self.assertEqual(works[0].title, "Thinking, Fast and Slow (Edition 1)")
-        self.assertEqual(works[0].ratings["Douban"].status, "CURL_MATCH")
-        self.assertEqual(works[1].title, "Thinking, Fast and Slow (Edition 2)")
-        self.assertEqual(works[1].ratings["Douban"].status, "CURL_MATCH")
+        
+        # Test work 1: valid rating
+        self.assertEqual(works[0].title, "Harry Potter and the Philosopher's Stone")
+        self.assertEqual(works[0].author, "J.K. Rowling")
+        self.assertEqual(works[0].first_publish_year, 2014)
+        self.assertIn("Douban", works[0].ratings)
+        self.assertEqual(works[0].ratings["Douban"].rate, 9.6)
+        self.assertEqual(works[0].ratings["Douban"].rating_count, 2417)
+        self.assertEqual(works[0].ratings["Douban"].rating_text, "9.6 (2417人评价)")
+        
+        # Test work 1 dictionary formatting
+        dict_1 = format_work_to_dict(works[0])
+        self.assertIsNotNone(dict_1["rating"])
+        self.assertEqual(dict_1["rating"]["rate"], 9.6)
+        self.assertEqual(dict_1["rating"]["rating_count"], 2417)
+        self.assertEqual(dict_1["rating"]["rating_text"], "9.6 (2417人评价)")
+
+        # Test work 2: insufficient votes (评价人数不足)
+        self.assertEqual(works[1].title, "Harry Potter and the Philosophers Stone")
+        self.assertEqual(works[1].author, "Miller, Frederic P.; Vandome, Agnes F.; McBrewster, John")
+        self.assertIn("Douban", works[1].ratings)
+        self.assertIsNone(works[1].ratings["Douban"].rate)
+        self.assertIsNone(works[1].ratings["Douban"].rating_count)
+        self.assertEqual(works[1].ratings["Douban"].rating_text, "评价人数不足")
+
+        # Test work 2 dictionary formatting
+        dict_2 = format_work_to_dict(works[1])
+        self.assertIsNotNone(dict_2["rating"])
+        self.assertIsNone(dict_2["rating"]["rate"])
+        self.assertIsNone(dict_2["rating"]["rating_count"])
+        self.assertEqual(dict_2["rating"]["rating_text"], "评价人数不足")
 
     def test_books_tw_clean_text_unescape(self):
         source = BooksTwSource()
