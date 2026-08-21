@@ -23,9 +23,21 @@ export function formatCompact(n) {
 
 export function displayCount(count) {
   const cVal = Number(count);
-  return (count !== null && count !== undefined && !isNaN(cVal) && cVal > 0)
-    ? `${formatCompact(cVal)} 人評價`
-    : "連結";
+  if (count !== null && count !== undefined && !isNaN(cVal) && cVal > 0) {
+    let fire = "";
+
+    if (cVal > 2000) {
+      fire = " 🔥🔥🔥🔥";
+    } else if (cVal > 1000) {
+      fire = " 🔥🔥🔥";
+    } else if (cVal > 500) {
+      fire = " 🔥🔥";
+    } else if (cVal > 100) {
+      fire = " 🔥";
+    }
+    return `${formatCompact(cVal)} 人評價${fire}`;
+  }
+  return "連結";
 }
 
 export function getWorkExternalUrl(key) {
