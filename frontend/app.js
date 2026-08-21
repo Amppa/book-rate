@@ -4,7 +4,7 @@ import {
   clearAllStep2Cache, clearAllStep3Cache, clearEditionsCache, clearWorkRatingsCache,
   getSourceStatusCache, setSourceStatusCache
 } from './js/cache.js';
-import { fetchJson, getOrCreateTask } from './js/utils.js';
+import { fetchJson, getOrCreateTask, getSourceSearchUrl } from './js/utils.js';
 import {
   renderSourceToggles, renderStrategySelects, updateTableVisibility,
   renderTableHeaders, renderTitleSourceTabs, initTableVisibilityStyles
@@ -202,9 +202,25 @@ function renderSearchResults(titleSource, query, page, works) {
 
 function renderSearchError(titleSource, query, page, errorMsg) {
   candidateList.replaceChildren();
+  if (paginationControls) paginationControls.hidden = true;
+
+  const sourceObj = SOURCES.find(p => p.id === titleSource);
+  const titleSourceName = sourceObj ? sourceObj.label : "資料庫";
+  const errStr = String(errorMsg || "");
+  const isWaf = /waf|challenge|403|429|rate\s*limit|blocked|forbidden/i.test(errStr);
+
   const errorEl = document.createElement("div");
-  errorEl.className = "no-results error";
-  errorEl.textContent = errorMsg || "查詢失敗。";
+  errorEl.className = "no-results";
+
+  if (isWaf) {
+    const detailText = errStr || "WAF Challenge / HTTP 403 Forbidden";
+    const searchUrl = getSourceSearchUrl(titleSource, query);
+    errorEl.innerHTML = `⚠️ 觸發 ${titleSourceName} 的反爬蟲風控<br>Details: ${detailText}<br>建議: 等待數分鐘，或 <a class="waf-alert-link" href="${searchUrl}" target="_blank" rel="noreferrer">手動搜尋 ↗</a>`;
+  } else {
+    errorEl.classList.add("error");
+    errorEl.textContent = errorMsg || "查詢失敗。";
+  }
+
   candidateList.append(errorEl);
 }
 
@@ -495,10 +511,10 @@ function initSourceStatus() {
     targetSources.forEach(source => {
       const item = document.createElement("div");
       item.className = "source-status-item";
-      
+
       const light = document.createElement("span");
       light.className = "source-status-light";
-      
+
       const name = document.createElement("a");
       name.className = "source-status-name";
       name.textContent = source.label;
@@ -547,7 +563,7 @@ function initSourceStatus() {
       const enginesParam = targetSources.map(s => s.id).join(",");
       const response = await fetch(`/api/source-status?engines=${encodeURIComponent(enginesParam)}`);
       if (!response.ok) throw new Error("API responded with error");
-      
+
       const results = await response.json();
       setSourceStatusCache(results);
       renderStatus(results);

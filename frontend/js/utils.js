@@ -3,9 +3,46 @@ import { toSimplified } from './t2s.js';
 
 export function fetchJson(url) {
   return fetch(url).then(async (response) => {
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    if (!response.ok) {
+      let detail = `HTTP ${response.status}`;
+      try {
+        const body = await response.json();
+        if (body && body.detail) detail = body.detail;
+      } catch (_) {}
+      const err = new Error(detail);
+      err.status = response.status;
+      throw err;
+    }
     return response.json();
   });
+}
+
+export function getSourceSearchUrl(sourceId, query) {
+  const q = encodeURIComponent(query || "");
+  switch (sourceId) {
+    case "amazon":
+      return `https://www.amazon.com/s?k=${q}&i=stripbooks`;
+    case "amazon_jp":
+      return `https://www.amazon.co.jp/s?k=${q}&i=stripbooks`;
+    case "douban":
+    case "douban_api":
+      return `https://search.douban.com/book/subject_search?search_text=${q}`;
+    case "goodreads":
+      return `https://www.goodreads.com/search?q=${q}`;
+    case "storygraph":
+      return `https://app.thestorygraph.com/browse?search_term=${q}`;
+    case "books_tw":
+      return `https://search.books.com.tw/search/query/key/${q}`;
+    case "readmoo":
+      return `https://readmoo.com/search/keyword?q=${q}`;
+    case "google_books":
+      return `https://books.google.com/books?q=${q}`;
+    case "google_play":
+      return `https://play.google.com/store/search?q=${q}&c=books`;
+    case "open_library":
+    default:
+      return `https://openlibrary.org/search?q=${q}`;
+  }
 }
 
 export function displayRate(average, count, maxScore = 5) {
@@ -60,6 +97,7 @@ export function getWorkExternalUrl(key) {
   }
   if (key.startsWith("db:")) return `https://book.douban.com/subject/${key.slice(3)}/`;
   if (key.startsWith("dbapi:")) return `https://book.douban.com/subject/${key.slice(6)}/`;
+  if (key.startsWith("am:")) return `https://www.amazon.com/dp/${key.slice(3)}`;
   if (key.startsWith("amjp:")) return `https://www.amazon.co.jp/dp/${key.slice(5)}`;
   if (key.startsWith("sg:")) return `https://app.thestorygraph.com/books/${key.slice(3)}`;
   if (key.startsWith("rm:")) return `https://readmoo.com/book/${key.slice(3)}`;

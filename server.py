@@ -1,5 +1,5 @@
 from typing import List, Optional
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import StreamingResponse
 import json
@@ -7,6 +7,7 @@ import os
 import uvicorn
 
 from book_rate.aggregator import BookAggregator
+from book_rate.sources.base import SourceNetworkError
 
 app = FastAPI(title="BookRate Aggregator")
 
@@ -30,7 +31,11 @@ def api_search(
             inst = aggregator.source_instances.get(e_key)
             if inst and hasattr(inst, "cooldown"):
                 inst.cooldown = cooldown
-    return aggregator.search_works(q, page=page, active_title_sources=active_title_sources, google_key=google_key)
+    try:
+        return aggregator.search_works(q, page=page, active_title_sources=active_title_sources, google_key=google_key)
+    except SourceNetworkError as sne:
+        status = getattr(sne, "status_code", 403) or 403
+        raise HTTPException(status_code=status, detail=str(sne))
 
 @app.get("/api/work-editions")
 def api_work_editions(

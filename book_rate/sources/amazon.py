@@ -85,12 +85,48 @@ class AmazonSource(BaseSource):
             book_url = f"{self.BASE_DOMAIN}/dp/{asin}" if asin else f"{self.SEARCH_URL}?k={quote_plus(clean_query)}&i=stripbooks"
 
         # Author extraction
-        author_match = (
-            re.search(r'by\s+<a[^>]*>(.*?)</a>', block, re.IGNORECASE) or
-            re.search(r'(?:著者|作者|著)\s*[:：]?\s*<a[^>]*>(.*?)</a>', block) or
-            re.search(r'<span class="a-size-base"[^>]*>\s*by\s+(.*?)\s*</span>', block, re.IGNORECASE)
+        author_name = "Unknown"
+        sub_match = (
+            re.search(r'</h2>.*?<div class="a-row[^"]*a-color-secondary[^"]*">(.*?)</div>\s*</div>', block, re.DOTALL) or
+            re.search(r'</h2>.*?<div class="a-row">(.*?)</div>', block, re.DOTALL)
         )
-        author_name = html.unescape(re.sub(r'<[^>]+>', '', author_match.group(1)).strip()) if author_match else "Unknown"
+        if sub_match:
+            row_content = sub_match.group(1)
+            parts = [p.strip() for p in re.split(r'\||<span[^>]*class="[^"]*a-letter-space[^"]*"[^>]*>', row_content) if p.strip()]
+            for p in parts:
+                clean_p = html.unescape(re.sub(r'<[^>]+>', '', p)).strip()
+                if not clean_p:
+                    continue
+                if re.match(r'^by\s+', clean_p, re.IGNORECASE):
+                    val = re.sub(r'^by\s+', '', clean_p, flags=re.IGNORECASE).strip()
+                    val = re.sub(r'\s+', ' ', val)
+                    if val:
+                        author_name = val
+                        break
+                if re.match(r'^(?:著者|作者|著)\s*[:：]?\s*', clean_p):
+                    val = re.sub(r'^(?:著者|作者|著)\s*[:：]?\s*', '', clean_p).strip()
+                    val = re.sub(r'\s+', ' ', val)
+                    if val:
+                        author_name = val
+                        break
+                if not re.search(r'\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|\d{4}/\d{1,2}/\d{1,2}|\d{4}年|Book \d|Collects books)\b', clean_p, re.IGNORECASE):
+                    if len(clean_p) > 1 and not clean_p.isdigit():
+                        val = re.sub(r'\s+', ' ', clean_p)
+                        author_name = val
+                        break
+
+        if author_name == "Unknown":
+            direct_match = (
+                re.search(r'by\s+(?:<[^>]+>\s*)*<a[^>]*>(.*?)</a>', block, re.IGNORECASE) or
+                re.search(r'(?:著者|作者|著)\s*[:：]?\s*(?:<[^>]+>\s*)*<a[^>]*>(.*?)</a>', block) or
+                re.search(r'href="[^"]*/e/[A-Z0-9]+[^"]*"[^>]*>(.*?)</a>', block) or
+                re.search(r'href="[^"]*/author/[^"]*"[^>]*>(.*?)</a>', block)
+            )
+            if direct_match:
+                val = html.unescape(re.sub(r'<[^>]+>', '', direct_match.group(1)).strip())
+                val = re.sub(r'\s+', ' ', val)
+                if val:
+                    author_name = val
 
         # Rating extraction
         rate_match = (

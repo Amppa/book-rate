@@ -291,3 +291,16 @@ a.candidate-meta:hover {
   padding: var(--space-1) 0;
   background: var(--surface-card);
 }
+
+/* WAF Challenge / Anti-Bot Alert Link */
+.waf-alert-link {
+  color: var(--text-muted);
+  font-size: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color var(--transition-fast);
+}
+
+.waf-alert-link:hover {
+  color: var(--text-primary);
+}

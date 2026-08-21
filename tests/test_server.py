@@ -47,6 +47,14 @@ class TestServerAPI(unittest.TestCase):
         self.assertEqual(data[1]["key"], "gb:GB123")
         self.assertEqual(data[1]["title"], "Mock Book GB")
 
+    @patch("server.aggregator.search_works")
+    def test_api_search_waf_error(self, mock_search):
+        from book_rate.sources.base import SourceNetworkError
+        mock_search.side_effect = SourceNetworkError("WAF Challenge", status_code=403)
+        response = self.client.get("/api/search?q=test&engines=amazon_jp")
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["detail"], "WAF Challenge")
+
     @patch("server.aggregator.open_library.fetch_editions")
     def test_api_work_editions(self, mock_fetch_editions):
         mock_fetch_editions.return_value = [

@@ -82,11 +82,11 @@ class BaseSource:
 
         try:
             cmd = [
-                "curl.exe", "-s", "-L",
+                "curl.exe", "-s", "-L", "--compressed",
                 "-A", req_headers.get("User-Agent", self.DEFAULT_USER_AGENT),
             ]
             for h_key, h_val in req_headers.items():
-                if h_key.lower() != "user-agent":
+                if h_key.lower() not in ("user-agent", "accept-encoding"):
                     cmd.extend(["-H", f"{h_key}: {h_val}"])
             cmd.append(url)
 
