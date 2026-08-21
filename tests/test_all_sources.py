@@ -94,6 +94,72 @@ class TestAllSourcesUnit(unittest.TestCase):
         self.assertIsNotNone(rating)
         self.assertEqual(rating.source_name, "Amazon JP")
 
+    @patch("book_rate.sources.base.BaseSource._fetch_html")
+    def test_google_play_source_parsing(self, mock_fetch_html):
+        detail_html = """
+        <script type="application/ld+json">
+        {
+            "@context": "http://schema.org",
+            "@type": "Book",
+            "name": "&quot;Harry Potter and the Sorcerer&#39;s Stone™&quot; -- Selected Themes from the Motion Picture (Solo, Duet, Trio): For B-Flat Clarinet",
+            "author": [
+                {"@type": "Person", "name": "John Williams"},
+                {"@type": "Person", "name": "Victor López"}
+            ],
+            "aggregateRating": {
+                "@type": "AggregateRating",
+                "ratingValue": "4.4",
+                "ratingCount": "648"
+            }
+        }
+        </script>
+        """
+        mock_fetch_html.return_value = (detail_html, True)
+        source = GooglePlaySource()
+        rate, count, used_curl, title, author = source._parse_play_details("q0nABgAAQBAJ")
+        self.assertEqual(title, "\"Harry Potter and the Sorcerer's Stone™\" -- Selected Themes from the Motion Picture (Solo, Duet, Trio): For B-Flat Clarinet")
+        self.assertEqual(author, "John Williams, Victor López")
+        self.assertEqual(rate, 4.4)
+        self.assertEqual(count, 648)
+        self.assertTrue(used_curl)
+
+    @patch("book_rate.sources.base.BaseSource._fetch_html")
+    def test_google_play_search_works(self, mock_fetch_html):
+        search_html = """
+        <a href="/store/books/details/John_Williams_Harry_Potter_and_the_Sorcerer_s_Ston?id=q0nABgAAQBAJ">
+            <div title="&quot;Harry Potter and the Sorcerer&#39;s Stone™&quot; -- Selected Themes from the Motion Picture (Solo, Duet, Trio): For B-Flat Clarinet">
+                <div class="Epkrse ">&quot;Harry Potter and the Sorcerer&#39;s Stone™&quot; -- Selected Themes from the Motion Picture (Solo, Duet, Trio): For B-Flat Clarinet</div>
+            </div>
+        </a>
+        """
+        detail_html = """
+        <script type="application/ld+json">
+        {
+            "@context": "http://schema.org",
+            "@type": "Book",
+            "name": "&quot;Harry Potter and the Sorcerer&#39;s Stone™&quot; -- Selected Themes from the Motion Picture (Solo, Duet, Trio): For B-Flat Clarinet",
+            "author": [{"@type": "Person", "name": "John Williams"}],
+            "aggregateRating": {"@type": "AggregateRating", "ratingValue": "4.4", "ratingCount": "648"}
+        }
+        </script>
+        """
+        def fetch_side_effect(url, *args, **kwargs):
+            if "search" in url:
+                return (search_html, True)
+            return (detail_html, True)
+
+        mock_fetch_html.side_effect = fetch_side_effect
+        source = GooglePlaySource()
+        works = source.search_works("Harry Potter", limit=1)
+        self.assertEqual(len(works), 1)
+        self.assertEqual(works[0].work_id, "play:q0nABgAAQBAJ")
+        self.assertEqual(works[0].title, "\"Harry Potter and the Sorcerer's Stone™\" -- Selected Themes from the Motion Picture (Solo, Duet, Trio): For B-Flat Clarinet")
+        self.assertEqual(works[0].author, "John Williams")
+        self.assertIn("Google Play", works[0].ratings)
+        self.assertEqual(works[0].ratings["Google Play"].rate, 4.4)
+        self.assertEqual(works[0].ratings["Google Play"].rating_count, 648)
+
+
 
 from book_rate.orchestrator import RatingOrchestrator
 from book_rate.models import RatingRequestPayload
