@@ -59,6 +59,68 @@ class AmazonSource(BaseSource):
     def name(self) -> str:
         return self._name
 
+    @staticmethod
+    def _is_date_text(text: str) -> bool:
+        """Check if a string represents a publication date or year format."""
+        clean = text.strip()
+        if not clean:
+            return False
+        if re.search(r'^\d{4}[-/年]\d{1,2}(?:[-/月]\d{1,2})?(?:日)?(?:\s*出版)?$', clean):
+            return True
+        if re.search(r'^\d{4}\s*(?:年|出版|年出版)?$', clean):
+            return True
+        if re.search(r'^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{1,2},? \d{4}$', clean, re.IGNORECASE):
+            return True
+        if re.search(r'^\d{1,2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{4}$', clean, re.IGNORECASE):
+            return True
+        if re.search(r'^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{4}$', clean, re.IGNORECASE):
+            return True
+        return False
+
+    @staticmethod
+    def _is_non_author_text(text: str) -> bool:
+        """Check if a string is non-author metadata (edition format, series, date, stock status, etc.)."""
+        clean = text.strip()
+        if not clean:
+            return True
+
+        # 1. Stock / Availability / Shopping status
+        if re.search(r'^(?:現在在庫切れです[。.]?|在庫あり|一時的に在庫切れ|通常.*以内に発送|残り\d+点|Currently unavailable[.]?|Out of stock[.]?|In Stock[.]?|Prime|Kindle Unlimited)$', clean, re.IGNORECASE):
+            return True
+
+        # 2. Date / Publication formats
+        if AmazonSource._is_date_text(clean):
+            return True
+
+        # 3. Series format
+        if re.search(r'^(?:全\d+[巻冊部]の第\d+[巻冊部].*|第\d+[巻冊部分].*|全\d+[巻冊部].*|Book \d+.*|Volume \d+.*|Vol\.\s*\d+.*|Part \d+.*|Series \d+.*|\d+[巻冊]セット.*)$', clean, re.IGNORECASE):
+            return True
+
+        # 4. Language / Edition format / Media type
+        edition_keywords = (
+            r'版|版本|Edition|Version|語版|語版本|Kindle|Audible|単行本|文庫|新書|ペーパーバック|'
+            r'ハードカバー|大型本|オンデマンド|コミック|雑誌|CD|DVD|Blu-ray|'
+            r'Paperback|Hardcover|Audiobook|Board book|洋書|原書|Mass Market|'
+            r'Tankobon|Spiral-bound|Flexibound|電子書籍|ソフトカバー'
+        )
+        if re.search(r'^(?:(?:[\u4e00-\u9fa5\u3040-\u30ff\w\s\(\)（）\-_/]+)?(?:' + edition_keywords + r')[\u4e00-\u9fa5\u3040-\u30ff\w\s\(\)（）\-_/]*)$', clean, re.IGNORECASE):
+            return True
+
+        # 5. Rating / Reviews / Price info
+        if re.search(r'^(?:星\s*[\d\.]+|[\d\.]+\s*(?:out of 5 stars|顆星|星)|[\d,]+\s*(?:人評價|ratings|個の評価|件のレビュー|件のカスタマーレビュー)|カスタマーレビュー)$', clean, re.IGNORECASE):
+            return True
+
+        return False
+
+    @staticmethod
+    def _clean_author_name(author_str: str) -> str:
+        """Clean author string by removing common prefixes, suffixes, and extra spaces."""
+        val = author_str.strip()
+        val = re.sub(r'^(?:by\s+|作者\s*[:：]?\s*|著者\s*[:：]?\s*|著\s*[:：]\s*)', '', val, flags=re.IGNORECASE).strip()
+        val = re.sub(r'\s*(?:著|原著|等著|等訳)$', '', val).strip()
+        val = re.sub(r'\s+', ' ', val).strip()
+        return val
+
     def _parse_search_block(self, block: str, clean_query: str) -> Optional[Work]:
         """Parse an Amazon search result HTML item block into a Work object."""
         title_match = (
@@ -88,44 +150,79 @@ class AmazonSource(BaseSource):
         author_name = "Unknown"
         sub_match = (
             re.search(r'</h2>.*?<div class="a-row[^"]*a-color-secondary[^"]*">(.*?)</div>\s*</div>', block, re.DOTALL) or
-            re.search(r'</h2>.*?<div class="a-row">(.*?)</div>', block, re.DOTALL)
+            re.search(r'</h2>.*?<div class="a-row[^"]*">(.*?)</div>', block, re.DOTALL) or
+            re.search(r'</h2>.*?<div[^>]*data-cy="title-recipe"[^>]*>.*?<div class="a-row[^"]*">(.*?)</div>', block, re.DOTALL)
         )
         if sub_match:
             row_content = sub_match.group(1)
-            parts = [p.strip() for p in re.split(r'\||<span[^>]*class="[^"]*a-letter-space[^"]*"[^>]*>', row_content) if p.strip()]
-            for p in parts:
-                clean_p = html.unescape(re.sub(r'<[^>]+>', '', p)).strip()
-                if not clean_p:
-                    continue
-                if re.match(r'^by\s+', clean_p, re.IGNORECASE):
-                    val = re.sub(r'^by\s+', '', clean_p, flags=re.IGNORECASE).strip()
-                    val = re.sub(r'\s+', ' ', val)
-                    if val:
-                        author_name = val
-                        break
-                if re.match(r'^(?:著者|作者|著)\s*[:：]?\s*', clean_p):
-                    val = re.sub(r'^(?:著者|作者|著)\s*[:：]?\s*', '', clean_p).strip()
-                    val = re.sub(r'\s+', ' ', val)
-                    if val:
-                        author_name = val
-                        break
-                if not re.search(r'\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|\d{4}/\d{1,2}/\d{1,2}|\d{4}年|Book \d|Collects books)\b', clean_p, re.IGNORECASE):
-                    if len(clean_p) > 1 and not clean_p.isdigit():
-                        val = re.sub(r'\s+', ' ', clean_p)
-                        author_name = val
-                        break
+
+            # Check for dedicated author links in metadata row
+            author_link_matches = re.findall(r'<a[^>]*href="[^"]*(?:/e/[A-Z0-9]+|/author/|p_27%3A|field-author)[^"]*"[^>]*>(.*?)</a>', row_content, re.DOTALL)
+            if author_link_matches:
+                authors = [self._clean_author_name(html.unescape(re.sub(r'<[^>]+>', '', a))) for a in author_link_matches]
+                authors = [a for a in authors if a and not self._is_non_author_text(a)]
+                if authors:
+                    author_name = ", ".join(authors)
+
+            if author_name == "Unknown":
+                parts = [p.strip() for p in re.split(r'\||<span[^>]*class="[^"]*a-letter-space[^"]*"[^>]*>', row_content) if p.strip()]
+
+                # Date-preceding heuristic: the segment right before the publication date is very likely the author(s)
+                for idx, p in enumerate(parts):
+                    clean_p = html.unescape(re.sub(r'<[^>]+>', '', p)).strip()
+                    if self._is_date_text(clean_p) and idx > 0:
+                        prev_part = parts[idx - 1]
+                        prev_links = re.findall(r'<a[^>]*href="[^"]*(?:/e/[A-Z0-9]+|/author/|p_27%3A|field-author)[^"]*"[^>]*>(.*?)</a>', prev_part, re.DOTALL)
+                        if prev_links:
+                            prev_authors = [self._clean_author_name(html.unescape(re.sub(r'<[^>]+>', '', a))) for a in prev_links]
+                            prev_authors = [a for a in prev_authors if a and not self._is_non_author_text(a)]
+                            if prev_authors:
+                                author_name = ", ".join(prev_authors)
+                                break
+                        clean_prev = html.unescape(re.sub(r'<[^>]+>', '', prev_part)).strip()
+                        if not self._is_non_author_text(clean_prev):
+                            val = self._clean_author_name(clean_prev)
+                            if val and len(val) > 1 and not val.isdigit():
+                                author_name = val
+                                break
+
+                # Fallback: scan across all parts
+                if author_name == "Unknown":
+                    candidates = []
+                    for p in parts:
+                        clean_p = html.unescape(re.sub(r'<[^>]+>', '', p)).strip()
+                        if not clean_p:
+                            continue
+                        if re.match(r'^(?:by\s+|作者\s*[:：]?|著者\s*[:：]?)', clean_p, re.IGNORECASE):
+                            val = self._clean_author_name(clean_p)
+                            if val and not self._is_non_author_text(val):
+                                author_name = val
+                                break
+                        if self._is_non_author_text(clean_p):
+                            continue
+                        val = self._clean_author_name(clean_p)
+                        if val and len(val) > 1 and not val.isdigit():
+                            candidates.append(val)
+
+                    if author_name == "Unknown" and candidates:
+                        author_name = candidates[0]
+
+        if author_name == "Unknown":
+            direct_link_match = re.findall(r'<a[^>]*href="[^"]*(?:/e/[A-Z0-9]+|/author/|p_27%3A|field-author)[^"]*"[^>]*>(.*?)</a>', block, re.DOTALL)
+            if direct_link_match:
+                authors = [self._clean_author_name(html.unescape(re.sub(r'<[^>]+>', '', a))) for a in direct_link_match]
+                authors = [a for a in authors if a and not self._is_non_author_text(a)]
+                if authors:
+                    author_name = ", ".join(authors)
 
         if author_name == "Unknown":
             direct_match = (
                 re.search(r'by\s+(?:<[^>]+>\s*)*<a[^>]*>(.*?)</a>', block, re.IGNORECASE) or
-                re.search(r'(?:著者|作者|著)\s*[:：]?\s*(?:<[^>]+>\s*)*<a[^>]*>(.*?)</a>', block) or
-                re.search(r'href="[^"]*/e/[A-Z0-9]+[^"]*"[^>]*>(.*?)</a>', block) or
-                re.search(r'href="[^"]*/author/[^"]*"[^>]*>(.*?)</a>', block)
+                re.search(r'(?:著者|作者)\s*[:：]?\s*(?:<[^>]+>\s*)*<a[^>]*>(.*?)</a>', block)
             )
             if direct_match:
-                val = html.unescape(re.sub(r'<[^>]+>', '', direct_match.group(1)).strip())
-                val = re.sub(r'\s+', ' ', val)
-                if val:
+                val = self._clean_author_name(html.unescape(re.sub(r'<[^>]+>', '', direct_match.group(1))))
+                if val and not self._is_non_author_text(val):
                     author_name = val
 
         # Rating extraction

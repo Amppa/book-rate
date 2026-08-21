@@ -317,6 +317,90 @@ class TestRatingOrchestrator(unittest.TestCase):
         self.assertEqual(work.title, "Harry Potter and the Sorcerer's Stone: Minalima Edition")
         self.assertEqual(work.author, "J.K. Rowling & MinaLima")
 
+    def test_amazon_jp_author_filtering_and_extraction(self):
+        from book_rate.sources.amazon import AmazonJPSource
+        source = AmazonJPSource()
+
+        # 1. Korean Edition format without author
+        block1 = """
+        <div data-component-type="s-search-result" data-asin="8934956151">
+          <h2><span>Thinking, Fast and Slow</span></h2>
+          <div class="a-row a-size-base a-color-secondary"><span>韓国語版</span><span class="a-letter-space"></span><span>|</span><span class="a-letter-space"></span><span>2018/3/29</span></div>
+        </div>
+        """
+        w1 = source._parse_search_block(block1, "Thinking, Fast and Slow")
+        self.assertEqual(w1.author, "Unknown")
+
+        # 2. Chinese version with author link and 著
+        block2 = """
+        <div data-component-type="s-search-result" data-asin="7521766911">
+          <h2><span>思考，快与慢（中文版）</span></h2>
+          <div class="a-row a-size-base a-color-secondary"><a class="a-size-base a-link-normal" href="/Daniel-Kahneman/e/B001ILFNQG">丹尼尔·卡尼曼 Daniel Kahneman</a> 著<span class="a-letter-space"></span><span>|</span><span class="a-letter-space"></span><span>2025-04出版</span></div>
+        </div>
+        """
+        w2 = source._parse_search_block(block2, "思考，快与慢")
+        self.assertEqual(w2.author, "丹尼尔·卡尼曼 Daniel Kahneman")
+
+        # 3. Series format before authors
+        block3 = """
+        <div data-component-type="s-search-result" data-asin="B00ARDNMEQ">
+          <h2><span>ファスト＆スロー （上）</span></h2>
+          <div class="a-row a-size-base a-color-secondary"><a href="/gp/product/B0716S2Z29">全2巻の第1巻: ファスト＆スロー</a><span class="a-letter-space"></span><span>|</span><span class="a-letter-space"></span><a href="/Daniel-Kahneman/e/B001ILFNQG">ダニエル・カーネマン</a> (著), <a href="/Akiko-Murai/e/B004L4659O">村井章子</a> (翻訳)<span class="a-letter-space"></span><span>|</span><span class="a-letter-space"></span><span>2012/11/20</span></div>
+        </div>
+        """
+        w3 = source._parse_search_block(block3, "ファスト＆スロー")
+        self.assertEqual(w3.author, "ダニエル・カーネマン, 村井章子")
+
+        # 4. Chinese Edition with format + author + date
+        block4 = """
+        <div data-component-type="s-search-result" data-asin="7508633555">
+          <h2><span>Thinking. Fast and Slow (Chinese Edition)</span></h2>
+          <div class="a-row a-size-base a-color-secondary"><span>中文版本</span><span class="a-letter-space"></span><span>|</span><span class="a-letter-space"></span><a href="/Daniel-Kahneman/e/B001ILFNQG">Daniel Kahneman</a><span class="a-letter-space"></span><span>|</span><span class="a-letter-space"></span><span>2011-10出版</span></div>
+        </div>
+        """
+        w4 = source._parse_search_block(block4, "Thinking. Fast and Slow")
+        self.assertEqual(w4.author, "Daniel Kahneman")
+
+        # 5. Out of stock notice in row
+        block5 = """
+        <div data-component-type="s-search-result" data-asin="B0716S2Z29">
+          <h2><span>ファスト&スロー 文庫 (上)(下)セット</span></h2>
+          <div class="a-row a-size-base a-color-secondary"><span>現在在庫切れです。</span></div>
+        </div>
+        """
+        w5 = source._parse_search_block(block5, "ファスト&スロー")
+        self.assertEqual(w5.author, "Unknown")
+
+        # 6. Plain text author without link in metadata row
+        block6 = """
+        <div data-component-type="s-search-result" data-asin="1516869443">
+          <h2><span>Thinking, Fast and Slow: By Daniel Kahneman (Trivia-on-Books)</span></h2>
+          <div class="a-row a-size-base a-color-secondary"><span>英語版</span><span class="a-letter-space"></span><span>|</span><span class="a-letter-space"></span><span>Trivia-on-Books</span><span class="a-letter-space"></span><span>|</span><span class="a-letter-space"></span><span>2015/8/20</span></div>
+        </div>
+        """
+        w6 = source._parse_search_block(block6, "Trivia-on-Books")
+        self.assertEqual(w6.author, "Trivia-on-Books")
+
+        # 7. Multiple plain text authors before date (e.g. 2013-02出版)
+        block7 = """
+        <div data-component-type="s-search-result" data-asin="1234567890">
+          <h2><span>Thinking, Fast and Slow (Co-authored)</span></h2>
+          <div class="a-row a-size-base a-color-secondary"><span>中文版本</span><span class="a-letter-space"></span><span>|</span><span class="a-letter-space"></span><span>Daniel Kahneman, Amos Tversky</span><span class="a-letter-space"></span><span>|</span><span class="a-letter-space"></span><span>2013-02出版</span></div>
+        </div>
+        """
+        w7 = source._parse_search_block(block7, "Thinking, Fast and Slow")
+        self.assertEqual(w7.author, "Daniel Kahneman, Amos Tversky")
+
+        # 8. Multiple linked authors before date
+        block8 = """
+        <div data-component-type="s-search-result" data-asin="0987654321">
+          <h2><span>Thinking, Fast and Slow (Co-authored Links)</span></h2>
+          <div class="a-row a-size-base a-color-secondary"><span>中文版本</span><span class="a-letter-space"></span><span>|</span><span class="a-letter-space"></span><a href="/Daniel-Kahneman/e/B001ILFNQG">Daniel Kahneman</a>, <a href="/Amos-Tversky/e/B002ILFNQG">Amos Tversky</a><span class="a-letter-space"></span><span>|</span><span class="a-letter-space"></span><span>2013-02出版</span></div>
+        </div>
+        """
+        w8 = source._parse_search_block(block8, "Thinking, Fast and Slow")
+        self.assertEqual(w8.author, "Daniel Kahneman, Amos Tversky")
+
     @patch("book_rate.sources.goodreads.GoodreadsSource._fetch_html")
     def test_goodreads_autocomplete_search_parsing(self, mock_fetch_html):
         import json
