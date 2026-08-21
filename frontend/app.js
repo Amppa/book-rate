@@ -111,25 +111,6 @@ function initSearchMode() {
 }
 initSearchMode();
 
-// ---------------------------------------------------------------------------
-// Search helpers
-// ---------------------------------------------------------------------------
-function updateManualSearchLinks(query) {
-  const q = (query || "").trim();
-  const isbndbLink = document.querySelector("#manual-isbndb-link");
-  const isbnsearchLink = document.querySelector("#manual-isbnsearch-link");
-  const amazonLink = document.querySelector("#manual-amazon-link");
-  if (q) {
-    const encoded = encodeURIComponent(q);
-    if (isbndbLink) isbndbLink.href = `https://isbndb.com/search/books/${encoded}`;
-    if (isbnsearchLink) isbnsearchLink.href = `https://isbnsearch.org/search?s=${encoded}`;
-    if (amazonLink) amazonLink.href = `https://www.amazon.com/s?k=${encoded}&i=stripbooks`;
-  } else {
-    if (isbndbLink) isbndbLink.href = "https://isbndb.com/";
-    if (isbnsearchLink) isbnsearchLink.href = "https://isbnsearch.org/";
-    if (amazonLink) amazonLink.href = "https://www.amazon.com/s?i=stripbooks";
-  }
-}
 
 function updateSourceHint(titleSource) {
   const hintEl = document.querySelector("#source-hint");
@@ -240,7 +221,6 @@ async function searchWorks(query, page, titleSource = "open_library") {
   candidateHeading.hidden = false;
   goToStep(2);
   updateTitleSourceTabs(titleSource);
-  updateManualSearchLinks(query);
 
   if (page === 1) {
     saveHistory(query);
