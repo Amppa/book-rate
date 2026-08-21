@@ -6,7 +6,7 @@ import urllib.parse
 from typing import List, Optional
 
 from book_rate.models import Work, Edition, SourceRating, SourceStatus
-from book_rate.sources.base import BaseSource
+from book_rate.sources.base import BaseSource, SourceNetworkError
 
 logger = logging.getLogger(__name__)
 
@@ -171,6 +171,8 @@ class StoryGraphSource(BaseSource):
                 search_html, search_used_curl = str(fetch_res), False
 
             if not search_html:
+                if self.last_network_error:
+                    raise SourceNetworkError(self.last_network_error, status_code=403)
                 return []
 
             book_matches = re.findall(r'href="(/books/([a-f0-9\-]{36}))">([^<]+)</a>', search_html)

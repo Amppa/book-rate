@@ -91,21 +91,50 @@ class BaseSource:
             cmd.append(url)
 
             output = subprocess.check_output(cmd, timeout=self.timeout)
-            return output.decode("utf-8", errors="ignore"), True
+            html_str = output.decode("utf-8", errors="ignore")
+            if any(sig in html_str for sig in (
+                "challenges.cloudflare.com",
+                "<title>Just a moment...</title>",
+                "_cf_chl_opt",
+                "bm-verify",
+                "triggerInterstitialChallenge",
+                "客端連線已超出系統允許數量",
+            )):
+                logger.warning(f"{self.name} encountered WAF / bot challenge for '{url}'")
+                self.last_network_error = "WAF Challenge"
+                raise SourceNetworkError("WAF Challenge", status_code=403)
+            return html_str, True
         except Exception as e:
+            if isinstance(e, SourceNetworkError):
+                raise e
             logger.warning(f"Failed to fetch HTML via curl for URL '{url}': {e}")
             self.last_network_error = f"curl Error: {type(e).__name__}"
             try:
                 resp = self.session.get(url, headers=req_headers, timeout=self.timeout)
                 resp.raise_for_status()
-                return resp.text, False
+                html_str = resp.text
+                if any(sig in html_str for sig in (
+                    "challenges.cloudflare.com",
+                    "<title>Just a moment...</title>",
+                    "_cf_chl_opt",
+                    "bm-verify",
+                    "triggerInterstitialChallenge",
+                    "客端連線已超出系統允許數量",
+                )):
+                    logger.warning(f"{self.name} encountered WAF / bot challenge for '{url}'")
+                    self.last_network_error = "WAF Challenge"
+                    raise SourceNetworkError("WAF Challenge", status_code=403)
+                return html_str, False
             except Exception as ex:
+                if isinstance(ex, SourceNetworkError):
+                    raise ex
                 logger.warning(f"Fallback requests.get also failed for '{url}': {ex}")
                 import requests
                 if isinstance(ex, requests.exceptions.HTTPError):
                     code = ex.response.status_code
                     if code in (403, 429):
-                        self.last_network_error = SourceStatus.RATE_LIMITED.value
+                        self.last_network_error = "WAF Challenge"
+                        raise SourceNetworkError("WAF Challenge", status_code=code)
                     else:
                         self.last_network_error = f"HTTP Error: {code}"
                 else:
