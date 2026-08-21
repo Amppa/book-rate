@@ -8,7 +8,7 @@ export function fetchJson(url) {
       try {
         const body = await response.json();
         if (body && body.detail) detail = body.detail;
-      } catch (_) {}
+      } catch (_) { }
       const err = new Error(detail);
       err.status = response.status;
       throw err;
@@ -63,11 +63,15 @@ export function displayCount(count) {
   if (count !== null && count !== undefined && !isNaN(cVal) && cVal > 0) {
     let fire = "";
 
-    if (cVal > 2000) {
-      fire = " 🔥🔥🔥🔥";
-    } else if (cVal > 1000) {
+    if (cVal > 100000000) {
+      fire = " 👑👑👑";
+    } else if (cVal > 10000000) {
+      fire = " 👑👑";
+    } else if (cVal > 100000) {
+      fire = " 👑";
+    } else if (cVal > 10000) {
       fire = " 🔥🔥🔥";
-    } else if (cVal > 500) {
+    } else if (cVal > 1000) {
       fire = " 🔥🔥";
     } else if (cVal > 100) {
       fire = " 🔥";
