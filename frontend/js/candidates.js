@@ -225,7 +225,7 @@ export function renderCandidates(works, { onChooseCandidate, onChooseEdition } =
     }
 
     const extUrl = getWorkExternalUrl(work.key);
-    const metaText = [authorText, publishText, ratingText].filter(Boolean).join(" · ") + (extUrl ? " ↗" : "");
+    const metaText = [authorText, publishText, ratingText].filter(Boolean).join(" · ");
     const metaLink = fragment.querySelector(".candidate-meta");
     if (metaLink) {
       metaLink.textContent = metaText;

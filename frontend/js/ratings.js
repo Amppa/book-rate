@@ -146,7 +146,7 @@ function _buildTitleElement(title, url) {
   if (!title) return null;
   const el = document.createElement(url ? "a" : "div");
   el.className = "source-book-title";
-  el.textContent = url ? `${title} ↗` : title;
+  el.textContent = title;
   if (url) {
     el.href = url;
     el.target = "_blank";
