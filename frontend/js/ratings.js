@@ -130,7 +130,7 @@ function _resolveRatingDisplay(itemData, maxRate = 5) {
   if (itemData.url || status === "UNRATED") {
     return {
       rateText: "暫無評分",
-      countText: itemData.count ? displayCount(itemData.count) : "-",
+      countText: itemData.count ? displayCount(itemData.count) : "目前0評價",
       status: "UNRATED"
     };
   }

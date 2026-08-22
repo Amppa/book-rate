@@ -64,11 +64,11 @@ export function displayCount(count) {
     let fire = "";
 
     if (cVal > 100000000) {
-      fire = " 👑👑👑";
+      fire = " 🏆🏆🏆";
     } else if (cVal > 10000000) {
-      fire = " 👑👑";
+      fire = " 🏆🏆";
     } else if (cVal > 100000) {
-      fire = " 👑";
+      fire = " 🏆";
     } else if (cVal > 10000) {
       fire = " 🔥🔥🔥";
     } else if (cVal > 1000) {
