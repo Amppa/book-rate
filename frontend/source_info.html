@@ -15,178 +15,164 @@
       <button type="button" id="close-source-info-btn" class="close-btn">&times;</button>
     </div>
     <div class="modal-body">
-      <p class="note">※ 除了 Open Library 和 Google Books，其他來源無提供 API，需用爬蟲爬分數，可能會因為網頁改版而失效。</p>
+      <p class="note">※ 除了 Open Library、Google Books和豆瓣，其他來源無提供 API，需用爬蟲爬分數，可能會因為網頁改版而失效。</p>
       <div class="table-wrap">
         <table class="source-info-table">
           <thead>
             <tr>
-              <th style="width: 15%;">平台名稱</th>
-              <th style="width: 8%;">書籍數量</th>
-              <th style="width: 8%;">找同系列</th>
-              <th style="width: 7%;">中文書</th>
-              <th style="width: 13%;">網友評分量</th>
-              <th style="width: 10%;">數據取得</th>
-              <th style="width: 10%;">定位</th>
-              <th style="width: 25%;">備註</th>
+              <th style="width: 115px;">平台名稱</th>
+              <th style="width: 70px;">定位</th>
+              <th style="width: 65px;">書籍數量</th>
+              <th style="width: 65px;">找同系列</th>
+              <th style="width: 65px;">中文書</th>
+              <th style="width: 100px;">網友評分量</th>
+              <th>備註</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td><a href="https://openlibrary.org/" target="_blank" rel="noopener noreferrer">Open Library</a></td>
-              <td>千萬級</td>
-              <td>可</td>
-              <td>弱</td>
-              <td><span class="star-rating">★☆☆☆☆</span></td>
-              <td><span class="tag tag-api">官方 API</span></td>
               <td>圖書館</td>
+              <td>千萬級</td>
+              <td>支持</td>
+              <td>少</td>
+              <td><span class="star-rating">★☆☆☆☆</span></td>
               <td>最佳的書籍資料庫，提供 Edition(Work) 對應。缺點是有些書名因翻譯而有遺漏。</td>
             </tr>
 
             <tr>
               <td><a href="https://books.google.com/" target="_blank" rel="noopener noreferrer">Google Books</a></td>
+              <td>圖書館</td>
               <td>千萬級</td>
-              <td>無</td>
+              <td></td>
               <td>有</td>
               <td><span class="star-rating">☆☆☆☆☆</span></td>
-              <td><span class="tag tag-api">官方 API</span></td>
-              <td>圖書館</td>
               <td>Google書籍資料庫。</td>
             </tr>
 
             <tr>
               <td><a href="https://play.google.com/store/books" target="_blank" rel="noopener noreferrer">Google
                   Play</a></td>
-              <td>千萬級</td>
-              <td>無</td>
-              <td>有</td>
-              <td><span class="star-rating">★☆☆☆☆</span></td>
-              <td><span class="tag tag-web">網頁擷取</span></td>
               <td>網路書店</td>
+              <td>千萬級</td>
+              <td></td>
+              <td>有</td>
+              <td><span class="star-rating">★★☆☆☆</span></td>
               <td>Google play電子書書店</td>
             </tr>
 
             <tr>
               <td><a href="https://www.goodreads.com/" target="_blank" rel="noopener noreferrer">Goodreads</a></td>
+              <td>讀者社群</td>
               <td>未知</td>
-              <td>可</td>
+              <td>支持</td>
               <td>有</td>
               <td><span class="star-rating">★★★★★</span></td>
-              <td><span class="tag tag-web">網頁擷取</span></td>
-              <td>讀者社群</td>
               <td>全球最大的讀者社群（1.5億用戶），英文作品評價極多（偶有灌水、抹黑）。2006創立，2013被Amazon併購，2016收購Shelfari。</td>
             </tr>
 
             <tr>
               <td><a href="https://app.thestorygraph.com/" target="_blank" rel="noopener noreferrer">StoryGraph</a></td>
+              <td>讀者社群</td>
               <td>未知</td>
-              <td>可</td>
+              <td>支持</td>
               <td>無</td>
               <td><span class="star-rating">★★★★☆</span></td>
-              <td><span class="tag tag-web">網頁擷取</span></td>
-              <td>讀者社群</td>
-              <td>新興讀者社群，goodreads的競爭者。2019，一名牛津大學文組黑人女性創立，主打更貼近讀者。</td>
+              <td>新興讀者社群，Goodreads的競爭者。2019 由黑人女性創立，主打更貼近讀者。</td>
             </tr>
 
             <tr>
               <td><a href="https://www.amazon.com/s?i=stripbooks" target="_blank" rel="noopener noreferrer">Amazon</a>
               </td>
+              <td>網路書店</td>
               <td>千萬級</td>
-              <td>無</td>
+              <td></td>
               <td>有</td>
               <td><span class="star-rating">★★★☆☆</span></td>
-              <td><span class="tag tag-web">網頁擷取</span></td>
-              <td>網路書店</td>
-              <td>世界最大的書籍銷售平台(包含實體書與電子書kindle)，分數和goodreads分開。缺點：商品概念、資料零散。</td>
+              <td>世界最大的書籍銷售平台（包含實體書與電子書kindle），書籍較零散。有些網友不喜歡Amazon的商業化經營模式。</td>
             </tr>
 
             <tr>
               <td><a href="https://www.amazon.co.jp/s?i=stripbooks" target="_blank" rel="noopener noreferrer">Amazon
                   Japan</a></td>
+              <td>網路書店</td>
               <td>百萬級</td>
-              <td>無</td>
+              <td></td>
               <td>有</td>
               <td><span class="star-rating">★★☆☆☆</span></td>
-              <td><span class="tag tag-web">網頁擷取</span></td>
-              <td>網路書店</td>
               <td>日本 Amazon。</td>
             </tr>
 
             <tr>
               <td><a href="https://book.douban.com/" target="_blank" rel="noopener noreferrer">豆瓣讀書</a></td>
+              <td>讀者社群</td>
               <td>百萬級</td>
               <td>較弱</td>
               <td>強</td>
               <td><span class="star-rating">★★★★★</span></td>
-              <td><span class="tag tag-api">官方 API</span><br><span class="tag tag-web">網頁擷取</span></td>
-              <td>讀者社群</td>
               <td>中國最大的讀者社群，評分、書評極多。若加上電影評論網，用戶高達2億。雖然有提供"書籍相關版本"，但基本上不同版本會分開計分。2005年成立。</td>
             </tr>
 
             <tr>
               <td><a href="https://readmoo.com/" target="_blank" rel="noopener noreferrer">Readmoo讀墨</a></td>
+              <td>網路書店</td>
               <td>十萬級</td>
-              <td>無</td>
+              <td></td>
               <td>有</td>
               <td><span class="star-rating">★★★☆☆</span></td>
-              <td><span class="tag tag-web">網頁擷取</span></td>
-              <td>網路書店</td>
               <td>台灣最大的電子書平台，繁體中文書多、書評多。2012年城邦出版社投資成立，推出mooink電子閱讀器。</td>
             </tr>
 
             <tr>
               <td><a href="https://www.books.com.tw/" target="_blank" rel="noopener noreferrer">博客來</a></td>
+              <td>網路書店</td>
               <td>十萬級</td>
-              <td>無</td>
+              <td></td>
               <td>有</td>
               <td><span class="star-rating">★☆☆☆☆</span></td>
-              <td><span class="tag tag-web">網頁擷取</span></td>
-              <td>網路書店</td>
               <td>1995年創立，網路賣書（實體書），2000統一集團成為大股東，2015年開始經營電子書，但App評價UX不佳。</td>
             </tr>
 
             <tr>
               <td><a href="https://www.librarything.com/" target="_blank" rel="noopener noreferrer">libraryThing</a>
               </td>
+              <td>圖書館</td>
               <td>千萬級</td>
-              <td>有</td>
+              <td>支持</td>
               <td>有</td>
               <td><span class="star-rating">★☆☆☆☆</span></td>
-              <td><span class="tag tag-none">暫不支援</span></td>
-              <td>圖書館</td>
-              <td>2006成立於美國波特蘭。Cloudflare 擋爬蟲（嚴格），有提供書名查editions服務（需API key）。網友評分資訊少，且API無法讀取評分。</td>
+              <td>（尚未支援）2006成立於美國波特蘭。Cloudflare 擋爬蟲（嚴格），有提供書名查editions服務（需API key）。網友評分資訊少，且API無法讀取評分。</td>
             </tr>
 
             <tr>
               <td><a href="https://www.anobii.com/" target="_blank" rel="noopener noreferrer">aNobii</a></td>
+              <td>讀者社群</td>
               <td>千萬級</td>
-              <td>有</td>
+              <td></td>
               <td>有</td>
               <td><span class="star-rating">★★☆☆☆</span></td>
-              <td><span class="tag tag-none">暫不支援</span></td>
-              <td>讀者社群</td>
-              <td>2006年香港創立，Web2.0時代最大的中文讀書社群。可惜2010被英國出版社收購後每況愈下。</td>
+              <td>（尚未支援）2006年香港創立，Web2.0時代最大的中文讀書社群。可惜2010被英國出版社收購後每況愈下。</td>
             </tr>
 
             <tr>
               <td><a href="https://bookmeter.com/" target="_blank" rel="noopener noreferrer">Bookmeter</a></td>
+              <td>讀者社群</td>
               <td>未知</td>
               <td>無?</td>
               <td>無</td>
               <td><span class="star-rating">☆☆☆☆☆</span></td>
-              <td><span class="tag tag-none">暫不支援</span></td>
-              <td>讀者社群</td>
-              <td>日本的讀書社群網站，以心得、評論為主，無打分。2008成立，2014被日本出版社角川買下。</td>
+              <td>（尚未支援）日本的讀書社群網站，以心得、評論為主，無打分。2008成立，2014被日本出版社角川買下。</td>
             </tr>
 
             <tr>
               <td><a href="https://www.kobo.com/tw/zh" target="_blank" rel="noopener noreferrer">樂天Kobo</a></td>
+              <td>網路書店</td>
               <td>百萬級</td>
-              <td>無</td>
+              <td></td>
               <td>有</td>
               <td><span class="star-rating">★★☆☆☆</span></td>
-              <td><span class="tag tag-none">暫不支援</span></td>
-              <td>網路書店</td>
-              <td>全球第二大電子書平台，號稱有700萬本外文書、30萬中文書。2009成立於加拿大，2012被日本樂天Rakuten收購，2016進入台灣市場。推出Kobo電子閱讀器，常有優惠，搶佔市場。</td>
+              <td>（尚未支援）全球第二大電子書平台，號稱有700萬本外文書、30萬中文書。2009成立於加拿大，2012被日本樂天Rakuten收購，2016進入台灣市場。推出Kobo電子閱讀器，常有優惠，搶佔市場。
+              </td>
             </tr>
           </tbody>
         </table>

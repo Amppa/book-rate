@@ -339,29 +339,13 @@
   filter: brightness(92%);
 }
 
-.tag {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: var(--radius-sm);
-  font-size: 0.75rem;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.tag-api {
-  background: var(--status-success-bg);
-  color: var(--status-success-text);
-  border: 1px solid var(--status-success-border);
-}
-
-.tag-web {
-  background: var(--status-warning-bg);
-  color: var(--status-warning-text);
-  border: 1px solid var(--status-warning-border);
-}
-
-.tag-none {
-  background: var(--status-info-bg);
-  color: var(--status-info-text);
-  border: 1px solid var(--status-info-border);
+.source-info-table th:nth-child(2),
+.source-info-table td:nth-child(2),
+.source-info-table th:nth-child(3),
+.source-info-table td:nth-child(3),
+.source-info-table th:nth-child(4),
+.source-info-table td:nth-child(4),
+.source-info-table th:nth-child(5),
+.source-info-table td:nth-child(5) {
+  text-align: center;
 }
