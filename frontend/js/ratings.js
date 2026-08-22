@@ -84,159 +84,75 @@ export function renderInitialWorkRow(work) {
 }
 
 /**
- * Renders rating data into a single source column of a work row.
- * Handles multi-result, single-result, error, and quota-exceeded cases.
+ * Resolves display representation (rateText/rateHtml, countText, status) for a source rating.
  */
-export function renderSourceCell(row, prefix, data, maxRate = 5) {
-  const rateEl = row.querySelector(`.${prefix}-rate`);
-  const countEl = row.querySelector(`.${prefix}-count`);
-  if (!rateEl || !countEl) return;
-  if (!data || Object.keys(data).length === 0) return;
-
-  const hasScore = typeof data.average === "number" && data.average > 0;
-  const hasUrl = Boolean(data.url);
-  const status = data.status || (hasScore ? "MATCH" : "NO_MATCH");
+function _resolveRatingDisplay(itemData, maxRate = 5) {
+  const hasScore = typeof itemData.average === "number" && itemData.average > 0;
+  const status = itemData.status || (hasScore ? "MATCH" : (itemData.url ? "UNRATED" : "NO_MATCH"));
   const isNetworkError = status
-    && status !== "MATCH"
-    && status !== "CURL_MATCH"
-    && status !== "NO_MATCH"
-    && status !== "QUOTA_EXCEEDED"
-    && status !== "ERROR";
+    && !["MATCH", "CURL_MATCH", "UNRATED", "NO_MATCH", "NOT_FOUND", "QUOTA_EXCEEDED", "ERROR"].includes(status);
 
-  rateEl.replaceChildren();
-
-  const cell = rateEl.closest("td");
-  if (cell) {
-    const oldTitles = cell.querySelectorAll(".source-book-title");
-    oldTitles.forEach(el => el.remove());
-
-    const oldDirectTags = cell.querySelectorAll(":scope > .search-status-tag, :scope > .source-status-row");
-    oldDirectTags.forEach(el => el.remove());
-
-    // In single-result mode, display the matched title above the rating (as link if url exists)
-    if (data.title && (!data.results || data.results.length === 0)) {
-      const titleEl = document.createElement(data.url ? "a" : "div");
-      titleEl.className = "source-book-title";
-      titleEl.textContent = data.url ? `${data.title} ↗` : data.title;
-      if (data.url) {
-        titleEl.href = data.url;
-        titleEl.target = "_blank";
-        titleEl.rel = "noreferrer";
-      }
-      cell.insertBefore(titleEl, rateEl);
-    }
+  if (itemData.quota_exceeded || status === "QUOTA_EXCEEDED") {
+    return {
+      rateHtml: '<span class="error">額度超限 (429) ⚠️</span>',
+      countText: "請設定 API Key",
+      status: "QUOTA_EXCEEDED"
+    };
   }
-
-  // --- Multi-result mode ---
-  if (data.results && data.results.length > 0) {
-    const listContainer = document.createElement("div");
-    listContainer.className = "multi-result-list";
-
-    data.results.forEach((res) => {
-      const item = document.createElement("div");
-      item.className = "multi-result-item";
-      item.title = `查詢: ${res.query || "N/A"}\n書名: ${res.title || "N/A"}`;
-
-      if (res.title) {
-        const titleEl = document.createElement(res.url ? "a" : "div");
-        titleEl.className = "source-book-title";
-        titleEl.textContent = res.url ? `${res.title} ↗` : res.title;
-        if (res.url) {
-          titleEl.href = res.url;
-          titleEl.target = "_blank";
-          titleEl.rel = "noreferrer";
-        }
-        item.appendChild(titleEl);
-      }
-
-      const strong = document.createElement("strong");
-      const small = document.createElement("small");
-
-      const rScore = typeof res.average === "number" && res.average > 0;
-      let resStatus = res.status || (rScore ? "MATCH" : (res.url ? "UNRATED" : "NOT_FOUND"));
-
-      const isResNetworkError = resStatus
-        && resStatus !== "MATCH"
-        && resStatus !== "CURL_MATCH"
-        && resStatus !== "UNRATED"
-        && resStatus !== "NO_MATCH"
-        && resStatus !== "NOT_FOUND"
-        && resStatus !== "QUOTA_EXCEEDED"
-        && resStatus !== "ERROR";
-
-      const badge = _buildStatusTag(resStatus, res);
-
-      if (resStatus === "QUOTA_EXCEEDED") {
-        badge.textContent = "429 額度";
-        strong.innerHTML = '<span class="error">額度超限 ⚠️</span>';
-        small.textContent = "請設定 API Key";
-      } else if (resStatus === "RATE_LIMITED" || resStatus === "RATE_LIMIT") {
-        badge.textContent = "風控(429/403)";
-        strong.innerHTML = '<span class="error">連線異常(風控) ⚠️</span>';
-        small.textContent = "請求過密或遭阻擋";
-      } else if (resStatus === "ERROR") {
-        badge.textContent = "錯誤";
-        strong.innerHTML = '<span class="error">讀取錯誤 ⚠️</span>';
-        small.textContent = "請檢查主機連線";
-      } else if (isResNetworkError) {
-        badge.textContent = "連線異常";
-        strong.innerHTML = '<span class="error">連線異常 ⚠️</span>';
-        small.textContent = resStatus;
-      } else if (rScore) {
-        const rateText = displayRate(res.average, res.count, maxRate);
-        strong.textContent = rateText;
-        renderCountCell(small, res.count);
-      } else if (res.url || resStatus === "UNRATED") {
-        strong.textContent = "暫無評分";
-        small.textContent = res.count ? displayCount(res.count) : "-";
-      } else {
-        strong.textContent = "無此書籍";
-        small.textContent = "-";
-      }
-
-      item.appendChild(strong);
-      item.appendChild(small);
-      item.appendChild(badge);
-      listContainer.appendChild(item);
-    });
-
-    rateEl.appendChild(listContainer);
-    countEl.replaceChildren();
-    return;
+  if (status === "RATE_LIMITED" || status === "RATE_LIMIT") {
+    return {
+      rateHtml: '<span class="error">連線異常 (風控) ⚠️</span>',
+      countText: "請求過密或遭阻擋",
+      status: "RATE_LIMITED"
+    };
   }
-
-
-  // --- Single-result mode ---
-  if (data.quota_exceeded || status === "QUOTA_EXCEEDED") {
-    rateEl.innerHTML = '<span class="error">額度超限 (429) ⚠️</span>';
-    countEl.textContent = "請在上方設定個人 API Key，或設定環境變數。";
-  } else if (status === "RATE_LIMITED" || status === "RATE_LIMIT") {
-    rateEl.innerHTML = '<span class="error">連線異常 (風控/429) ⚠️</span>';
-    countEl.textContent = "請求過密或遭阻擋";
-  } else if (status === "ERROR") {
-    rateEl.innerHTML = '<span class="error">讀取錯誤 ⚠️</span>';
-    countEl.textContent = "請檢查主機連線。";
-  } else if (isNetworkError) {
-    rateEl.innerHTML = '<span class="error">連線異常 ⚠️</span>';
-    countEl.textContent = status;
-  } else if (hasScore) {
-    const rateText = displayRate(data.average, data.count, maxRate);
-    rateEl.textContent = rateText;
-    renderCountCell(countEl, data.count);
-  } else if (hasUrl || status === "UNRATED") {
-    rateEl.textContent = "暫無評分";
-    countEl.textContent = data.count ? displayCount(data.count) : "-";
-  } else {
-    rateEl.textContent = "無此書籍";
-    countEl.textContent = "-";
+  if (status === "ERROR") {
+    return {
+      rateHtml: '<span class="error">讀取錯誤 ⚠️</span>',
+      countText: "請檢查主機連線",
+      status: "ERROR"
+    };
   }
-
-  if (cell) {
-    const oldDirectTags = cell.querySelectorAll(":scope > .search-status-tag, :scope > .source-status-row");
-    oldDirectTags.forEach(el => el.remove());
-    const tag = _buildStatusTag(status, data);
-    cell.appendChild(tag);
+  if (isNetworkError) {
+    return {
+      rateHtml: '<span class="error">連線異常 ⚠️</span>',
+      countText: status,
+      status: status
+    };
   }
+  if (hasScore) {
+    return {
+      rateText: displayRate(itemData.average, itemData.count, maxRate),
+      countText: displayCount(itemData.count),
+      status: status || "MATCH"
+    };
+  }
+  if (itemData.url || status === "UNRATED") {
+    return {
+      rateText: "暫無評分",
+      countText: itemData.count ? displayCount(itemData.count) : "-",
+      status: "UNRATED"
+    };
+  }
+  return {
+    rateText: "無此書籍",
+    countText: "-",
+    status: "NO_MATCH"
+  };
+}
+
+/** Builds a book title element (rendered as an external link if URL is present). */
+function _buildTitleElement(title, url) {
+  if (!title) return null;
+  const el = document.createElement(url ? "a" : "div");
+  el.className = "source-book-title";
+  el.textContent = url ? `${title} ↗` : title;
+  if (url) {
+    el.href = url;
+    el.target = "_blank";
+    el.rel = "noreferrer";
+  }
+  return el;
 }
 
 /** Builds the strategy/status tooltip tag element. */
@@ -250,6 +166,86 @@ function _buildStatusTag(status, data) {
   const friendlyStrat = STRATEGY_LABEL_MAP[data?.strategy] || data?.strategy || "N/A";
   tag.title = `策略: ${friendlyStrat}, 查詢: ${data?.query || "N/A"}`;
   return tag;
+}
+
+/** Renders multi-result list for Strategy 4/5 into the cell. */
+function _renderMultiResult(rateEl, countEl, results, maxRate) {
+  const listContainer = document.createElement("div");
+  listContainer.className = "multi-result-list";
+
+  results.forEach((res) => {
+    const item = document.createElement("div");
+    item.className = "multi-result-item";
+    item.title = `查詢: ${res.query || "N/A"}\n書名: ${res.title || "N/A"}`;
+
+    const titleEl = _buildTitleElement(res.title, res.url);
+    if (titleEl) item.appendChild(titleEl);
+
+    const display = _resolveRatingDisplay(res, maxRate);
+
+    const strong = document.createElement("strong");
+    if (display.rateHtml) {
+      strong.innerHTML = display.rateHtml;
+    } else {
+      strong.textContent = display.rateText;
+    }
+
+    const small = document.createElement("small");
+    small.textContent = display.countText;
+
+    const badge = _buildStatusTag(display.status, res);
+
+    item.appendChild(strong);
+    item.appendChild(small);
+    item.appendChild(badge);
+    listContainer.appendChild(item);
+  });
+
+  rateEl.appendChild(listContainer);
+  countEl.replaceChildren();
+}
+
+/** Renders single result into the cell. */
+function _renderSingleResult(cell, rateEl, countEl, data, maxRate) {
+  if (data.title) {
+    const titleEl = _buildTitleElement(data.title, data.url);
+    if (titleEl) cell.insertBefore(titleEl, rateEl);
+  }
+
+  const display = _resolveRatingDisplay(data, maxRate);
+
+  if (display.rateHtml) {
+    rateEl.innerHTML = display.rateHtml;
+  } else {
+    rateEl.textContent = display.rateText;
+  }
+  countEl.textContent = display.countText;
+
+  const tag = _buildStatusTag(display.status, data);
+  cell.appendChild(tag);
+}
+
+/**
+ * Renders rating data into a single source column of a work row.
+ * Handles multi-result, single-result, error, and quota-exceeded cases.
+ */
+export function renderSourceCell(row, prefix, data, maxRate = 5) {
+  const rateEl = row.querySelector(`.${prefix}-rate`);
+  const countEl = row.querySelector(`.${prefix}-count`);
+  if (!rateEl || !countEl || !data || Object.keys(data).length === 0) return;
+
+  rateEl.replaceChildren();
+
+  const cell = rateEl.closest("td");
+  if (cell) {
+    cell.querySelectorAll(".source-book-title, :scope > .search-status-tag").forEach(el => el.remove());
+  }
+
+  if (data.results && data.results.length > 0) {
+    _renderMultiResult(rateEl, countEl, data.results, maxRate);
+  } else if (cell) {
+    _renderSingleResult(cell, rateEl, countEl, data, maxRate);
+  }
 }
 
 /** Renders the Open Library rating into the row after the "init" SSE event. */
