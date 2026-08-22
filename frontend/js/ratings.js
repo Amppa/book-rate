@@ -1,6 +1,6 @@
 import { state } from './state.js';
 import { STORAGE_KEYS, SOURCES, SOURCE_PREFIX, OPEN_LIBRARY_BASE_URL, STRATEGY_LABEL_MAP } from './constants.js';
-import { displayRate, displayCount, calculateTitleConfidence } from './utils.js';
+import { displayRate, displayCount } from './utils.js';
 import { getRatingCache, setRatingCache } from './cache.js';
 import { streamWorkDetailsPost } from './api.js';
 import {
@@ -52,13 +52,8 @@ export function initRatings({ resultBody, step3Status, tableWrap, detailsHeading
 // Row / cell builders
 // ---------------------------------------------------------------------------
 
-export function renderCountCell(countEl, countVal, url) {
-  const countText = displayCount(countVal);
-  if (url) {
-    countEl.innerHTML = `<a href="${url}" target="_blank" rel="noreferrer">${countText} ↗</a>`;
-  } else {
-    countEl.textContent = countText;
-  }
+export function renderCountCell(countEl, countVal) {
+  countEl.textContent = displayCount(countVal);
 }
 
 /** Creates an empty <tr> with "Fetching…" placeholders for every source column. */
@@ -110,39 +105,25 @@ export function renderSourceCell(row, prefix, data, maxRate = 5) {
 
   rateEl.replaceChildren();
 
-  // Get all target reference titles for title confidence score calculation
-  const refTitles = [];
-  if (state.currentSelectedWork?.title) {
-    refTitles.push(state.currentSelectedWork.title);
-  }
-  const meta = getStep3Metadata();
-  if (meta) {
-    if (meta.searchName) refTitles.push(meta.searchName);
-    if (meta.titleList) refTitles.push(...meta.titleList);
-    if (meta.titleZhList) refTitles.push(...meta.titleZhList);
-  }
-  const uniqueRefTitles = [...new Set(refTitles.map(t => t.trim()).filter(Boolean))];
-
   const cell = rateEl.closest("td");
   if (cell) {
     const oldTitles = cell.querySelectorAll(".source-book-title");
     oldTitles.forEach(el => el.remove());
 
-    const oldDirectTags = cell.querySelectorAll(":scope > .search-status-tag");
+    const oldDirectTags = cell.querySelectorAll(":scope > .search-status-tag, :scope > .source-status-row");
     oldDirectTags.forEach(el => el.remove());
 
-    // In single-result mode, display the matched title above the rating
+    // In single-result mode, display the matched title above the rating (as link if url exists)
     if (data.title && (!data.results || data.results.length === 0)) {
-      const titleDiv = document.createElement("div");
-      titleDiv.className = "source-book-title";
-      titleDiv.textContent = data.title;
-      cell.insertBefore(titleDiv, rateEl);
-
-      const score = calculateTitleConfidence(data.title, uniqueRefTitles);
-      const scoreDiv = document.createElement("div");
-      scoreDiv.className = "source-book-title";
-      scoreDiv.textContent = `Match: ${score}%`;
-      cell.insertBefore(scoreDiv, rateEl);
+      const titleEl = document.createElement(data.url ? "a" : "div");
+      titleEl.className = "source-book-title";
+      titleEl.textContent = data.url ? `${data.title} ↗` : data.title;
+      if (data.url) {
+        titleEl.href = data.url;
+        titleEl.target = "_blank";
+        titleEl.rel = "noreferrer";
+      }
+      cell.insertBefore(titleEl, rateEl);
     }
   }
 
@@ -157,16 +138,15 @@ export function renderSourceCell(row, prefix, data, maxRate = 5) {
       item.title = `查詢: ${res.query || "N/A"}\n書名: ${res.title || "N/A"}`;
 
       if (res.title) {
-        const titleDiv = document.createElement("div");
-        titleDiv.className = "source-book-title";
-        titleDiv.textContent = res.title;
-        item.appendChild(titleDiv);
-
-        const score = calculateTitleConfidence(res.title, uniqueRefTitles);
-        const scoreDiv = document.createElement("div");
-        scoreDiv.className = "source-book-title";
-        scoreDiv.textContent = `score:(${score}%)`;
-        item.appendChild(scoreDiv);
+        const titleEl = document.createElement(res.url ? "a" : "div");
+        titleEl.className = "source-book-title";
+        titleEl.textContent = res.url ? `${res.title} ↗` : res.title;
+        if (res.url) {
+          titleEl.href = res.url;
+          titleEl.target = "_blank";
+          titleEl.rel = "noreferrer";
+        }
+        item.appendChild(titleEl);
       }
 
       const strong = document.createElement("strong");
@@ -184,9 +164,7 @@ export function renderSourceCell(row, prefix, data, maxRate = 5) {
         && resStatus !== "QUOTA_EXCEEDED"
         && resStatus !== "ERROR";
 
-      const badge = document.createElement("span");
-      const normStatusClass = resStatus.toLowerCase().replace(/[^a-z0-9_]/g, "-");
-      badge.className = `search-status-tag status-${normStatusClass}`;
+      const badge = _buildStatusTag(resStatus, res);
 
       if (resStatus === "QUOTA_EXCEEDED") {
         badge.textContent = "429 額度";
@@ -205,16 +183,13 @@ export function renderSourceCell(row, prefix, data, maxRate = 5) {
         strong.innerHTML = '<span class="error">連線異常 ⚠️</span>';
         small.textContent = resStatus;
       } else if (rScore) {
-        badge.textContent = "MATCH";
         const rateText = displayRate(res.average, res.count, maxRate);
         strong.textContent = rateText;
-        renderCountCell(small, res.count, res.url);
+        renderCountCell(small, res.count);
       } else if (res.url || resStatus === "UNRATED") {
-        badge.textContent = "暫無評分";
         strong.textContent = "暫無評分";
-        small.innerHTML = res.url ? `<a href="${res.url}" target="_blank" rel="noreferrer">連結 ↗</a>` : "-";
+        small.textContent = res.count ? displayCount(res.count) : "-";
       } else {
-        badge.textContent = "無此書籍";
         strong.textContent = "無此書籍";
         small.textContent = "-";
       }
@@ -247,32 +222,33 @@ export function renderSourceCell(row, prefix, data, maxRate = 5) {
   } else if (hasScore) {
     const rateText = displayRate(data.average, data.count, maxRate);
     rateEl.textContent = rateText;
-    renderCountCell(countEl, data.count, data.url);
+    renderCountCell(countEl, data.count);
   } else if (hasUrl || status === "UNRATED") {
     rateEl.textContent = "暫無評分";
-    countEl.innerHTML = data.url ? `<a href="${data.url}" target="_blank" rel="noreferrer">連結 ↗</a>` : "-";
+    countEl.textContent = data.count ? displayCount(data.count) : "-";
   } else {
     rateEl.textContent = "無此書籍";
     countEl.textContent = "-";
   }
 
   if (cell) {
-    const oldDirectTags = cell.querySelectorAll(":scope > .search-status-tag");
+    const oldDirectTags = cell.querySelectorAll(":scope > .search-status-tag, :scope > .source-status-row");
     oldDirectTags.forEach(el => el.remove());
     const tag = _buildStatusTag(status, data);
     cell.appendChild(tag);
   }
 }
 
-/** Builds the strategy/status tooltip tag element appended to each source cell. */
+/** Builds the strategy/status tooltip tag element. */
 function _buildStatusTag(status, data) {
   const tag = document.createElement("span");
-  tag.className = `search-status-tag status-${status.toLowerCase().replace(/[^a-z0-9_]/g, "-")}`;
-  tag.textContent = status;
-  tag.dataset.strat = data.strategy || "";
-  tag.dataset.query = data.query || "";
-  const friendlyStrat = STRATEGY_LABEL_MAP[data.strategy] || data.strategy || "N/A";
-  tag.title = `策略: ${friendlyStrat}, 查詢: ${data.query || "N/A"}`;
+  const normStatusClass = (status || "").toLowerCase().replace(/[^a-z0-9_]/g, "-");
+  tag.className = `search-status-tag status-${normStatusClass}`;
+  tag.textContent = status || "NO_MATCH";
+  tag.dataset.strat = data?.strategy || "";
+  tag.dataset.query = data?.query || "";
+  const friendlyStrat = STRATEGY_LABEL_MAP[data?.strategy] || data?.strategy || "N/A";
+  tag.title = `策略: ${friendlyStrat}, 查詢: ${data?.query || "N/A"}`;
   return tag;
 }
 

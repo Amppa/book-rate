@@ -3,7 +3,7 @@
    ========================================================================== */
 :root {
   /* Fonts & Text Colors */
-  --font-family: Inter, "Noto Sans TC", system-ui, sans-serif;
+  --font-family: "Inter", "Noto Sans TC", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft JhengHei", sans-serif;
   --text-primary: #1d2b25;
   --text-muted: #647068;
   --text-contrast: #ffffff;

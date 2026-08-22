@@ -47,7 +47,7 @@ export function getSourceSearchUrl(sourceId, query) {
 
 export function displayRate(average, count, maxScore = 5) {
   return Number(average) > 0
-    ? `${Number(average).toFixed(1)} / ${maxScore}`
+    ? `⭐ ${Number(average).toFixed(1)} / ${maxScore}`
     : "暫無評分";
 }
 
@@ -78,7 +78,7 @@ export function displayCount(count) {
     }
     return `${formatCompact(cVal)} 人評價${fire}`;
   }
-  return "連結";
+  return "-";
 }
 
 export function getWorkExternalUrl(key) {
