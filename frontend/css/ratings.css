@@ -117,6 +117,7 @@
 
 .table-wrap table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   text-align: left;
 }
@@ -126,6 +127,8 @@
   padding: var(--space-3) var(--space-4);
   vertical-align: top;
   border-bottom: 1px solid var(--border-light);
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .table-wrap th {
