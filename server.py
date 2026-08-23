@@ -58,7 +58,7 @@ def api_work_editions(
 @app.post("/api/work-details")
 def api_work_details_post(payload: RatingRequestPayload):
     logger.info("[POST Details API] locked work '%s' (title='%s', author='%s')", payload.work_id, payload.title, payload.author)
-    return aggregator.orchestrator.evaluate_all(payload)
+    return aggregator.evaluate_ratings(payload)
 
 
 @app.post("/api/work-details-stream")
@@ -66,7 +66,7 @@ def api_work_details_stream_post(payload: RatingRequestPayload):
     logger.info("[POST Stream Details API] locked work '%s' (title='%s', author='%s')", payload.work_id, payload.title, payload.author)
 
     def event_generator():
-        for event in aggregator.orchestrator.evaluate_stream(payload):
+        for event in aggregator.stream_rating_events(payload):
             yield f"data: {json.dumps(event)}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")

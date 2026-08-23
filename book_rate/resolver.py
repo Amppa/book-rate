@@ -92,21 +92,9 @@ class EditionResolver:
         if not work_id:
             return None, "", 0
 
-        prefix_map = {
-            "gr:": "goodreads",
-            "sg:": "storygraph",
-            "db:": "douban",
-            "dbapi:": "douban_api",
-            "am:": "amazon",
-            "amjp:": "amazon_jp",
-            "rm:": "readmoo",
-            "gb:": "google_books",
-            "play:": "google_play",
-            "bk:": "books_tw"
-        }
-        for prefix, s_key in prefix_map.items():
-            if work_id.startswith(prefix):
-                return s_key, work_id, 100
+        prefix, s_key = SourceRegistry.match_id_prefix(work_id)
+        if s_key:
+            return s_key, work_id, 100
 
         if work_id.startswith(("/works/", "OL")) or ":" not in work_id:
             full_id = work_id if work_id.startswith("/works/") else f"/works/{work_id}"

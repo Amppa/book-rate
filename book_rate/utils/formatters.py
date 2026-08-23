@@ -1,5 +1,9 @@
 from typing import List, Optional
 from book_rate.models import Work, Edition, SourceRating, SourceStatus
+from book_rate.registry import SourceRegistry
+
+# Candidate cards surface the crawler status only for these title sources.
+_STATUS_SOURCE_KEYS = ("goodreads", "storygraph", "google_play")
 
 
 def extract_author_list(work: Work) -> List[str]:
@@ -12,12 +16,11 @@ def extract_author_list(work: Work) -> List[str]:
 def format_work_to_dict(work: Work) -> dict:
     """Format Work entity to JSON dictionary structure for candidate listing."""
     status = None
-    if work.work_id.startswith("gr:") and "Goodreads" in work.ratings:
-        status = work.ratings["Goodreads"].status
-    elif work.work_id.startswith("sg:") and "StoryGraph" in work.ratings:
-        status = work.ratings["StoryGraph"].status
-    elif work.work_id.startswith("play:") and "Google Play" in work.ratings:
-        status = work.ratings["Google Play"].status
+    _skey, _ = SourceRegistry.match_id_prefix(work.work_id)
+    if _skey in _STATUS_SOURCE_KEYS:
+        _rating = work.ratings.get(SourceRegistry.get_display_name(_skey))
+        if _rating is not None:
+            status = _rating.status
 
     rating_data = None
     for src_name in ("Douban", "Goodreads", "Google Books", "Open Library"):

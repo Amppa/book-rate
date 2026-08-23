@@ -84,8 +84,10 @@ class WorkPreparer:
         resolved_isbn = None
         crawler_status = {}
 
-        if work_id.startswith("gb:"):
-            volume_id = work_id[3:]
+        prefix, s_key = SourceRegistry.match_id_prefix(work_id)
+
+        if s_key == "google_books":
+            volume_id = work_id[len(prefix):]
             source = gb_source or self.get_source("google_books")
             gb_work = source.fetch_volume_by_id(volume_id)
             crawler_status["google_books"] = "Normal" if gb_work else "Volume not found"
@@ -122,8 +124,8 @@ class WorkPreparer:
 
             return ol_rating, editions, target_work, crawler_status
 
-        if work_id.startswith("db:"):
-            sub_id = work_id[3:]
+        elif s_key == "douban":
+            sub_id = work_id[len(prefix):]
             douban_source = self.get_source("douban")
             details = douban_source.fetch_subject_details(sub_id)
             crawler_status["douban"] = "Normal" if details.get("isbn") else "Details not found"
@@ -146,8 +148,8 @@ class WorkPreparer:
             )
             return ol_rating, editions, target_work, crawler_status
 
-        if work_id.startswith("gr:"):
-            raw_id = work_id[3:]
+        elif s_key == "goodreads":
+            raw_id = work_id[len(prefix):]
             is_work = raw_id.startswith("work/")
             if is_work:
                 parts = raw_id.split("/")
@@ -207,8 +209,8 @@ class WorkPreparer:
             )
             return ol_rating, editions, target_work, crawler_status
 
-        if work_id.startswith("sg:"):
-            book_id = work_id[3:]
+        elif s_key == "storygraph":
+            book_id = work_id[len(prefix):]
             storygraph_source = self.get_source("storygraph")
             details = storygraph_source.fetch_book_details(book_id)
             crawler_status["storygraph"] = details.get("crawler_status") or "Normal"
@@ -237,9 +239,9 @@ class WorkPreparer:
             )
             return ol_rating, editions, target_work, crawler_status
 
-        if work_id.startswith(("am:", "amjp:", "rm:", "bk:")):
-            book_id = work_id.split(":", 1)[1]
-            prov_name = work_id.split(":", 1)[0]
+        elif s_key in ("amazon", "amazon_jp", "readmoo", "books_tw"):
+            book_id = work_id[len(prefix):]
+            prov_name = prefix[:-1]
             crawler_status[prov_name] = "Normal"
             ol_rating, editions = self._apply_ol_mapping(None, resolved_title, resolved_author, active_title_sources)
 

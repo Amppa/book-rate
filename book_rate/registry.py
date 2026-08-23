@@ -50,6 +50,44 @@ class SourceRegistry:
         """Return the list of default title source keys used for fallback search."""
         return list(cls.TITLE_SOURCES)
 
+    # work_id prefix - source key lookup (single source of truth).
+    ID_PREFIXES = {
+        "gr:": "goodreads",
+        "sg:": "storygraph",
+        "db:": "douban",
+        "dbapi:": "douban_api",
+        "am:": "amazon",
+        "amjp:": "amazon_jp",
+        "rm:": "readmoo",
+        "gb:": "google_books",
+        "play:": "google_play",
+        "bk:": "books_tw",
+    }
+
+    _DISPLAY_NAME_CACHE = {}
+
+    @classmethod
+    def match_id_prefix(cls, work_id):
+        """Return (prefix, source_key) for the first known id prefix.
+
+        Returns (None, None) when work_id carries no known platform prefix
+        (e.g. Open Library ids like OL27479W or /works/OL27479W).
+        """
+        if not work_id:
+            return None, None
+        for pfx, key in cls.ID_PREFIXES.items():
+            if work_id.startswith(pfx):
+                return pfx, key
+        return None, None
+
+    @classmethod
+    def get_display_name(cls, key):
+        """Human-readable source name (cached; instantiates the adapter once)."""
+        if key not in cls._DISPLAY_NAME_CACHE:
+            src_cls = cls.get_source_class(key)
+            cls._DISPLAY_NAME_CACHE[key] = src_cls().name if src_cls else None
+        return cls._DISPLAY_NAME_CACHE[key]
+
     @classmethod
     def default_engines_csv(cls):
         """Comma-separated default engines string (all registered sources) for API defaults."""

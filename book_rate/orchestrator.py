@@ -1,7 +1,7 @@
 import json
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Callable, Dict, Generator, List, Optional, Tuple, Any
+from typing import Dict, Generator, List, Optional, Tuple, Any
 
 from book_rate.models import Work, SourceRating, SourceStatus, RatingRequestPayload
 from book_rate.registry import SourceRegistry
@@ -22,12 +22,13 @@ class RatingOrchestrator:
         self,
         registry: Optional[SourceRegistry] = None,
         source_instances: Optional[Dict[str, BaseSource]] = None,
-        resolve_work_fn: Optional[Callable] = None
+        work_preparer: Optional[WorkPreparer] = None
     ):
         self.registry = registry or SourceRegistry()
         self.source_instances = source_instances or {}
-        self._work_preparer = WorkPreparer(registry=self.registry, source_instances=self.source_instances)
-        self.resolve_work_fn = resolve_work_fn
+        # BookAggregator injects its single shared WorkPreparer here so both
+        # layers operate on the same instance; standalone use builds one.
+        self._work_preparer = work_preparer or WorkPreparer(registry=self.registry, source_instances=self.source_instances)
 
     def _get_source(self, key: str, **kwargs) -> Optional[BaseSource]:
         return self.source_instances.get(key) or self.registry.create_source(key, **kwargs)
@@ -66,15 +67,6 @@ class RatingOrchestrator:
     def prepare_target_work(
         self, req: RatingRequestPayload, active_title_sources: List[str]
     ) -> Tuple[Optional[SourceRating], List[Any], Work, Dict[str, str]]:
-        if self.resolve_work_fn:
-            return self.resolve_work_fn(
-                work_id=req.work_id,
-                title=req.title or "",
-                author=req.author or "",
-                active_title_sources=active_title_sources,
-                google_key=req.google_key
-            )
-
         return self._work_preparer.resolve_work_editions_and_ol_rating(
             work_id=req.work_id,
             title=req.title or "",

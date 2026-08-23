@@ -82,7 +82,26 @@ class TestServerAPI(unittest.TestCase):
 
 
 
-    @patch("server.aggregator.resolve_work_editions_and_ol_rating")
+    @patch("book_rate.sources.base.BaseSource.check_connectivity")
+    def test_api_source_status(self, mock_check):
+        # Regression guard: /api/source-status must keep working through the
+        # BookAggregator facade (check_source_status was silently dropped once).
+        mock_check.return_value = (True, "5ms")
+
+        response = self.client.get("/api/source-status?engines=open_library,google_books")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("open_library", data)
+        self.assertIn("google_books", data)
+        self.assertEqual(data["open_library"]["status"], "ok")
+        self.assertEqual(data["google_books"]["status"], "ok")
+
+        # Unknown engines are reported as failed, never dropped from the map.
+        response_unknown = self.client.get("/api/source-status?engines=nonexistent_engine")
+        self.assertEqual(response_unknown.status_code, 200)
+        self.assertEqual(response_unknown.json()["nonexistent_engine"]["status"], "failed")
+
+    @patch("server.aggregator.work_preparer.resolve_work_editions_and_ol_rating")
     @patch("server.aggregator.goodreads.fetch_ratings")
     @patch("server.aggregator.google_books.fetch_ratings")
     def test_post_api_work_details_stream(self, mock_gb_ratings, mock_gr_ratings, mock_resolve):
@@ -127,7 +146,7 @@ class TestServerAPI(unittest.TestCase):
         self.assertEqual(events[-1]["type"], "done")
 
     @patch("book_rate.sources.base.BaseSource.fetch_ratings")
-    @patch("server.aggregator.resolve_work_editions_and_ol_rating")
+    @patch("server.aggregator.work_preparer.resolve_work_editions_and_ol_rating")
     @patch("server.aggregator.goodreads.fetch_ratings")
     @patch("server.aggregator.google_books.fetch_ratings")
     def test_post_api_work_details_minimal_and_empty_payload(self, mock_gb_ratings, mock_gr_ratings, mock_resolve, mock_base_ratings):
