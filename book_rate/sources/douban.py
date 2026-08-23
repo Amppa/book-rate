@@ -154,8 +154,10 @@ class DoubanSource(BaseSource):
     SUGGEST_URL = "https://book.douban.com/j/subject_suggest"
     ISBN_LOOKUP_URL = "https://book.douban.com/isbn/{isbn}/"
 
-    def __init__(self, timeout: int = 10, cooldown: float = 1.0):
+    def __init__(self, timeout: int = 10, cooldown: float = 1.0, enrich_search_ratings: bool = True):
         super().__init__(timeout=timeout, cooldown=cooldown)
+        # Fetch each subject page during suggest-search so results carry ratings.
+        self.enrich_search_ratings = enrich_search_ratings
         self.session.headers.update({
             "Referer": "https://book.douban.com/"
         })
@@ -178,6 +180,19 @@ class DoubanSource(BaseSource):
         except Exception as e:
             logger.warning(f"Failed to fetch Douban subject details from '{url}': {e}")
             return {"rate": None, "votes": None, "isbn": None, "pub_year": None, "title": None, "url": url, "editions_count": None}
+
+    def _enrich_with_book_page(self, rating: SourceRating) -> SourceRating:
+        """Enrich a candidate rating with detailed subject page score & votes."""
+        if not rating or not rating.url:
+            return rating
+        details = self.fetch_subject_details(rating.url)
+        if details.get("rate") is not None:
+            rating.rate = details["rate"]
+        if details.get("votes") is not None:
+            rating.rating_count = details["votes"]
+        if details.get("title"):
+            rating.title = details["title"]
+        return rating
 
     def _lookup_by_isbn(self, isbn: str) -> Optional[SourceRating]:
         """
@@ -254,11 +269,19 @@ class DoubanSource(BaseSource):
             )
 
             if subject_url:
-                work.ratings[self.name] = SourceRating(
+                rating = SourceRating(
                     source_name=self.name,
                     url=subject_url,
                     title=title
                 )
+                if getattr(self, "enrich_search_ratings", True):
+                    details = self.fetch_subject_details(subject_url)
+                    if details.get("rate") is not None or details.get("votes") is not None:
+                        rating.rate = details.get("rate")
+                        rating.rating_count = details.get("votes")
+                    if details.get("title"):
+                        rating.title = details["title"]
+                work.ratings[self.name] = rating
 
             edition = Edition(edition_id=sub_id or "1", title=title, publish_year=pub_year_str)
             work.editions.append(edition)
@@ -415,6 +438,10 @@ class DoubanApiSource(DoubanSource):
     @property
     def enable_extend_editions(self) -> bool:
         return False
+
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("enrich_search_ratings", False)
+        super().__init__(*args, **kwargs)
 
     def search_works(self, query: str, limit: int = 5, page: int = 1) -> List[Work]:
         return self._search_works_suggest(query, limit=limit, page=page)

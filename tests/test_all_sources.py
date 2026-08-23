@@ -776,10 +776,10 @@ class TestGooglePlayScraper(unittest.TestCase):
         self.assertIsNone(rate)
         self.assertIsNone(count)
 
-    @patch("book_rate.sources.google_play.GooglePlaySource._parse_play_rating")
+    @patch("book_rate.sources.google_play.GooglePlaySource._parse_play_details")
     def test_fetch_ratings_direct(self, mock_parse_play):
         source = GooglePlaySource()
-        mock_parse_play.return_value = (4.487, 630, False)
+        mock_parse_play.return_value = (4.487, 630, False, "Test Title", "Test Author")
         dummy_work = Work(work_id="gb:ZuKTvERuPG8C", title="Test Title", author="Test Author")
         result_rating = source.fetch_ratings(dummy_work)
         self.assertEqual(result_rating.rate, 4.487)
@@ -806,7 +806,7 @@ class TestGooglePlayScraper(unittest.TestCase):
         self.assertEqual(works[0].work_id, "play:wOzaEAAAQBAJ")
 
     @patch("book_rate.sources.google_play.GooglePlaySource._fetch_html")
-    @patch("book_rate.sources.google_play.GooglePlaySource._parse_play_rating")
+    @patch("book_rate.sources.google_play.GooglePlaySource._parse_play_details")
     def test_google_play_search_thinking_fast_and_slow(self, mock_parse_play, mock_fetch_html):
         source = GooglePlaySource()
         mock_fetch_html.return_value = (
@@ -815,7 +815,7 @@ class TestGooglePlayScraper(unittest.TestCase):
             '</body></html>',
             True
         )
-        mock_parse_play.return_value = (4.6, 12000, True)
+        mock_parse_play.return_value = (4.6, 12000, True, "Thinking Fast and Slow", "Daniel Kahneman")
         works = source.search_works("Thinking, Fast and Slow")
         self.assertEqual(len(works), 1)
         self.assertEqual(works[0].title, "Thinking Fast and Slow")

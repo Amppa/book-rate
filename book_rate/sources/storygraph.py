@@ -304,6 +304,7 @@ class StoryGraphSource(BaseSource):
                 pub_year = None
                 pub_date_match = re.search(r'Edition Pub Date:\s*</span>\s*([^<]+)', block, re.IGNORECASE) or \
                                  re.search(r'Published:\s*</span>\s*([^<]+)', block, re.IGNORECASE) or \
+                                 re.search(r'>\s*Edition Pub Date:\s*([^<]+)<', block, re.IGNORECASE) or \
                                  re.search(r'•\s*</span>\s*(\d{4})\b', block)
                 if pub_date_match:
                     d_str = pub_date_match.group(1).strip()
@@ -312,11 +313,13 @@ class StoryGraphSource(BaseSource):
 
                 # Extract publisher
                 pub_match = re.search(r'Publisher:\s*</span>\s*([^<]+)', block, re.IGNORECASE) or \
+                            re.search(r'<span[^>]*>\s*Publisher:\s*([^<]+?)\s*</span>', block, re.IGNORECASE) or \
                             re.search(r'class="publisher"[^>]*>\s*([^<]+)\s*<', block, re.IGNORECASE)
                 publisher = html.unescape(pub_match.group(1).strip()) if pub_match else None
 
                 # Extract language
-                lang_match = re.search(r'Language:\s*</span>\s*([^<]+)', block, re.IGNORECASE)
+                lang_match = re.search(r'Language:\s*</span>\s*([^<]+)', block, re.IGNORECASE) or \
+                re.search(r'>\s*Language:\s*([^<]+)<', block, re.IGNORECASE)
                 language = lang_match.group(1).strip() if lang_match else None
 
                 editions.append(Edition(
