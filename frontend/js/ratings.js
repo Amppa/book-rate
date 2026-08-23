@@ -1,6 +1,6 @@
 import { state } from './state.js';
 import { STORAGE_KEYS, SOURCES, SOURCE_PREFIX, OPEN_LIBRARY_BASE_URL, STRATEGY_LABEL_MAP } from './constants.js';
-import { displayRate, displayCount } from './utils.js';
+import { displayRate, displayCount, getSourceSearchUrl } from './utils.js';
 import { getRatingCache, setRatingCache } from './cache.js';
 import { streamWorkDetailsPost } from './api.js';
 import {
@@ -94,21 +94,21 @@ function _resolveRatingDisplay(itemData, maxRate = 5) {
 
   if (itemData.quota_exceeded || status === "QUOTA_EXCEEDED") {
     return {
-      rateHtml: '<span class="error">額度超限 (429) ⚠️</span>',
+      rateHtml: '<span class="error">額度超限 (429)</span>',
       countText: "請設定 API Key",
       status: "QUOTA_EXCEEDED"
     };
   }
   if (status === "RATE_LIMITED" || status === "RATE_LIMIT") {
     return {
-      rateHtml: '<span class="error">連線異常 (風控) ⚠️</span>',
+      rateHtml: '<span class="error">連線異常 (風控)</span>',
       countText: "請求過密或遭阻擋",
       status: "RATE_LIMITED"
     };
   }
   if (status === "ERROR") {
     return {
-      rateHtml: '<span class="error">讀取錯誤 ⚠️</span>',
+      rateHtml: '<span class="error">讀取錯誤</span>',
       countText: "請檢查主機連線",
       status: "ERROR"
     };
@@ -119,7 +119,7 @@ function _resolveRatingDisplay(itemData, maxRate = 5) {
       ? "\u8acb\u6aa2\u67e5 API Key"
       : shortStatus;
     return {
-      rateHtml: '<span class="error">\u9023\u7dda\u7570\u5e38 \u26a0\ufe0f</span>',
+      rateHtml: '<span class="error">連線異常</span>',
       countText: friendlyCount,
       status: shortStatus
     };
@@ -307,6 +307,60 @@ function buildWorkDetailsPayload(work, engines, strategies, apiKey) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Table header source links
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolves the first search query of a source column under its current strategy.
+ * Falls back to the user's raw search name when the preferred list is empty.
+ * @param {string} sourceId
+ * @param {Object} strategies - Mapping of engine IDs to search strategies.
+ * @returns {string}
+ */
+function _resolveHeaderQuery(sourceId, strategies) {
+  const meta = getStep3Metadata();
+  const strategy = strategies[sourceId] || getSourceDefaultStrat(sourceId);
+
+  let query = "";
+  switch (strategy) {
+    case "title_zh_list":
+    case "title_zh_list_full":
+      query = meta.titleZhList[0] || "";
+      break;
+    case "title_list":
+    case "title_list_full":
+      query = meta.titleList[0] || "";
+      break;
+    case "isbn":
+      query = meta.isbnList[0] || "";
+      break;
+    case "search_name":
+    default:
+      query = "";
+      break;
+  }
+  return query || meta.searchName || "";
+}
+
+/**
+ * Updates each table-header source hyperlink so that it points to the
+ * platform's title-search page using the column's current first query.
+ * Called from selectWork() and the strategy-change listener in app.js.
+ * @param {Object} strategies - Mapping of engine IDs to search strategies.
+ */
+export function updateTableHeaderLinks(strategies) {
+  document.querySelectorAll("a.source-header-link[data-source-id]").forEach((link) => {
+    const sourceId = link.dataset.sourceId;
+    const source = SOURCES.find((s) => s.id === sourceId);
+    if (!source) return;
+
+    const query = _resolveHeaderQuery(sourceId, strategies);
+    link.href = query ? getSourceSearchUrl(sourceId, query) : source.url;
+    link.title = query ? `在 ${source.label} 搜尋：${query}` : `前往 ${source.label} 首頁`;
+  });
+}
+
 /** Advances to Step 3, starts the SSE stream, and populates the rating table. */
 export async function selectWork(work) {
   state.currentSelectedWork = work;
@@ -332,6 +386,9 @@ export async function selectWork(work) {
       strategies[source] = "search_name";
     });
   }
+
+  // Keep header source names linking to each column's current first query.
+  updateTableHeaderLinks(strategies);
 
   // Separate cached vs pending sources
   const cachedRateSources = [];

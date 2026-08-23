@@ -14,10 +14,10 @@ import {
   initWizard, goToStep,
   chooseCandidate, chooseEdition,
   resetMetadataPanel, confirmToStep3,
-  getSourceDefaultStrat, directToStep3
+  getSourceDefaultStrat, getSelectedStrategies, directToStep3
 } from './js/wizard.js';
 import { renderCandidates } from './js/candidates.js';
-import { initRatings, selectWork, reQuerySingleSource } from './js/ratings.js';
+import { initRatings, selectWork, reQuerySingleSource, updateTableHeaderLinks } from './js/ratings.js';
 import { initPresetsModal, initEditionsModal, initSourceInfoModal } from './js/modals.js';
 import { state } from './js/state.js';
 
@@ -372,6 +372,21 @@ if (scoreToggleBarEl) {
       updateTableVisibility(ratingTable);
     }
   });
+
+  // [全選] / [取消全選] text buttons
+  scoreToggleBarEl.addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-toggle-action]");
+    if (!btn) return;
+    const checked = btn.dataset.toggleAction === "all";
+    SOURCES.forEach((source) => {
+      const suffix = SOURCE_PREFIX[source.id];
+      const checkbox = document.querySelector(`#score-${suffix}`);
+      if (!checkbox) return;
+      checkbox.checked = checked;
+      localStorage.setItem(`${STORAGE_KEYS.SCORE_TOGGLE_PREFIX}${suffix}`, checked);
+    });
+    updateTableVisibility(ratingTable);
+  });
 }
 
 // Strategy selects
@@ -381,6 +396,8 @@ if (scoreStrategyRowEl) {
       const sourceKey = e.target.dataset.source;
       if (sourceKey) localStorage.setItem(STORAGE_KEYS.STRATEGY_PREFIX + sourceKey, e.target.value);
       if (state.currentSelectedWork && sourceKey) reQuerySingleSource(state.currentSelectedWork, sourceKey);
+      // Header search links follow the newly selected strategy
+      updateTableHeaderLinks(getSelectedStrategies());
     }
   });
 }

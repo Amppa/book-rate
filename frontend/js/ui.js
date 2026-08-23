@@ -25,6 +25,26 @@ export function renderSourceToggles(container) {
     item.appendChild(label);
     container.appendChild(item);
   });
+
+  // [全選] / [取消全選] text buttons at the end of the source list.
+  const actions = document.createElement("div");
+  actions.className = "source-toggle-actions";
+
+  const selectAll = document.createElement("button");
+  selectAll.type = "button";
+  selectAll.className = "info-text-link";
+  selectAll.dataset.toggleAction = "all";
+  selectAll.textContent = "[全選]";
+
+  const deselectAll = document.createElement("button");
+  deselectAll.type = "button";
+  deselectAll.className = "info-text-link";
+  deselectAll.dataset.toggleAction = "none";
+  deselectAll.textContent = "[取消全選]";
+
+  actions.appendChild(selectAll);
+  actions.appendChild(deselectAll);
+  container.appendChild(actions);
 }
 
 export function renderStrategySelects(strategyRow) {
@@ -73,7 +93,18 @@ export function renderTableHeaders(headerRow) {
     const suffix = SOURCE_PREFIX[source.id];
     const th = document.createElement("th");
     th.className = `col-${suffix}`;
-    th.textContent = source.label;
+
+    // Source name acts as a hyperlink to the platform's title search page.
+    // href is kept up-to-date by updateTableHeaderLinks() in ratings.js.
+    const link = document.createElement("a");
+    link.className = "source-header-link";
+    link.dataset.sourceId = source.id;
+    link.textContent = source.label;
+    link.href = source.url;
+    link.target = "_blank";
+    link.rel = "noreferrer";
+
+    th.appendChild(link);
     headerRow.appendChild(th);
   });
 }

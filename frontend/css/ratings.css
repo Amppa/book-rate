@@ -39,6 +39,22 @@
   cursor: pointer;
 }
 
+.source-toggle-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.score-display-toggles .info-text-link {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.score-display-toggles .info-text-link:hover {
+  color: var(--primary);
+}
+
 /* 2. Strategy Dropdowns & Selects */
 .thead-strategy-row th {
   vertical-align: top;
@@ -173,7 +189,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  margin-top: var(--space-1);
+  margin-top: 0;
 }
 
 .multi-result-item {
@@ -183,6 +199,10 @@
   gap: var(--space-1);
   padding: var(--space-2) 0;
   border-bottom: 1px dashed var(--border-light);
+}
+
+.multi-result-item:first-child {
+  padding-top: 0;
 }
 
 .multi-result-item:last-child {
@@ -211,5 +231,16 @@ a.source-book-title {
 
 a.source-book-title:hover {
   color: var(--accent);
+  text-decoration: underline;
+}
+
+/* 6. Source name hyperlinks in table header */
+.table-wrap th .source-header-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.table-wrap th .source-header-link:hover {
+  color: var(--primary);
   text-decoration: underline;
 }
