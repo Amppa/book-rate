@@ -977,6 +977,32 @@ class TestUnratedBookWithUrlCase(unittest.TestCase):
         self.assertEqual(items[0]["first_publish_year"], 2025)
 
 
+class TestDoubanApiWorkPreparation(unittest.TestCase):
+    @patch("book_rate.sources.base.BaseSource._fetch_html")
+    @patch("requests.Session.get")
+    def test_dbapi_routes_to_douban_details_not_open_library(self, mock_get, mock_fetch_html):
+        """Regression: dbapi: ids must resolve through douban details, never
+        fall into the Open Library branch that fabricated /works/dbapi:x ids."""
+        mock_fetch_html.return_value = ("", False)
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = []
+        mock_resp.text = ""
+        mock_get.return_value = mock_resp
+
+        from book_rate.work_preparer import WorkPreparer
+        preparer = WorkPreparer()
+        ol_rating, editions, target_work, crawler_status = \
+            preparer.resolve_work_editions_and_ol_rating(
+                work_id="dbapi:10785583", title="", author="", active_title_sources=[]
+            )
+
+        self.assertIn("douban_api", crawler_status)
+        self.assertEqual(target_work.work_id, "dbapi:10785583")
+        self.assertFalse(target_work.work_id.startswith("/works/dbapi"))
+        self.assertTrue(len(editions) >= 1)
+
+
 class TestGoogleBooksTitleCleaner(unittest.TestCase):
     def test_clean_title_normal_title(self):
         source = GoogleBooksSource()
