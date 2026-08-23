@@ -8,6 +8,16 @@ from book_rate.utils.rate_limiter import global_rate_limiter
 
 logger = logging.getLogger(__name__)
 
+# Page signatures indicating a WAF / bot-challenge interstitial (Cloudflare etc).
+_WAF_SIGNATURES = (
+    "challenges.cloudflare.com",
+    "<title>Just a moment...</title>",
+    "_cf_chl_opt",
+    "bm-verify",
+    "triggerInterstitialChallenge",
+    "\u5ba2\u7aef\u9023\u7dda\u5df2\u8d85\u51fa\u7cfb\u7d71\u5141\u8a31\u6578\u91cf",
+)
+
 
 class SearchStrategy:
     SEARCH_NAME = "search_name"
@@ -92,14 +102,7 @@ class BaseSource:
 
             output = subprocess.check_output(cmd, timeout=self.timeout)
             html_str = output.decode("utf-8", errors="ignore")
-            if any(sig in html_str for sig in (
-                "challenges.cloudflare.com",
-                "<title>Just a moment...</title>",
-                "_cf_chl_opt",
-                "bm-verify",
-                "triggerInterstitialChallenge",
-                "客端連線已超出系統允許數量",
-            )):
+            if any(sig in html_str for sig in _WAF_SIGNATURES):
                 logger.warning(f"{self.name} encountered WAF / bot challenge for '{url}'")
                 self.last_network_error = "WAF Challenge"
                 raise SourceNetworkError("WAF Challenge", status_code=403)
@@ -113,14 +116,7 @@ class BaseSource:
                 resp = self.session.get(url, headers=req_headers, timeout=self.timeout)
                 resp.raise_for_status()
                 html_str = resp.text
-                if any(sig in html_str for sig in (
-                    "challenges.cloudflare.com",
-                    "<title>Just a moment...</title>",
-                    "_cf_chl_opt",
-                    "bm-verify",
-                    "triggerInterstitialChallenge",
-                    "客端連線已超出系統允許數量",
-                )):
+                if any(sig in html_str for sig in _WAF_SIGNATURES):
                     logger.warning(f"{self.name} encountered WAF / bot challenge for '{url}'")
                     self.last_network_error = "WAF Challenge"
                     raise SourceNetworkError("WAF Challenge", status_code=403)

@@ -66,6 +66,11 @@ class SourceRegistry:
 
     _DISPLAY_NAME_CACHE = {}
 
+    # Construction hooks for adapters that take constructor arguments.
+    _FACTORIES = {
+        "google_books": lambda api_key=None: GoogleBooksSource(api_key=api_key),
+    }
+
     @classmethod
     def match_id_prefix(cls, work_id):
         """Return (prefix, source_key) for the first known id prefix.
@@ -111,9 +116,9 @@ class SourceRegistry:
             return None
 
         try:
-            if source_cls == GoogleBooksSource:
-                api_key = kwargs.get("api_key")
-                return GoogleBooksSource(api_key=api_key)
+            factory = cls._FACTORIES.get(key_clean)
+            if factory:
+                return factory(**kwargs)
             return source_cls()
         except Exception as e:
             logger.error(f"Failed to instantiate source adapter '{key}': {e}")

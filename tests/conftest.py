@@ -76,3 +76,25 @@ def enforce_offline(request):
     finally:
         for obj, name, original in reversed(saved):
             setattr(obj, name, original)
+
+
+@pytest.fixture(autouse=True)
+def _skip_rate_limit_sleeps(request):
+    """Offline tier: skip inter-request cooldown sleeps on the shared limiter.
+
+    Patches the singleton INSTANCE only, so unit tests that build their own
+    DomainRateLimiter keep exercising the real sleeping logic.
+    """
+    if request.node.get_closest_marker("live"):
+        yield
+        return
+    from book_rate.utils.rate_limiter import global_rate_limiter
+    original = global_rate_limiter.__dict__.get("wait_if_needed")
+    global_rate_limiter.wait_if_needed = lambda key, custom_cooldown=None: 0.0
+    try:
+        yield
+    finally:
+        if original is None:
+            del global_rate_limiter.wait_if_needed
+        else:
+            global_rate_limiter.wait_if_needed = original
