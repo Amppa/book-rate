@@ -1,4 +1,3 @@
-import json
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, Generator, List, Optional, Tuple, Any
@@ -75,103 +74,81 @@ class RatingOrchestrator:
             google_key=req.google_key
         )
 
-    def evaluate_all(self, req: RatingRequestPayload) -> dict:
-        active_title_sources = req.engines if req.engines else self.registry.list_source_keys()
-        ol_rating, editions, target_work, crawler_status = self.prepare_target_work(req, active_title_sources)
+    def _prepare_context(self, req: RatingRequestPayload) -> dict:
+        """Shared setup for the sync and streaming evaluation paths."""
+        active_sources = req.engines if req.engines else self.registry.list_source_keys()
+        ol_rating, editions, target_work, crawler_status = self.prepare_target_work(req, active_sources)
 
         # Merge user edited metadata into target_work
-        if req.search_name:
-            target_work.search_name = req.search_name
-        if req.title_list:
-            target_work.title_list = req.title_list
-        if req.title_zh_list:
-            target_work.title_zh_list = req.title_zh_list
-        if req.author_list:
-            target_work.author_list = req.author_list
-        if req.isbn_list:
-            target_work.isbn_list = req.isbn_list
+        for field_name in ("search_name", "title_list", "title_zh_list", "author_list", "isbn_list"):
+            value = getattr(req, field_name, None)
+            if value:
+                setattr(target_work, field_name, value)
 
-        active_rate_sources = req.engines if req.engines else self.registry.list_source_keys()
-        ratings_res: Dict[str, dict] = {}
+        return {
+            "active_sources": active_sources,
+            "ol_rating": ol_rating,
+            "editions": editions,
+            "target_work": target_work,
+            "crawler_status": crawler_status,
+            "editions_dict": format_editions(editions),
+            "ol_payload": self._ol_rating_payload(ol_rating),
+        }
 
-        with ThreadPoolExecutor(max_workers=len(active_rate_sources) or 1) as executor:
+    @staticmethod
+    def _ol_rating_payload(ol_rating: Optional[SourceRating]) -> dict:
+        if not ol_rating:
+            return {"average": 0, "count": 0, "url": None}
+        return {
+            "average": ol_rating.rate if ol_rating.rate is not None else 0,
+            "count": ol_rating.rating_count if ol_rating.rating_count is not None else 0,
+            "url": ol_rating.url,
+        }
+
+    def _run_engines(self, ctx: dict, req: RatingRequestPayload):
+        """Submit every engine concurrently and yield (engine_key, result) pairs."""
+        with ThreadPoolExecutor(max_workers=len(ctx["active_sources"]) or 1) as executor:
             future_to_engine = {
                 executor.submit(
                     self._fetch_rating_for_engine,
-                    e_key, target_work, req.strategies.get(e_key), ol_rating, req.google_key, req.cooldown
-                ): e_key for e_key in active_rate_sources
+                    e_key, ctx["target_work"], req.strategies.get(e_key),
+                    ctx["ol_rating"], req.google_key, req.cooldown
+                ): e_key for e_key in ctx["active_sources"]
             }
             for future in as_completed(future_to_engine):
-                engine_key, res = future.result()
-                ratings_res[engine_key] = res
+                yield future.result()
 
-        ol_average = ol_rating.rate if ol_rating and ol_rating.rate is not None else 0
-        ol_count = ol_rating.rating_count if ol_rating and ol_rating.rating_count is not None else 0
-        ol_url = ol_rating.url if ol_rating else None
+    def evaluate_all(self, req: RatingRequestPayload) -> dict:
+        ctx = self._prepare_context(req)
 
-        ol_rating_dict = {
-            "average": ol_average,
-            "count": ol_count,
-            "url": ol_url
-        }
-
-        editions_dict = format_editions(editions)
+        ratings_res: Dict[str, dict] = {}
+        for engine_key, res in self._run_engines(ctx, req):
+            ratings_res[engine_key] = res
 
         return {
             "work_id": req.work_id,
-            "title": target_work.title,
-            "author": target_work.author,
+            "title": ctx["target_work"].title,
+            "author": ctx["target_work"].author,
             "ratings": ratings_res,
-            "crawler_status": crawler_status,
-            "editions": editions_dict,
-            "ol_rating": ol_rating_dict
+            "crawler_status": ctx["crawler_status"],
+            "editions": ctx["editions_dict"],
+            "ol_rating": ctx["ol_payload"],
         }
 
     def evaluate_stream(self, req: RatingRequestPayload) -> Generator[dict, None, None]:
-        active_title_sources = req.engines if req.engines else self.registry.list_source_keys()
-        ol_rating, editions, target_work, crawler_status = self.prepare_target_work(req, active_title_sources)
+        ctx = self._prepare_context(req)
 
-        if req.search_name:
-            target_work.search_name = req.search_name
-        if req.title_list:
-            target_work.title_list = req.title_list
-        if req.title_zh_list:
-            target_work.title_zh_list = req.title_zh_list
-        if req.author_list:
-            target_work.author_list = req.author_list
-        if req.isbn_list:
-            target_work.isbn_list = req.isbn_list
-
-        active_rate_sources = req.engines if req.engines else self.registry.list_source_keys()
-
-        editions_dict = format_editions(editions)
-
-        ratings_dict = {
-            "average": ol_rating.rate if ol_rating and ol_rating.rate is not None else 0,
-            "count": ol_rating.rating_count if ol_rating and ol_rating.rating_count is not None else 0,
-            "url": ol_rating.url if ol_rating else None
-        } if ol_rating else {"average": 0, "count": 0, "url": None}
-
-        init_data = {
+        yield {
             "type": "init",
             "work_id": req.work_id,
-            "title": target_work.title,
-            "author": target_work.author,
-            "ratings": ratings_dict,
-            "editions": editions_dict,
-            "crawler_status": crawler_status
+            "title": ctx["target_work"].title,
+            "author": ctx["target_work"].author,
+            "ratings": ctx["ol_payload"],
+            "editions": ctx["editions_dict"],
+            "crawler_status": ctx["crawler_status"]
         }
-        yield init_data
 
-        with ThreadPoolExecutor(max_workers=len(active_rate_sources) or 1) as executor:
-            future_to_engine = {
-                executor.submit(
-                    self._fetch_rating_for_engine,
-                    e_key, target_work, req.strategies.get(e_key), ol_rating, req.google_key, req.cooldown
-                ): e_key for e_key in active_rate_sources
-            }
-            for future in as_completed(future_to_engine):
-                engine_key, res = future.result()
-                yield {"type": "source", "source": engine_key, "data": res}
+        for engine_key, res in self._run_engines(ctx, req):
+            yield {"type": "source", "source": engine_key, "data": res}
 
         yield {"type": "done"}
