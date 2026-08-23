@@ -138,6 +138,18 @@ function _resolveRatingDisplay(itemData, maxRate = 5) {
       status: "UNRATED"
     };
   }
+  // A strategy was selected but no query was ever executed (title/CJK/ISBN
+  // lists all empty). The backend signals this with an empty query string,
+  // which is distinct from NOT_FOUND (query=null) and OL payloads (no query).
+  if (itemData.query === "") {
+    return {
+      rateText: "無清單輸入",
+      countText: "-",
+      status: "NO_MATCH",
+      tagText: "NULL",
+      emptyTitle: true
+    };
+  }
   return {
     rateText: "無此書籍",
     countText: "-",
@@ -160,16 +172,16 @@ function _buildTitleElement(title, url) {
 }
 
 /** Builds the strategy/status tooltip tag element. */
-function _buildStatusTag(status, data) {
+function _buildStatusTag(status, data, tagText) {
   const tag = document.createElement("span");
   const normStatusClass = (status || "").toLowerCase().replace(/[^a-z0-9_]/g, "-");
   tag.className = `search-status-tag status-${normStatusClass}`;
-  tag.textContent = status || "NO_MATCH";
+  const raw = tagText || status || "NO_MATCH";
+  tag.textContent = raw;
   tag.dataset.strat = data?.strategy || "";
   tag.dataset.query = data?.query || "";
   const friendlyStrat = STRATEGY_LABEL_MAP[data?.strategy] || data?.strategy || "N/A";
   tag.title = `策略: ${friendlyStrat}, 查詢: ${data?.query || "N/A"}`;
-  const raw = status || "NO_MATCH";
   if (raw.length > 24) {
     tag.textContent = raw.slice(0, 24) + "\u2026";
     tag.title += ", \u8a0a\u606f: " + raw;
@@ -202,7 +214,7 @@ function _renderMultiResult(rateEl, countEl, results, maxRate) {
     const small = document.createElement("small");
     small.textContent = display.countText;
 
-    const badge = _buildStatusTag(display.status, res);
+    const badge = _buildStatusTag(display.status, res, display.tagText);
 
     item.appendChild(strong);
     item.appendChild(small);
@@ -216,12 +228,20 @@ function _renderMultiResult(rateEl, countEl, results, maxRate) {
 
 /** Renders single result into the cell. */
 function _renderSingleResult(cell, rateEl, countEl, data, maxRate) {
-  if (data.title) {
-    const titleEl = _buildTitleElement(data.title, data.url);
-    if (titleEl) cell.insertBefore(titleEl, rateEl);
+  const display = _resolveRatingDisplay(data, maxRate);
+
+  // The backend fills the literal "Unknown" as a placeholder title when the
+  // work has no real title (format_rating_response's fallback_title). Show the
+  // actual search query instead; hide the line when there is nothing to show.
+  let titleLabel = data.title;
+  if (!titleLabel || titleLabel === "Unknown") {
+    titleLabel = (typeof data.query === "string" && data.query) ? data.query : "";
   }
 
-  const display = _resolveRatingDisplay(data, maxRate);
+  if (titleLabel && !display.emptyTitle) {
+    const titleEl = _buildTitleElement(titleLabel, data.url);
+    if (titleEl) cell.insertBefore(titleEl, rateEl);
+  }
 
   if (display.rateHtml) {
     rateEl.innerHTML = display.rateHtml;
@@ -230,7 +250,7 @@ function _renderSingleResult(cell, rateEl, countEl, data, maxRate) {
   }
   countEl.textContent = display.countText;
 
-  const tag = _buildStatusTag(display.status, data);
+  const tag = _buildStatusTag(display.status, data, display.tagText);
   cell.appendChild(tag);
 }
 
