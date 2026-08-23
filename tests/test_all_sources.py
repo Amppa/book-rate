@@ -977,6 +977,95 @@ class TestUnratedBookWithUrlCase(unittest.TestCase):
         self.assertEqual(items[0]["first_publish_year"], 2025)
 
 
+class TestGoogleBooksQuotaFlag(unittest.TestCase):
+    @patch("requests.Session.get")
+    def test_search_works_sets_quota_flag_on_429_and_resets_on_success(self, mock_get):
+        from book_rate.sources.google_books import GoogleBooksSource
+        gb = GoogleBooksSource()
+
+        resp_429 = MagicMock()
+        resp_429.status_code = 429
+        mock_get.return_value = resp_429
+        self.assertEqual(gb.search_works("Any Query"), [])
+        self.assertTrue(gb.quota_exceeded)
+
+        resp_ok = MagicMock()
+        resp_ok.status_code = 200
+        resp_ok.json.return_value = {
+            "items": [{"id": "v1", "volumeInfo": {"title": "Some Book", "authors": ["Author"]}}]
+        }
+        mock_get.return_value = resp_ok
+        works = gb.search_works("Another Query")
+        self.assertFalse(gb.quota_exceeded)
+        self.assertEqual(len(works), 1)
+
+    @patch("requests.Session.get")
+    def test_fetch_volume_by_id_sets_quota_flag_on_429(self, mock_get):
+        from book_rate.sources.google_books import GoogleBooksSource
+        gb = GoogleBooksSource()
+        resp_429 = MagicMock()
+        resp_429.status_code = 429
+        mock_get.return_value = resp_429
+        self.assertIsNone(gb.fetch_volume_by_id("vol123"))
+        self.assertTrue(gb.quota_exceeded)
+
+
+class TestOrchestratorKeyedGoogleInstance(unittest.TestCase):
+    def _make_orchestrator_with_shared(self):
+        shared = MagicMock()
+        shared.fetch_ratings.return_value = SourceRating(
+            source_name="Google Books", rate=3.5, rating_count=20, status="MATCH"
+        )
+        orch = RatingOrchestrator(source_instances={"google_books": shared})
+        return orch, shared
+
+    @staticmethod
+    def _fake_prepare(mock_resolve):
+        mock_resolve.return_value = (
+            SourceRating(source_name="Open Library"),
+            [],
+            Work(work_id="OL1", title="T", author="A"),
+            {},
+        )
+
+    @patch.object(SourceRegistry, "create_source")
+    @patch("book_rate.work_preparer.WorkPreparer.resolve_work_editions_and_ol_rating")
+    def test_google_key_builds_transient_keyed_instance(self, mock_resolve, mock_create):
+        self._fake_prepare(mock_resolve)
+        orch, shared = self._make_orchestrator_with_shared()
+        keyed = MagicMock()
+        keyed.fetch_ratings.return_value = SourceRating(
+            source_name="Google Books", rate=4.4, rating_count=90, status="MATCH"
+        )
+        mock_create.return_value = keyed
+
+        req = RatingRequestPayload(
+            work_id="OL1", title="T", author="A",
+            engines=["google_books"], google_key="USER_KEY"
+        )
+        res = orch.evaluate_all(req)
+
+        mock_create.assert_called_once()
+        self.assertEqual(mock_create.call_args.kwargs.get("api_key"), "USER_KEY")
+        self.assertEqual(res["ratings"]["google_books"]["average"], 4.4)
+        shared.fetch_ratings.assert_not_called()
+
+    @patch.object(SourceRegistry, "create_source")
+    @patch("book_rate.work_preparer.WorkPreparer.resolve_work_editions_and_ol_rating")
+    def test_without_key_shared_instance_is_used(self, mock_resolve, mock_create):
+        self._fake_prepare(mock_resolve)
+        orch, shared = self._make_orchestrator_with_shared()
+
+        req = RatingRequestPayload(
+            work_id="OL1", title="T", author="A", engines=["google_books"]
+        )
+        res = orch.evaluate_all(req)
+
+        mock_create.assert_not_called()
+        shared.fetch_ratings.assert_called_once()
+        self.assertEqual(res["ratings"]["google_books"]["average"], 3.5)
+
+
 class TestDoubanApiWorkPreparation(unittest.TestCase):
     @patch("book_rate.sources.base.BaseSource._fetch_html")
     @patch("requests.Session.get")

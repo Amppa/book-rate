@@ -57,6 +57,9 @@ class GoogleBooksSource(BaseSource):
     def name(self) -> str:
         return "Google Books"
 
+    # Set to True when the API answers HTTP 429; reset at each request.
+    quota_exceeded = False
+
     @property
     def default_strategy(self) -> str:
         return "isbn_primary"
@@ -130,6 +133,8 @@ class GoogleBooksSource(BaseSource):
         if not clean_query:
             return []
 
+        self.quota_exceeded = False
+
         if clean_query.startswith("gb:"):
             vol_id = clean_query[3:]
             w = self.fetch_volume_by_id(vol_id)
@@ -147,6 +152,7 @@ class GoogleBooksSource(BaseSource):
         try:
             resp = self._get(self.BASE_URL, params=params, timeout=self.timeout)
             if resp.status_code == 429:
+                self.quota_exceeded = True
                 logger.warning(
                     "Google Books API rate limit / quota exceeded (HTTP 429). "
                     "Consider setting GOOGLE_BOOKS_API_KEY environment variable."
@@ -242,8 +248,13 @@ class GoogleBooksSource(BaseSource):
         if self.api_key:
             params["key"] = self.api_key
 
+        self.quota_exceeded = False
         try:
             resp = self._get(url, params=params, timeout=self.timeout)
+            if resp.status_code == 429:
+                self.quota_exceeded = True
+                logger.warning("[Google Books API] QUOTA EXCEEDED (HTTP 429) for volume %s", volume_id)
+                return None
             resp.raise_for_status()
             return self._parse_volume_item(resp.json())
         except Exception as e:

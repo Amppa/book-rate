@@ -47,7 +47,12 @@ class RatingOrchestrator:
         if engine_key_clean == "open_library" and ol_rating and ol_rating.rate is not None:
             return engine_key_clean, format_rating_response(engine_key_clean, ol_rating, fallback_title)
 
-        source_inst = self._get_source(engine_key_clean, api_key=google_key if engine_key_clean == "google_books" else None)
+        if engine_key_clean == "google_books" and google_key:
+            # Per-request keyed instance: the shared instance was built
+            # with the env key (or none) and must not be mutated across requests.
+            source_inst = self.registry.create_source("google_books", api_key=google_key)
+        else:
+            source_inst = self._get_source(engine_key_clean)
         if not source_inst:
             return engine_key_clean, format_rating_response(engine_key_clean, None, fallback_title)
 
