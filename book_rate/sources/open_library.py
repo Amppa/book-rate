@@ -36,7 +36,7 @@ class OpenLibrarySource(BaseSource):
         }
 
         try:
-            resp = self.session.get(self.SEARCH_URL, params=params, timeout=self.timeout)
+            resp = self._get(self.SEARCH_URL, params=params, timeout=self.timeout)
             resp.raise_for_status()
             data = resp.json()
         except Exception as e:
@@ -94,7 +94,7 @@ class OpenLibrarySource(BaseSource):
             full_id = work_id if work_id.startswith("/works/") else f"/works/{work_id}"
             try:
                 url = f"{self.BASE_URL}{full_id}/ratings.json"
-                resp = self.session.get(url, timeout=self.timeout)
+                resp = self._get(url, timeout=self.timeout)
                 if resp.status_code == 200:
                     data = resp.json()
                     summary = data.get("summary", {})
@@ -125,7 +125,7 @@ class OpenLibrarySource(BaseSource):
 
         try:
             url = f"{self.BASE_URL}{full_id}/editions.json"
-            resp = self.session.get(url, params={"limit": safe_limit}, timeout=self.timeout)
+            resp = self._get(url, params={"limit": safe_limit}, timeout=self.timeout)
             resp.raise_for_status()
             data = resp.json()
 

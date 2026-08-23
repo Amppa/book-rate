@@ -1,7 +1,6 @@
 import html
 import logging
 import re
-import subprocess
 import urllib.parse
 from typing import List, Optional
 

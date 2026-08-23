@@ -172,7 +172,7 @@ class DoubanSource(BaseSource):
         """Fetch subject detail HTML page from Douban and parse metadata."""
         url = subject_url_or_id if subject_url_or_id.startswith("http") else _build_subject_url(subject_url_or_id)
         try:
-            resp = self.session.get(url, timeout=self.timeout)
+            resp = self._get(url, timeout=self.timeout)
             resp.raise_for_status()
             return _parse_subject_html(resp.text, url)
         except Exception as e:
@@ -190,7 +190,7 @@ class DoubanSource(BaseSource):
 
         url = self.ISBN_LOOKUP_URL.format(isbn=isbn_str)
         try:
-            resp = self.session.get(url, timeout=self.timeout, allow_redirects=True)
+            resp = self._get(url, timeout=self.timeout, allow_redirects=True)
             subject_match = None
             if resp.url and isinstance(resp.url, str):
                 subject_match = re.search(r"book\.douban\.com/subject/(\d+)/?", resp.url)
@@ -219,7 +219,7 @@ class DoubanSource(BaseSource):
         """Fallback to original suggest API search."""
         clean_query = query.strip()
         try:
-            resp = self.session.get(
+            resp = self._get(
                 self.SUGGEST_URL,
                 params={"q": clean_query},
                 timeout=self.timeout

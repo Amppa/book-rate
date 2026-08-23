@@ -146,7 +146,7 @@ class GoodreadsSource(BaseSource):
         if book_id:
             try:
                 ed_url = f"https://www.goodreads.com/book/editions/{book_id}"
-                ed_resp = self.session.get(ed_url, timeout=self.timeout)
+                ed_resp = self._get(ed_url, timeout=self.timeout)
                 if ed_resp.status_code == 200:
                     res["crawler_status"] = "Normal"
                     

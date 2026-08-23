@@ -145,7 +145,7 @@ class GoogleBooksSource(BaseSource):
             params["key"] = self.api_key
 
         try:
-            resp = self.session.get(self.BASE_URL, params=params, timeout=self.timeout)
+            resp = self._get(self.BASE_URL, params=params, timeout=self.timeout)
             if resp.status_code == 429:
                 logger.warning(
                     "Google Books API rate limit / quota exceeded (HTTP 429). "
@@ -243,7 +243,7 @@ class GoogleBooksSource(BaseSource):
             params["key"] = self.api_key
 
         try:
-            resp = self.session.get(url, params=params, timeout=self.timeout)
+            resp = self._get(url, params=params, timeout=self.timeout)
             resp.raise_for_status()
             return self._parse_volume_item(resp.json())
         except Exception as e:

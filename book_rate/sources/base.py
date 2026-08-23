@@ -5,6 +5,7 @@ from typing import List, Optional, Callable, Tuple
 from book_rate.models import Work, SourceRating, SourceStatus
 from book_rate.utils.isbn import clean_isbn, extract_isbns_from_work
 from book_rate.utils.rate_limiter import global_rate_limiter
+from book_rate.sources._transport import CurlTransport
 
 logger = logging.getLogger(__name__)
 
@@ -64,23 +65,27 @@ class BaseSource:
         self.session.headers.update(self.DEFAULT_HEADERS)
         self.last_network_error = None
 
-        # Wrap self.session.get to capture network errors and enforce cooldown
-        orig_get = self.session.get
-        def wrapped_get(*args, **kwargs):
-            if self.cooldown > 0:
-                self.rate_limiter.wait_if_needed(self.name, custom_cooldown=self.cooldown)
-            try:
-                resp = orig_get(*args, **kwargs)
-                self.last_network_error = None
-                return resp
-            except Exception as e:
-                self.last_network_error = f"Network Error: {type(e).__name__}"
-                raise e
-        self.session.get = wrapped_get
+    def _get(self, url, **kwargs):
+        """Explicit request wrapper: enforce cooldown, capture network errors."""
+        if self.cooldown > 0:
+            self.rate_limiter.wait_if_needed(self.name, custom_cooldown=self.cooldown)
+        try:
+            resp = self.session.get(url, **kwargs)
+            self.last_network_error = None
+            return resp
+        except Exception as e:
+            self.last_network_error = f"Network Error: {type(e).__name__}"
+            raise
+
+    def _raise_if_waf(self, html_str: str, url: str) -> None:
+        if any(sig in html_str for sig in _WAF_SIGNATURES):
+            logger.warning(f"{self.name} encountered WAF / bot challenge for '{url}'")
+            self.last_network_error = "WAF Challenge"
+            raise SourceNetworkError("WAF Challenge", status_code=403)
 
     def _fetch_html(self, url: str, headers: Optional[dict] = None) -> Tuple[str, bool]:
-        """Fetch URL using curl.exe to pass Cloudflare TLS fingerprinting checks on Windows.
-        Returns a tuple of (html_content, used_curl).
+        """Fetch URL content, preferring curl.exe to pass TLS fingerprint
+        checks, falling back to python-requests. Returns (html, used_curl).
         """
         self.last_network_error = None
         if self.cooldown > 0:
@@ -91,39 +96,23 @@ class BaseSource:
             req_headers.update(headers)
 
         try:
-            cmd = [
-                "curl.exe", "-s", "-L", "--compressed",
-                "-A", req_headers.get("User-Agent", self.DEFAULT_USER_AGENT),
-            ]
-            for h_key, h_val in req_headers.items():
-                if h_key.lower() not in ("user-agent", "accept-encoding"):
-                    cmd.extend(["-H", f"{h_key}: {h_val}"])
-            cmd.append(url)
-
-            output = subprocess.check_output(cmd, timeout=self.timeout)
-            html_str = output.decode("utf-8", errors="ignore")
-            if any(sig in html_str for sig in _WAF_SIGNATURES):
-                logger.warning(f"{self.name} encountered WAF / bot challenge for '{url}'")
-                self.last_network_error = "WAF Challenge"
-                raise SourceNetworkError("WAF Challenge", status_code=403)
+            html_str = CurlTransport.fetch_html(url, self.DEFAULT_USER_AGENT, req_headers, self.timeout)
+            self._raise_if_waf(html_str, url)
             return html_str, True
+        except SourceNetworkError:
+            raise
         except Exception as e:
-            if isinstance(e, SourceNetworkError):
-                raise e
             logger.warning(f"Failed to fetch HTML via curl for URL '{url}': {e}")
             self.last_network_error = f"curl Error: {type(e).__name__}"
             try:
-                resp = self.session.get(url, headers=req_headers, timeout=self.timeout)
+                resp = self._get(url, headers=req_headers, timeout=self.timeout)
                 resp.raise_for_status()
                 html_str = resp.text
-                if any(sig in html_str for sig in _WAF_SIGNATURES):
-                    logger.warning(f"{self.name} encountered WAF / bot challenge for '{url}'")
-                    self.last_network_error = "WAF Challenge"
-                    raise SourceNetworkError("WAF Challenge", status_code=403)
+                self._raise_if_waf(html_str, url)
                 return html_str, False
+            except SourceNetworkError:
+                raise
             except Exception as ex:
-                if isinstance(ex, SourceNetworkError):
-                    raise ex
                 logger.warning(f"Fallback requests.get also failed for '{url}': {ex}")
                 import requests
                 if isinstance(ex, requests.exceptions.HTTPError):
@@ -131,8 +120,7 @@ class BaseSource:
                     if code in (403, 429):
                         self.last_network_error = "WAF Challenge"
                         raise SourceNetworkError("WAF Challenge", status_code=code)
-                    else:
-                        self.last_network_error = f"HTTP Error: {code}"
+                    self.last_network_error = f"HTTP Error: {code}"
                 else:
                     self.last_network_error = f"Network Error: {type(ex).__name__}"
                 return "", False
@@ -163,14 +151,12 @@ class BaseSource:
                 "User-Agent": self.DEFAULT_USER_AGENT,
                 "Accept": "application/json,text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
             }
-            resp = self.session.get(target_url, headers=headers, timeout=5, allow_redirects=True)
+            resp = self._get(target_url, headers=headers, timeout=5, allow_redirects=True)
             latency = int((time.time() - start_time) * 1000)
 
             if resp.status_code >= 400:
                 try:
-                    cmd = ["curl.exe", "-s", "-I", "-m", "5", "-A", self.DEFAULT_USER_AGENT, target_url]
-                    subprocess.check_call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=6)
-                    latency = int((time.time() - start_time) * 1000)
+                    latency = CurlTransport.probe_head(target_url, self.DEFAULT_USER_AGENT)
                     return True, f"{latency}ms (curl)"
                 except Exception:
                     pass
@@ -208,9 +194,7 @@ class BaseSource:
             return True, f"{latency}ms"
         except Exception as e:
             try:
-                cmd = ["curl.exe", "-s", "-I", "-m", "5", "-A", self.DEFAULT_USER_AGENT, target_url]
-                subprocess.check_call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=6)
-                latency = int((time.time() - start_time) * 1000)
+                latency = CurlTransport.probe_head(target_url, self.DEFAULT_USER_AGENT)
                 return True, f"{latency}ms (curl)"
             except Exception:
                 err_name = type(e).__name__
