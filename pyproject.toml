@@ -1,0 +1,14 @@
+# Tooling configuration only (the app runs from the repo root; no build metadata).
+[tool.pytest.ini_options]
+addopts = "-v -m 'not live'"
+testpaths = ["tests"]
+python_files = ["test_*.py", "live_*.py"]
+markers = [
+    "live: sends real HTTP requests (excluded from the default offline run)",
+]
+
+[tool.ruff]
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]

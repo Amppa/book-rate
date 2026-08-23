@@ -166,7 +166,16 @@ from book_rate.models import RatingRequestPayload
 
 
 class TestRatingOrchestrator(unittest.TestCase):
-    def test_evaluate_all_sync(self):
+    @patch("book_rate.work_preparer.WorkPreparer.resolve_work_editions_and_ol_rating")
+    @patch("book_rate.sources.readmoo.ReadmooSource.fetch_ratings")
+    def test_evaluate_all_sync(self, mock_rm_ratings, mock_resolve):
+        mock_resolve.return_value = (
+            SourceRating(source_name="Open Library"),
+            [],
+            Work(work_id="gr:12345", title="Thinking, Fast and Slow", author="Daniel Kahneman"),
+            {},
+        )
+        mock_rm_ratings.return_value = SourceRating(source_name="Readmoo", rate=3.8, rating_count=50, status="MATCH")
         orchestrator = RatingOrchestrator()
         req = RatingRequestPayload(
             work_id="gr:12345",
@@ -178,7 +187,16 @@ class TestRatingOrchestrator(unittest.TestCase):
         self.assertEqual(res["work_id"], "gr:12345")
         self.assertIn("readmoo", res["ratings"])
 
-    def test_evaluate_stream(self):
+    @patch("book_rate.work_preparer.WorkPreparer.resolve_work_editions_and_ol_rating")
+    @patch("book_rate.sources.readmoo.ReadmooSource.fetch_ratings")
+    def test_evaluate_stream(self, mock_rm_ratings, mock_resolve):
+        mock_resolve.return_value = (
+            SourceRating(source_name="Open Library"),
+            [],
+            Work(work_id="gr:12345", title="Thinking, Fast and Slow", author="Daniel Kahneman"),
+            {},
+        )
+        mock_rm_ratings.return_value = SourceRating(source_name="Readmoo", rate=3.8, rating_count=50, status="MATCH")
         orchestrator = RatingOrchestrator()
         req = RatingRequestPayload(
             work_id="gr:12345",
@@ -815,8 +833,10 @@ class TestNonExistentBookCase(unittest.TestCase):
             author="UnknownAuthor_XYZ999"
         )
 
+    @patch("book_rate.sources.base.BaseSource._fetch_html")
     @patch("requests.Session.get")
-    def test_amazon_non_existent_book(self, mock_get):
+    def test_amazon_non_existent_book(self, mock_get, mock_fetch_html):
+        mock_fetch_html.return_value = ("", False)
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.text = "<html><body><div>No results found for your search</div></body></html>"
@@ -845,8 +865,10 @@ class TestNonExistentBookCase(unittest.TestCase):
         self.assertIsNone(rating.rate)
         self.assertIsNone(rating.rating_count)
 
+    @patch("book_rate.sources.base.BaseSource._fetch_html")
     @patch("requests.Session.get")
-    def test_goodreads_non_existent_book(self, mock_get):
+    def test_goodreads_non_existent_book(self, mock_get, mock_fetch_html):
+        mock_fetch_html.return_value = ("", False)
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = []
@@ -882,16 +904,19 @@ class TestUnratedBookWithUrlCase(unittest.TestCase):
             author="New Author"
         )
 
+    @patch("book_rate.sources.base.BaseSource._fetch_html")
     @patch("requests.Session.get")
-    def test_amazon_unrated_book_with_url(self, mock_get):
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.text = '''
+    def test_amazon_unrated_book_with_url(self, mock_get, mock_fetch_html):
+        html = '''
         <div data-component-type="s-search-result">
           <h2><a href="/Unrated-Novel/dp/B000000111"><span>Unrated Modern Novel</span></a></h2>
           by New Author
         </div>
         '''
+        mock_fetch_html.return_value = (html, False)
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = html
         mock_get.return_value = mock_resp
 
         source = AmazonSource()

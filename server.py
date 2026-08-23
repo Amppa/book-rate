@@ -1,13 +1,19 @@
-from typing import List, Optional
-from fastapi import FastAPI, Query, HTTPException
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import StreamingResponse
 import json
+import logging
 import os
+from typing import Optional
+
 import uvicorn
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import StreamingResponse
+from fastapi.staticfiles import StaticFiles
 
 from book_rate.aggregator import BookAggregator
+from book_rate.models import RatingRequestPayload
+from book_rate.registry import SourceRegistry
 from book_rate.sources.base import SourceNetworkError
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="BookRate Aggregator")
 
@@ -15,16 +21,19 @@ app = FastAPI(title="BookRate Aggregator")
 google_key = os.environ.get("GOOGLE_BOOKS_API_KEY")
 aggregator = BookAggregator(google_api_key=google_key)
 
+# Default engine list shared by API endpoints when clients omit engines.
+DEFAULT_ENGINES_CSV = SourceRegistry.default_engines_csv()
+
 
 @app.get("/api/search")
 def api_search(
     q: str = Query(..., description="Search query"),
     page: int = Query(1, description="Page number"),
     google_key: str = Query(None, description="Optional Google Books API Key"),
-    engines: str = Query("open_library,google_books,google_play,goodreads,storygraph,amazon,amazon_jp,douban,douban_api,readmoo,books_tw", description="Comma-separated engines to use"),
+    engines: str = Query(DEFAULT_ENGINES_CSV, description="Comma-separated engines to use"),
     cooldown: Optional[float] = Query(None, description="Optional minimum request cooldown in seconds")
 ):
-    print(f"\n[Search API] User query: '{q}', page: {page}, engines: '{engines}', cooldown: {cooldown}")
+    logger.info("[Search API] q='%s', page=%s, engines='%s', cooldown=%s", q, page, engines, cooldown)
     active_title_sources = [e.strip() for e in engines.split(",") if e.strip()]
     if cooldown is not None:
         for e_key in active_title_sources:
@@ -37,26 +46,24 @@ def api_search(
         status = getattr(sne, "status_code", 403) or 403
         raise HTTPException(status_code=status, detail=str(sne))
 
+
 @app.get("/api/work-editions")
 def api_work_editions(
     work_id: str = Query(..., description="Work ID e.g. OL17267881W"),
 ):
-    print(f"\n[Editions API] User requested editions for work: '{work_id}'")
+    logger.info("[Editions API] requested editions for work '%s'", work_id)
     return aggregator.fetch_editions_for_work(work_id)
-
-
-from book_rate.models import RatingRequestPayload
 
 
 @app.post("/api/work-details")
 def api_work_details_post(payload: RatingRequestPayload):
-    print(f"\n[POST Details API] User locked work: '{payload.work_id}' (Title: '{payload.title}', Author: '{payload.author}')")
+    logger.info("[POST Details API] locked work '%s' (title='%s', author='%s')", payload.work_id, payload.title, payload.author)
     return aggregator.orchestrator.evaluate_all(payload)
 
 
 @app.post("/api/work-details-stream")
 def api_work_details_stream_post(payload: RatingRequestPayload):
-    print(f"\n[POST Stream Details API] User locked work: '{payload.work_id}' (Title: '{payload.title}', Author: '{payload.author}')")
+    logger.info("[POST Stream Details API] locked work '%s' (title='%s', author='%s')", payload.work_id, payload.title, payload.author)
 
     def event_generator():
         for event in aggregator.orchestrator.evaluate_stream(payload):
@@ -65,46 +72,21 @@ def api_work_details_stream_post(payload: RatingRequestPayload):
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
-
 @app.get("/api/source-status")
 def api_source_status(
-    engines: str = Query("open_library,google_books,google_play,goodreads,douban,amazon,amazon_jp,storygraph,readmoo,books_tw", description="Comma-separated engines to check")
+    engines: str = Query(DEFAULT_ENGINES_CSV, description="Comma-separated engines to check")
 ):
-    from concurrent.futures import ThreadPoolExecutor
-    print(f"\n[Source Status API] Engines to check: '{engines}'")
+    logger.info("[Source Status API] engines='%s'", engines)
     active_engines = [e.strip() for e in engines.split(",") if e.strip()]
-    results = {}
-
-    def check_engine(key):
-        source_inst = aggregator.source_instances.get(key)
-        if not source_inst:
-            return key, {"status": "failed", "message": "Unknown engine"}
-        try:
-            is_ok, msg = source_inst.check_connectivity()
-            return key, {
-                "status": "ok" if is_ok else "failed",
-                "message": msg
-            }
-        except Exception as e:
-            return key, {
-                "status": "failed",
-                "message": f"Check Error: {str(e)}"
-            }
-
-    with ThreadPoolExecutor(max_workers=len(active_engines) or 1) as executor:
-        futures = [executor.submit(check_engine, e_key) for e_key in active_engines]
-        for future in futures:
-            key, res = future.result()
-            results[key] = res
-
-    return results
+    return aggregator.check_source_status(active_engines)
 
 
 # Serve the frontend prototype files
-# Check if "frontend" folder exists, then mount it
 frontend_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "frontend")
 if os.path.exists(frontend_path):
     app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
 
+
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     uvicorn.run("server:app", host="127.0.0.1", port=8000, reload=True)

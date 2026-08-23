@@ -129,8 +129,8 @@ In Step 3, rate providers fetch ratings using one of 6 single-factor search stra
 ## 7. Test Architecture
 
 * **Mock Unit Tests (`pytest`)**:
-  - `pytest.ini` automatically ignores slow live network tests by default (`addopts = --ignore=tests/live_test_network.py`).
-  - All mock tests complete in under 1 second.
+  - Live-network tests carry the `live` marker. Default `pytest` runs the offline tier only; run `pytest -m live` for real HTTP integration tests.
+  - Mock tests are guaranteed offline: `tests/conftest.py` blocks sockets and subprocesses unless a test is marked `live`.
   - Active test suite:
     - **`tests/test_all_sources.py`**: Unit tests for all 11 source adapters, compact number parsing (`_parse_compact_number`), and edge cases.
     - **`tests/test_models.py`**: Model dataclasses.
@@ -140,7 +140,7 @@ In Step 3, rate providers fetch ratings using one of 6 single-factor search stra
     - **`tests/test_concurrency.py`**: Concurrency and curl isolation.
     - **`tests/test_cooldown_and_headers.py`**: Domain rate limiting and cooldowns.
 * **Live Network Tests**:
-  - **`tests/live_test_network.py`**: Real HTTP request integration tests. Run explicitly via `pytest tests/live_test_network.py`.
+  - **`tests/live_test_network.py`**: Real HTTP request integration tests. Run via `pytest -m live`.
 
 ---
 

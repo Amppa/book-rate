@@ -1,3 +1,8 @@
+import pytest
+
+pytestmark = pytest.mark.live
+
+
 import os
 import time
 import unittest

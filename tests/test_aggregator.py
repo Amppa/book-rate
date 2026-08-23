@@ -249,8 +249,10 @@ class TestGoogleBooksSource(unittest.TestCase):
 class TestPresetBooksMapping(unittest.TestCase):
     """Test cases verifying aggregation mapping for the preset test cases (Thinking Fast and Slow, Sapiens)."""
 
+    @patch('book_rate.sources.base.BaseSource._fetch_html')
     @patch('requests.Session.get')
-    def test_preset_books_aggregation(self, mock_get):
+    def test_preset_books_aggregation(self, mock_get, mock_fetch_html):
+        mock_fetch_html.return_value = ("", False)
         def side_effect(url, **kwargs):
             params = kwargs.get('params', {})
             mock_resp = MagicMock()

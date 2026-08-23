@@ -51,6 +51,11 @@ class SourceRegistry:
         return list(cls.TITLE_SOURCES)
 
     @classmethod
+    def default_engines_csv(cls):
+        """Comma-separated default engines string (all registered sources) for API defaults."""
+        return ",".join(cls.list_source_keys())
+
+    @classmethod
     def get_source_class(cls, key: str) -> Optional[Type[BaseSource]]:
         """Get the source adapter class for a given source key."""
         return cls._REGISTRY.get(key.lower().strip())

@@ -46,6 +46,11 @@
    pip install -r requirements.txt
    ```
 
+3. **安裝測試工具（可選，執行自動化測試時需要）**：
+   ```bash
+   pip install -r requirements-dev.txt
+   ```
+
 ---
 
 ## 快速開始
@@ -60,11 +65,11 @@
 
 3. **執行測試**：
    ```bash
-   # 執行全套快速 Mock 單元測試（< 1 秒完成）
+   # 執行離線 Mock 測試（預設；保證不發送任何真實綱路請求）
    pytest
 
-   # 執行真實連網端對端整合測試（可選，會發送真實 HTTP 請求）
-   pytest tests/live_test_network.py
+   # 執行真實連綱整合測試（會發送真實 HTTP 請求）
+   pytest -m live
    ```
 
 ---

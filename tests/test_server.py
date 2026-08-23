@@ -126,10 +126,13 @@ class TestServerAPI(unittest.TestCase):
         self.assertEqual(events[0]["type"], "init")
         self.assertEqual(events[-1]["type"], "done")
 
+    @patch("book_rate.sources.base.BaseSource.fetch_ratings")
     @patch("server.aggregator.resolve_work_editions_and_ol_rating")
     @patch("server.aggregator.goodreads.fetch_ratings")
     @patch("server.aggregator.google_books.fetch_ratings")
-    def test_post_api_work_details_minimal_and_empty_payload(self, mock_gb_ratings, mock_gr_ratings, mock_resolve):
+    def test_post_api_work_details_minimal_and_empty_payload(self, mock_gb_ratings, mock_gr_ratings, mock_resolve, mock_base_ratings):
+        # Remaining default-tier engines must stay offline in this unit test.
+        mock_base_ratings.return_value = SourceRating(source_name="MockSource", status="NO_MATCH")
         target_work = Work(
             work_id="/works/OL123W",
             title="Mock Book",

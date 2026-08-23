@@ -1,5 +1,6 @@
 import logging
 import json
+from concurrent.futures import ThreadPoolExecutor
 from typing import List, Optional
 
 from book_rate.models import Work, Edition, SourceRating, RatingRequestPayload
@@ -59,6 +60,26 @@ class BookAggregator:
             source_instances=self.source_instances,
             resolve_work_fn=lambda *args, **kwargs: self.resolve_work_editions_and_ol_rating(*args, **kwargs)
         )
+
+    def check_source_status(self, engine_keys):
+        """Check connectivity of the given sources concurrently."""
+        def check_engine(key):
+            source_inst = self.source_instances.get(key)
+            if not source_inst:
+                return key, {"status": "failed", "message": "Unknown engine"}
+            try:
+                is_ok, msg = source_inst.check_connectivity()
+                return key, {"status": "ok" if is_ok else "failed", "message": msg}
+            except Exception as e:
+                return key, {"status": "failed", "message": f"Check Error: {e}"}
+
+        results = {}
+        with ThreadPoolExecutor(max_workers=len(engine_keys) or 1) as executor:
+            futures = [executor.submit(check_engine, k) for k in engine_keys]
+            for future in futures:
+                key, res = future.result()
+                results[key] = res
+        return results
 
     def aggregate_by_title(self, title_query: str, limit: int = 5) -> List[Work]:
         """

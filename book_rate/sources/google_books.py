@@ -151,20 +151,20 @@ class GoogleBooksSource(BaseSource):
                     "Google Books API rate limit / quota exceeded (HTTP 429). "
                     "Consider setting GOOGLE_BOOKS_API_KEY environment variable."
                 )
-                print(f"  [Google Books API] ⚠️ QUOTA EXCEEDED (HTTP 429) for query '{query}'")
+                logger.warning(f"[Google Books API] QUOTA EXCEEDED (HTTP 429) for query '{query}'")
                 return []
             resp.raise_for_status()
             data = resp.json()
         except requests.exceptions.Timeout:
             logger.warning(f"Google Books API search timed out for '{query}'")
-            print(f"  [Google Books API] ⏱️ TIMEOUT for query '{query}'")
+            logger.warning(f"[Google Books API] TIMEOUT for query '{query}'")
             return []
         except Exception as e:
             logger.warning(f"Google Books API search failed for '{query}': {e}")
-            print(f"  [Google Books API] ❌ ERROR ({e}) for query '{query}'")
+            logger.error(f"[Google Books API] ERROR ({e}) for query '{query}'")
         items = data.get("items", [])
         if not items:
-            print(f"  [Google Books API] 🔍 0 RESULTS (No matching books) for query '{query}'")
+            logger.info(f"[Google Books API] 0 RESULTS (No matching books) for query '{query}'")
 
         return [self._parse_volume_item(item) for item in items]
 
