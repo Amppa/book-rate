@@ -114,10 +114,14 @@ function _resolveRatingDisplay(itemData, maxRate = 5) {
     };
   }
   if (isNetworkError) {
+    const shortStatus = status.length > 40 ? status.slice(0, 40) + "\u2026" : status;
+    const friendlyCount = shortStatus.indexOf("Invalid API Key") !== -1
+      ? "\u8acb\u6aa2\u67e5 API Key"
+      : shortStatus;
     return {
-      rateHtml: '<span class="error">連線異常 ⚠️</span>',
-      countText: status,
-      status: status
+      rateHtml: '<span class="error">\u9023\u7dda\u7570\u5e38 \u26a0\ufe0f</span>',
+      countText: friendlyCount,
+      status: shortStatus
     };
   }
   if (hasScore) {
@@ -165,6 +169,11 @@ function _buildStatusTag(status, data) {
   tag.dataset.query = data?.query || "";
   const friendlyStrat = STRATEGY_LABEL_MAP[data?.strategy] || data?.strategy || "N/A";
   tag.title = `策略: ${friendlyStrat}, 查詢: ${data?.query || "N/A"}`;
+  const raw = status || "NO_MATCH";
+  if (raw.length > 24) {
+    tag.textContent = raw.slice(0, 24) + "\u2026";
+    tag.title += ", \u8a0a\u606f: " + raw;
+  }
   return tag;
 }
 

@@ -8,7 +8,7 @@ from typing import List, Optional
 
 
 from book_rate.models import Work, Edition, SourceRating, SourceStatus
-from book_rate.sources.base import BaseSource
+from book_rate.sources.base import BaseSource, SourceNetworkError
 from book_rate.utils.isbn import clean_isbn, extract_isbns_from_work
 
 logger = logging.getLogger(__name__)
@@ -165,9 +165,25 @@ class GoogleBooksSource(BaseSource):
             logger.warning(f"Google Books API search timed out for '{query}'")
             logger.warning(f"[Google Books API] TIMEOUT for query '{query}'")
             return []
+        except requests.exceptions.HTTPError as he:
+            code = getattr(getattr(he, "response", None), "status_code", None)
+            logger.error(f"[Google Books API] HTTP {code} for query '{query}': {he}")
+            if code == 429:
+                self.quota_exceeded = True
+                return []
+            body = ""
+            try:
+                body = (he.response.text or "")[:200].lower()
+            except Exception:
+                pass
+            if code in (400, 403) and "api key not valid" in body:
+                self.last_network_error = "Invalid API Key"
+                raise SourceNetworkError("Invalid API Key", status_code=code)
+            return []
         except Exception as e:
             logger.warning(f"Google Books API search failed for '{query}': {e}")
             logger.error(f"[Google Books API] ERROR ({e}) for query '{query}'")
+            return []
         items = data.get("items", [])
         if not items:
             logger.info(f"[Google Books API] 0 RESULTS (No matching books) for query '{query}'")

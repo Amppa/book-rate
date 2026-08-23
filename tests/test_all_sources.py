@@ -1009,6 +1009,41 @@ class TestGoogleBooksQuotaFlag(unittest.TestCase):
         self.assertIsNone(gb.fetch_volume_by_id("vol123"))
         self.assertTrue(gb.quota_exceeded)
 
+    @patch("requests.Session.get")
+    def test_invalid_api_key_raises_actionable_network_error(self, mock_get):
+        import requests
+        from book_rate.sources.base import SourceNetworkError
+        from book_rate.sources.google_books import GoogleBooksSource
+        gb = GoogleBooksSource()
+
+        resp = MagicMock()
+        resp.status_code = 400
+        resp.text = '{"error": {"code": 400, "message": "API key not valid. Please pass a valid API key."}}'
+        he = requests.exceptions.HTTPError("400 Client Error: Bad Request", response=resp)
+        mock_get.return_value = resp
+        resp.raise_for_status.side_effect = he
+
+        with self.assertRaises(SourceNetworkError) as ctx:
+            gb.search_works("Any Query")
+        self.assertIn("Invalid API Key", str(ctx.exception))
+        self.assertFalse(gb.quota_exceeded)
+
+    @patch("requests.Session.get")
+    def test_other_http_errors_return_empty_without_raising(self, mock_get):
+        import requests
+        from book_rate.sources.google_books import GoogleBooksSource
+        gb = GoogleBooksSource()
+
+        resp = MagicMock()
+        resp.status_code = 500
+        resp.text = "{}"
+        he = requests.exceptions.HTTPError("500 Server Error", response=resp)
+        mock_get.return_value = resp
+        resp.raise_for_status.side_effect = he
+
+        self.assertEqual(gb.search_works("Any Query"), [])
+        self.assertFalse(gb.quota_exceeded)
+
 
 class TestOrchestratorKeyedGoogleInstance(unittest.TestCase):
     def _make_orchestrator_with_shared(self):
