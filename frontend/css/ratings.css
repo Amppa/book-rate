@@ -7,21 +7,22 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: var(--space-4);
-  margin-top: var(--space-4);
+  gap: var(--space-2);
+  margin-top: var(--space-3);
 }
 
 .score-display-toggles .toggle-title {
   font-weight: 600;
   color: var(--text-primary);
-  font-size: var(--fs-sm);
+  font-size: var(--fs-xs);
+  margin-right: var(--space-1);
 }
 
 .source-toggle-item {
   display: inline-flex;
   align-items: center;
   background: var(--surface-subtle);
-  padding: var(--space-2) var(--space-3);
+  padding: 3px 8px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-light);
   transition: var(--transition-fast);
@@ -33,7 +34,9 @@
 
 .score-display-toggles .checkbox-label {
   display: inline-flex;
-  font-size: var(--fs-sm);
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-xs);
   color: var(--text-primary);
   margin-bottom: 0;
   cursor: pointer;
@@ -42,11 +45,12 @@
 .source-toggle-actions {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-1);
+  margin-left: var(--space-1);
 }
 
 .score-display-toggles .info-text-link {
-  font-size: var(--fs-sm);
+  font-size: var(--fs-xs);
   color: var(--text-muted);
   cursor: pointer;
 }
@@ -58,7 +62,7 @@
 /* 2. Strategy Dropdowns & Selects */
 .thead-strategy-row th {
   vertical-align: top;
-  padding: var(--space-2) var(--space-3);
+  padding: 4px 6px;
   font-weight: normal;
   border-top: 1px dashed var(--border-light);
 }
@@ -140,7 +144,7 @@
 
 .table-wrap th,
 .table-wrap td {
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-2) var(--space-3);
   vertical-align: top;
   border-bottom: 1px solid var(--border-light);
   word-break: break-word;
