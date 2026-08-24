@@ -1,6 +1,11 @@
+/**
+ * Ratings Comparison Table Orchestrator (Step 3)
+ * Coordinates work selection, local rating caching, SSE streaming, and UI table updates.
+ */
+
 import { state } from './state.js';
-import { STORAGE_KEYS, SOURCES, SOURCE_PREFIX, OPEN_LIBRARY_BASE_URL, STRATEGY_LABEL_MAP } from './constants.js';
-import { displayRate, displayCount, getSourceSearchUrl } from './utils.js';
+import { STORAGE_KEYS, SOURCES, SOURCE_PREFIX } from './constants.js';
+import { displayCount, getSourceSearchUrl } from './utils.js';
 import { getRatingCache, setRatingCache } from './cache.js';
 import { streamWorkDetailsPost } from './api.js';
 import {
@@ -10,21 +15,40 @@ import {
   getSourceDefaultStrat,
   goToStep
 } from './wizard.js';
+import { renderSourceCell } from './rating-renderer.js';
 
+// Re-export renderSourceCell for external module compatibility
+export { renderSourceCell };
 
 // DOM references injected at startup via initRatings()
-let _resultBody, _step3Status, _tableWrap, _detailsHeading, _candidateList;
+let _resultBody, _step3Status, _tableWrap, _detailsHeading;
+
+/**
+ * Resolves source metadata, prefix, and maximum rating scale.
+ * @param {string} sourceId - The engine identifier (e.g. 'douban', 'google_books')
+ * @returns {Object} { sourceId, prefix, maxRate, label }
+ */
+export function getSourceDisplayConfig(sourceId) {
+  const source = SOURCES.find((s) => s.id === sourceId);
+  const prefix = SOURCE_PREFIX[sourceId] || sourceId;
+  const maxRate = (prefix === "db" || prefix === "dbapi") ? 10 : 5;
+  return {
+    sourceId,
+    prefix,
+    maxRate,
+    label: source ? source.label : sourceId
+  };
+}
 
 /**
  * Inject DOM references that ratings.js needs.
  * Called once from app.js before any user interaction.
  */
-export function initRatings({ resultBody, step3Status, tableWrap, detailsHeading, candidateList }) {
+export function initRatings({ resultBody, step3Status, tableWrap, detailsHeading }) {
   _resultBody = resultBody;
   _step3Status = step3Status;
   _tableWrap = tableWrap;
   _detailsHeading = detailsHeading;
-  _candidateList = candidateList;
 
   // Collapse/Expand functionality for Step 3 Metadata
   const btnCollapse = document.querySelector("#btn-collapse-s3-meta");
@@ -49,14 +73,14 @@ export function initRatings({ resultBody, step3Status, tableWrap, detailsHeading
 }
 
 // ---------------------------------------------------------------------------
-// Row / cell builders
+// Row / cell lifecycle builders
 // ---------------------------------------------------------------------------
 
 export function renderCountCell(countEl, countVal) {
   countEl.textContent = displayCount(countVal);
 }
 
-/** Creates an empty <tr> with "Fetching…" placeholders for every active source column (disabled sources get a static placeholder). */
+/** Creates an empty <tr> with "Fetching…" placeholders for every active source column. */
 export function renderInitialWorkRow(work) {
   const row = document.createElement("tr");
   row.className = "work-row";
@@ -103,275 +127,12 @@ export function markSourceCellDisabled(row, prefix) {
 
   const cell = rateEl.closest("td");
   if (cell) {
-    const metaBox = cell.querySelector(".search-meta-box");
-    if (metaBox) metaBox.remove();
+    cell.querySelectorAll(".source-book-title, :scope > .search-status-tag, .source-book-details, .search-meta-box").forEach(el => el.remove());
   }
 }
-
-/**
- * Resolves display representation (rateText/rateHtml, countText, status) for a source rating.
- */
-function _resolveRatingDisplay(itemData, maxRate = 5) {
-  const hasScore = typeof itemData.average === "number" && itemData.average > 0;
-  const status = itemData.status || (hasScore ? "MATCH" : (itemData.url ? "UNRATED" : "NO_MATCH"));
-  const isNetworkError = status
-    && !["MATCH", "CURL_MATCH", "UNRATED", "NO_MATCH", "NOT_FOUND", "QUOTA_EXCEEDED", "ERROR"].includes(status);
-
-  if (itemData.quota_exceeded || status === "QUOTA_EXCEEDED") {
-    return {
-      rateHtml: '<span class="error">額度超限 (429)</span>',
-      countText: "請設定 API Key",
-      status: "QUOTA_EXCEEDED"
-    };
-  }
-  if (status === "RATE_LIMITED" || status === "RATE_LIMIT") {
-    return {
-      rateHtml: '<span class="error">連線異常 (風控)</span>',
-      countText: "請求過密或遭阻擋",
-      status: "RATE_LIMITED"
-    };
-  }
-  if (status === "ERROR") {
-    return {
-      rateHtml: '<span class="error">讀取錯誤</span>',
-      countText: "請檢查主機連線",
-      status: "ERROR"
-    };
-  }
-  if (isNetworkError) {
-    const shortStatus = status.length > 40 ? status.slice(0, 40) + "\u2026" : status;
-    const friendlyCount = shortStatus.indexOf("Invalid API Key") !== -1
-      ? "\u8acb\u6aa2\u67e5 API Key"
-      : shortStatus;
-    return {
-      rateHtml: '<span class="error">連線異常</span>',
-      countText: friendlyCount,
-      status: shortStatus
-    };
-  }
-  if (hasScore) {
-    return {
-      rateText: displayRate(itemData.average, itemData.count, maxRate),
-      countText: displayCount(itemData.count),
-      status: status || "MATCH"
-    };
-  }
-  if (itemData.url || status === "UNRATED") {
-    return {
-      rateText: "暫無評分",
-      countText: itemData.count ? displayCount(itemData.count) : "目前0評價",
-      status: "UNRATED"
-    };
-  }
-  // A strategy was selected but no query was ever executed (title/CJK/ISBN
-  // lists all empty). The backend signals this with an empty query string,
-  // which is distinct from NOT_FOUND (query=null) and OL payloads (no query).
-  if (itemData.query === "") {
-    return {
-      rateText: "無清單輸入",
-      countText: "-",
-      status: "NO_MATCH",
-      tagText: "NULL",
-      emptyTitle: true
-    };
-  }
-  return {
-    rateText: "無此書籍",
-    countText: "-",
-    status: "NO_MATCH"
-  };
-}
-
-/** Builds a book title element (rendered as an external link if URL is present). */
-function _buildTitleElement(title, url) {
-  if (!title) return null;
-  const el = document.createElement(url ? "a" : "div");
-  el.className = "source-book-title";
-  el.textContent = title;
-  if (url) {
-    el.href = url;
-    el.target = "_blank";
-    el.rel = "noreferrer";
-  }
-  return el;
-}
-
-/** Builds the strategy/status tooltip tag element. */
-function _buildStatusTag(status, data, tagText) {
-  const tag = document.createElement("span");
-  const normStatusClass = (status || "").toLowerCase().replace(/[^a-z0-9_]/g, "-");
-  tag.className = `search-status-tag status-${normStatusClass}`;
-  const raw = tagText || status || "NO_MATCH";
-  tag.textContent = raw;
-  tag.dataset.strat = data?.strategy || "";
-  tag.dataset.query = data?.query || "";
-  const friendlyStrat = STRATEGY_LABEL_MAP[data?.strategy] || data?.strategy || "N/A";
-  tag.title = `策略: ${friendlyStrat}, 查詢: ${data?.query || "N/A"}`;
-  if (raw.length > 24) {
-    tag.textContent = raw.slice(0, 24) + "\u2026";
-    tag.title += ", \u8a0a\u606f: " + raw;
-  }
-  return tag;
-}
-
-/** Builds collapsible book details element without emoji. */
-function _buildBookDetailsElement(bookInfo) {
-  if (!bookInfo || typeof bookInfo !== "object") return null;
-
-  const fieldDefs = [
-    { key: "author", label: "作者:" },
-    { key: "translator", label: "譯者:" },
-    { key: "publisher", label: "出版社:" },
-    { key: "publish_date", label: "出版日期:" },
-    { key: "language", label: "語言:" },
-    { key: "original_title", label: "原作名:" },
-    { key: "edition_count", label: "版本數:" },
-    { key: "isbn", label: "ISBN:" },
-    { key: "work_id", label: "ID:" }
-  ];
-
-  const validEntries = fieldDefs.filter(f => {
-    const v = bookInfo[f.key];
-    return v !== null && v !== undefined && String(v).trim() !== "";
-  });
-
-  if (validEntries.length === 0) return null;
-
-  const details = document.createElement("details");
-  details.className = "source-book-details";
-
-  const summary = document.createElement("summary");
-  summary.className = "source-details-summary";
-  summary.textContent = "details  ▶";
-
-  details.addEventListener("toggle", () => {
-    summary.textContent = details.open ? "details  ▼" : "details  ▶";
-  });
-
-  details.appendChild(summary);
-
-  const content = document.createElement("div");
-  content.className = "source-details-content";
-
-  validEntries.forEach(f => {
-    const row = document.createElement("div");
-    row.className = "source-detail-row";
-
-    const label = document.createElement("span");
-    label.className = "source-detail-label";
-    label.textContent = f.label;
-
-    const val = document.createElement("span");
-    val.className = "source-detail-value";
-    val.textContent = String(bookInfo[f.key]);
-
-    row.appendChild(label);
-    row.appendChild(val);
-    content.appendChild(row);
-  });
-
-  details.appendChild(content);
-  return details;
-}
-
-/** Renders multi-result list for Strategy 4/5 into the cell. */
-function _renderMultiResult(rateEl, countEl, results, maxRate) {
-  const listContainer = document.createElement("div");
-  listContainer.className = "multi-result-list";
-
-  results.forEach((res) => {
-    const item = document.createElement("div");
-    item.className = "multi-result-item";
-    item.title = `查詢: ${res.query || "N/A"}\n書名: ${res.title || "N/A"}`;
-
-    const titleEl = _buildTitleElement(res.title, res.url);
-    if (titleEl) item.appendChild(titleEl);
-
-    const display = _resolveRatingDisplay(res, maxRate);
-
-    const strong = document.createElement("strong");
-    if (display.rateHtml) {
-      strong.innerHTML = display.rateHtml;
-    } else {
-      strong.textContent = display.rateText;
-    }
-
-    const small = document.createElement("small");
-    small.textContent = display.countText;
-
-    const badge = _buildStatusTag(display.status, res, display.tagText);
-
-    item.appendChild(strong);
-    item.appendChild(small);
-    item.appendChild(badge);
-
-    const detailsEl = _buildBookDetailsElement(res.book_info);
-    if (detailsEl) item.appendChild(detailsEl);
-
-    listContainer.appendChild(item);
-  });
-
-  rateEl.appendChild(listContainer);
-  countEl.replaceChildren();
-}
-
-/** Renders single result into the cell. */
-function _renderSingleResult(cell, rateEl, countEl, data, maxRate) {
-  const display = _resolveRatingDisplay(data, maxRate);
-
-  // The backend fills the literal "Unknown" as a placeholder title when the
-  // work has no real title (format_rating_response's fallback_title). Show the
-  // actual search query instead; hide the line when there is nothing to show.
-  let titleLabel = data.title;
-  if (!titleLabel || titleLabel === "Unknown") {
-    titleLabel = (typeof data.query === "string" && data.query) ? data.query : "";
-  }
-
-  if (titleLabel && !display.emptyTitle) {
-    const titleEl = _buildTitleElement(titleLabel, data.url);
-    if (titleEl) cell.insertBefore(titleEl, rateEl);
-  }
-
-  if (display.rateHtml) {
-    rateEl.innerHTML = display.rateHtml;
-  } else {
-    rateEl.textContent = display.rateText;
-  }
-  countEl.textContent = display.countText;
-
-  const tag = _buildStatusTag(display.status, data, display.tagText);
-  cell.appendChild(tag);
-
-  const detailsEl = _buildBookDetailsElement(data.book_info);
-  if (detailsEl) cell.appendChild(detailsEl);
-}
-
-/**
- * Renders rating data into a single source column of a work row.
- * Handles multi-result, single-result, error, and quota-exceeded cases.
- */
-export function renderSourceCell(row, prefix, data, maxRate = 5) {
-  const rateEl = row.querySelector(`.${prefix}-rate`);
-  const countEl = row.querySelector(`.${prefix}-count`);
-  if (!rateEl || !countEl || !data || Object.keys(data).length === 0) return;
-
-  rateEl.replaceChildren();
-
-  const cell = rateEl.closest("td");
-  if (cell) {
-    cell.querySelectorAll(".source-book-title, :scope > .search-status-tag, .source-book-details").forEach(el => el.remove());
-  }
-
-  if (data.results && data.results.length > 0) {
-    _renderMultiResult(rateEl, countEl, data.results, maxRate);
-  } else if (cell) {
-    _renderSingleResult(cell, rateEl, countEl, data, maxRate);
-  }
-}
-
 
 // ---------------------------------------------------------------------------
-// SSE orchestration
+// SSE orchestration & payload builder
 // ---------------------------------------------------------------------------
 
 /**
@@ -499,9 +260,13 @@ export async function selectWork(work) {
 
   // Immediately render cached sources
   cachedRateSources.forEach(({ source, data }) => {
-    const prefix = SOURCE_PREFIX[source] || source;
-    const maxRate = prefix === "db" ? 10 : 5;
-    renderSourceCell(row, prefix, data, maxRate);
+    const config = getSourceDisplayConfig(source);
+    renderSourceCell(row, {
+      sourceId: config.sourceId,
+      prefix: config.prefix,
+      data,
+      maxRate: config.maxRate
+    });
   });
 
   try {
@@ -520,11 +285,15 @@ export async function selectWork(work) {
         } else if (data.type === "source") {
           const sourceKey = data.source;
           collectedDetails[sourceKey] = data.data;
-          const prefix = SOURCE_PREFIX[sourceKey] || sourceKey;
-          const maxRate = prefix === "db" ? 10 : 5;
+          const config = getSourceDisplayConfig(sourceKey);
           const strategy = strategies[sourceKey] || getSourceDefaultStrat(sourceKey);
           setRatingCache(work.key, sourceKey, strategy, data.data);
-          renderSourceCell(row, prefix, data.data, maxRate);
+          renderSourceCell(row, {
+            sourceId: config.sourceId,
+            prefix: config.prefix,
+            data: data.data,
+            maxRate: config.maxRate
+          });
         }
       },
       (err) => {
@@ -547,7 +316,7 @@ export function reQuerySingleSource(work, sourceKey) {
   const row = _resultBody.querySelector(".work-row");
   if (!row) return;
 
-  const prefix = SOURCE_PREFIX[sourceKey] || sourceKey;
+  const config = getSourceDisplayConfig(sourceKey);
   let strategies = getSelectedStrategies();
   if (state.searchMode === "quick_search") {
     strategies = {};
@@ -560,20 +329,23 @@ export function reQuerySingleSource(work, sourceKey) {
   // Check cache first
   const cachedData = getRatingCache(work.key, sourceKey, strategy);
   if (cachedData) {
-    const maxRate = prefix === "db" ? 10 : 5;
-    renderSourceCell(row, prefix, cachedData, maxRate);
+    renderSourceCell(row, {
+      sourceId: config.sourceId,
+      prefix: config.prefix,
+      data: cachedData,
+      maxRate: config.maxRate
+    });
     return;
   }
 
-  const rateEl = row.querySelector(`.${prefix}-rate`);
-  const countEl = row.querySelector(`.${prefix}-count`);
+  const rateEl = row.querySelector(`.${config.prefix}-rate`);
+  const countEl = row.querySelector(`.${config.prefix}-count`);
   if (rateEl && countEl) {
     rateEl.innerHTML = '<span class="fetching-tag">Fetching...</span>';
     countEl.textContent = "讀取中...";
     const cell = rateEl.closest("td");
     if (cell) {
-      const metaBox = cell.querySelector(".search-meta-box");
-      if (metaBox) metaBox.remove();
+      cell.querySelectorAll(".source-book-title, :scope > .search-status-tag, .source-book-details, .search-meta-box").forEach(el => el.remove());
     }
   }
 
@@ -584,10 +356,14 @@ export function reQuerySingleSource(work, sourceKey) {
     payload,
     (data) => {
       if (data.type === "source") {
-        const maxRate = prefix === "db" ? 10 : 5;
         const strategy = strategies[sourceKey] || getSourceDefaultStrat(sourceKey);
         setRatingCache(work.key, sourceKey, strategy, data.data);
-        renderSourceCell(row, prefix, data.data, maxRate);
+        renderSourceCell(row, {
+          sourceId: config.sourceId,
+          prefix: config.prefix,
+          data: data.data,
+          maxRate: config.maxRate
+        });
       }
     },
     (err) => {
