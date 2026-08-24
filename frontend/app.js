@@ -1,4 +1,4 @@
-import { MAX_CANDIDATES, SOURCES, SOURCE_PREFIX, STORAGE_KEYS } from './js/constants.js';
+import { MAX_CANDIDATES, SOURCES, SOURCE_PREFIX, PREFIX_TO_SOURCE, STORAGE_KEYS } from './js/constants.js';
 import {
   getCachedData, setCachedData, cleanExpiredCache,
   clearAllStep2Cache, clearAllStep3Cache, clearEditionsCache, clearWorkRatingsCache,
@@ -17,7 +17,7 @@ import {
   getSourceDefaultStrat, getSelectedStrategies, directToStep3
 } from './js/wizard.js';
 import { renderCandidates } from './js/candidates.js';
-import { initRatings, selectWork, reQuerySingleSource, updateTableHeaderLinks } from './js/ratings.js';
+import { initRatings, selectWork, reQuerySingleSource, markSourceCellDisabled, updateTableHeaderLinks } from './js/ratings.js';
 import { initPresetsModal, initEditionsModal, initSourceInfoModal } from './js/modals.js';
 import { state } from './js/state.js';
 
@@ -365,11 +365,30 @@ if (btnRefreshStep3) {
 
 // Score toggles
 if (scoreToggleBarEl) {
+  // Checking a source immediately loads its rating: cache first, else a real fetch.
+  const activateSource = (suffix) => {
+    const sourceId = PREFIX_TO_SOURCE[suffix];
+    if (!sourceId) return;
+    if (state.currentStep !== 3 || !state.currentSelectedWork) return;
+    reQuerySingleSource(state.currentSelectedWork, sourceId);
+  };
+
+  // Unchecking a source swaps its column to the static disabled placeholder.
+  const deactivateSource = (suffix) => {
+    if (!PREFIX_TO_SOURCE[suffix]) return;
+    const row = resultBody.querySelector(".work-row");
+    if (row) markSourceCellDisabled(row, suffix);
+  };
+
   scoreToggleBarEl.addEventListener("change", (e) => {
-    if (e.target.type === "checkbox") {
-      const id = e.target.id.replace("score-", "");
-      localStorage.setItem(`${STORAGE_KEYS.SCORE_TOGGLE_PREFIX}${id}`, e.target.checked);
-      updateTableVisibility(ratingTable);
+    if (e.target.type !== "checkbox") return;
+    const suffix = e.target.id.replace("score-", "");
+    localStorage.setItem(`${STORAGE_KEYS.SCORE_TOGGLE_PREFIX}${suffix}`, e.target.checked);
+    updateTableVisibility(ratingTable);
+    if (e.target.checked) {
+      activateSource(suffix);
+    } else {
+      deactivateSource(suffix);
     }
   });
 
@@ -378,12 +397,21 @@ if (scoreToggleBarEl) {
     const btn = e.target.closest("button[data-toggle-action]");
     if (!btn) return;
     const checked = btn.dataset.toggleAction === "all";
+    const changedSuffixes = [];
     SOURCES.forEach((source) => {
       const suffix = SOURCE_PREFIX[source.id];
       const checkbox = document.querySelector(`#score-${suffix}`);
       if (!checkbox) return;
-      checkbox.checked = checked;
+      if (checkbox.checked !== checked) {
+        checkbox.checked = checked;
+        changedSuffixes.push(suffix);
+      }
       localStorage.setItem(`${STORAGE_KEYS.SCORE_TOGGLE_PREFIX}${suffix}`, checked);
+    });
+    // Only newly-changed sources trigger loads / disabled placeholders
+    changedSuffixes.forEach((suffix) => {
+      if (checked) activateSource(suffix);
+      else deactivateSource(suffix);
     });
     updateTableVisibility(ratingTable);
   });

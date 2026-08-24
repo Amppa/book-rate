@@ -56,7 +56,7 @@ export function renderCountCell(countEl, countVal) {
   countEl.textContent = displayCount(countVal);
 }
 
-/** Creates an empty <tr> with "Fetching…" placeholders for every source column. */
+/** Creates an empty <tr> with "Fetching…" placeholders for every active source column (disabled sources get a static placeholder). */
 export function renderInitialWorkRow(work) {
   const row = document.createElement("tr");
   row.className = "work-row";
@@ -69,11 +69,20 @@ export function renderInitialWorkRow(work) {
 
     const strong = document.createElement("strong");
     strong.className = `${suffix}-rate`;
-    strong.innerHTML = '<span class="fetching-tag">Fetching...</span>';
 
     const small = document.createElement("small");
     small.className = `${suffix}-count`;
-    small.textContent = "讀取中...";
+
+    // Sources whose toggle is off never get fetched — show a static
+    // "Disable Source" placeholder instead of a perpetual Fetching state.
+    const checkbox = document.querySelector(`#score-${suffix}`);
+    if (checkbox && !checkbox.checked) {
+      strong.innerHTML = '<span class="disabled-tag">Disable Source</span>';
+      small.textContent = "-";
+    } else {
+      strong.innerHTML = '<span class="fetching-tag">Fetching...</span>';
+      small.textContent = "讀取中...";
+    }
 
     td.appendChild(strong);
     td.appendChild(small);
@@ -81,6 +90,22 @@ export function renderInitialWorkRow(work) {
   });
 
   return row;
+}
+
+/** Switches a single source column to the static "Disable Source" placeholder. */
+export function markSourceCellDisabled(row, prefix) {
+  const rateEl = row.querySelector(`.${prefix}-rate`);
+  const countEl = row.querySelector(`.${prefix}-count`);
+  if (!rateEl || !countEl) return;
+
+  rateEl.innerHTML = '<span class="disabled-tag">Disable Source</span>';
+  countEl.textContent = "-";
+
+  const cell = rateEl.closest("td");
+  if (cell) {
+    const metaBox = cell.querySelector(".search-meta-box");
+    if (metaBox) metaBox.remove();
+  }
 }
 
 /**
@@ -280,6 +305,11 @@ export function renderSourceCell(row, prefix, data, maxRate = 5) {
 /** Renders the Open Library rating into the row after the "init" SSE event. */
 export function updateWorkDetailRow(row, { work, ratings }, strategies) {
   if (!row) return;
+  // The server always includes OL data in the "init" event regardless of the
+  // requested engines. Skip rendering (and caching) when the Open Library
+  // toggle is off so the static "Disable Source" placeholder stays intact.
+  const olCheckbox = document.querySelector("#score-ol");
+  if (olCheckbox && !olCheckbox.checked) return;
   const olUrl = ratings?.url
     || ((work.key && work.key.startsWith("/works/")) ? `${OPEN_LIBRARY_BASE_URL}${work.key}` : null);
   const olData = {

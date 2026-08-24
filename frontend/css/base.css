@@ -52,6 +52,14 @@ td small {
   font-size: var(--fs-xs);
 }
 
+/* Static placeholder shown in columns whose source toggle is off */
+.disabled-tag {
+  display: inline-block;
+  color: var(--text-muted);
+  font-size: var(--fs-md);
+  font-weight: 600;
+}
+
 .fetching-tag {
   display: inline-block;
   color: var(--accent);

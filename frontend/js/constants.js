@@ -54,6 +54,11 @@ export const SOURCE_PREFIX = {
   books_tw: "bk"
 };
 
+// table column prefix -> source id (reverse of SOURCE_PREFIX, for checkbox ids like #score-ol)
+export const PREFIX_TO_SOURCE = Object.fromEntries(
+  Object.entries(SOURCE_PREFIX).map(([id, prefix]) => [prefix, id])
+);
+
 
 export const LANGUAGE_NAME_MAP = {
   eng: "English",
