@@ -7,6 +7,7 @@ from typing import List, Optional, Tuple
 
 from book_rate.models import Work, Edition, SourceRating, SourceStatus
 from book_rate.sources.base import BaseSource, SearchStrategy, SourceNetworkError
+from book_rate.utils.isbn import clean_isbn
 
 _ITEM_LINK_RE = re.compile(r'/item/([A-Z0-9]+)/')
 
@@ -407,17 +408,32 @@ class BooksTwSource(BaseSource):
             return []
 
         item_id = work_id[3:] if work_id.startswith("bk:") else work_id
-        page = self._fetch_book_page(item_id)
+        page, _ = self._fetch_book_page(item_id)
+
+        pub_year_str = None
+        if page.get("publish_date"):
+            m = re.search(r'\b(\d{4})\b', page["publish_date"])
+            if m:
+                pub_year_str = m.group(1)
+
+        raw_isbn = page.get("isbn")
+        isbn_10 = None
+        isbn_13 = None
+        if raw_isbn:
+            clean = raw_isbn.replace("-", "").replace(" ", "").strip()
+            if len(clean) == 13:
+                isbn_13 = clean
+            elif len(clean) == 10:
+                isbn_10 = clean
 
         return [
             Edition(
                 edition_id=f"bk:{item_id}",
-                title=page["title"] or f"Books.com.tw Edition {item_id}",
-                authors=[page["author"]] if page["author"] else [],
-                publisher="博客來",
-                publish_year=None,
-                isbns=[],
-                languages=["zh-TW"],
-                cover_url=None,
+                title=page.get("title") or f"Books.com.tw Edition {item_id}",
+                publish_year=pub_year_str,
+                language=page.get("language") or "zh-TW",
+                isbn_10=isbn_10,
+                isbn_13=isbn_13,
+                publisher=page.get("publisher") or "博客來",
             )
         ]

@@ -7,6 +7,7 @@ from typing import Optional, List
 
 from book_rate.models import Work, SourceRating, SourceStatus
 from book_rate.sources.base import BaseSource
+from book_rate.utils.isbn import clean_isbn
 
 logger = logging.getLogger(__name__)
 
@@ -117,7 +118,7 @@ class GooglePlaySource(BaseSource):
                         if not pub_date and "datePublished" in item:
                             pub_date = str(item.get("datePublished")).strip()
                         if not isbn and "isbn" in item:
-                            isbn = str(item.get("isbn")).strip()
+                            isbn = clean_isbn(str(item.get("isbn")).strip())
                         if not language and "inLanguage" in item:
                             language = str(item.get("inLanguage")).strip()
                         if "aggregateRating" in item and isinstance(item["aggregateRating"], dict):

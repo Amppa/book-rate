@@ -2,7 +2,7 @@ import logging
 import re
 import subprocess
 from typing import List, Optional, Callable, Tuple
-from book_rate.models import Work, SourceRating, SourceStatus
+from book_rate.models import Work, Edition, SourceRating, SourceStatus
 from book_rate.utils.isbn import clean_isbn, extract_isbns_from_work
 from book_rate.utils.rate_limiter import global_rate_limiter
 from book_rate.sources._transport import CurlTransport
@@ -224,6 +224,10 @@ class BaseSource:
     def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> SourceRating:
         """Fetch rating metrics for a given Work object with explicit strategy."""
         return self._fetch_ratings(work, strategy=strategy)
+
+    def fetch_editions(self, work_id: str, limit: int = 10) -> List[Edition]:
+        """Fetch editions for a Work ID if supported by this source."""
+        return []
 
     @staticmethod
     def _is_title_relevant(target_title: str, candidate_title: str) -> bool:

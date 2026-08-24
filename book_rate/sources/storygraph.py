@@ -6,6 +6,7 @@ from typing import List, Optional
 
 from book_rate.models import Work, Edition, SourceRating, SourceStatus
 from book_rate.sources.base import BaseSource, SourceNetworkError
+from book_rate.utils.isbn import clean_isbn
 
 logger = logging.getLogger(__name__)
 
@@ -115,7 +116,7 @@ class StoryGraphSource(BaseSource):
             # 2. Extract ISBN/UID (e.g. <span class="font-semibold">ISBN/UID:</span> 9781846558238)
             isbn_match = re.search(r'ISBN/UID:</span>\s*([a-zA-Z0-9]+)', html_str, re.IGNORECASE)
             if isbn_match:
-                res["isbn"] = isbn_match.group(1).strip()
+                res["isbn"] = clean_isbn(isbn_match.group(1).strip()) or isbn_match.group(1).strip()
 
             # 3. Extract publication year
             pub_date_match = re.search(r'Edition Pub Date:</span>\s*([^<]+)', html_str, re.IGNORECASE)

@@ -6,6 +6,7 @@ from urllib.parse import quote_plus
 
 from book_rate.models import Work, SourceRating
 from book_rate.sources.base import BaseSource, SourceNetworkError
+from book_rate.utils.isbn import clean_isbn
 
 logger = logging.getLogger(__name__)
 
