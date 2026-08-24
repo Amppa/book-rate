@@ -21,12 +21,12 @@
 
   /* Semantic Status Colors (Background, Text, Border) */
   --status-success-bg: #e6f4ea;
-  --status-success-text: #137333;
+  --status-success-text: var(--primary);
   --status-success-border: #60a875;
 
-  --status-info-bg: #f1f3f4;
-  --status-info-text: #5f6368;
-  --status-info-border: #9b9da0;
+  --status-info-bg: var(--secondary);
+  --status-info-text: var(--text-muted);
+  --status-info-border: var(--border);
 
   --status-warning-bg: #fef7e0;
   --status-warning-text: #b06000;
@@ -35,9 +35,9 @@
   --status-error-bg: #fce8e6;
   --status-error-border: #fad2cf;
 
-  --status-unrated-bg: rgba(148, 163, 184, 0.15);
-  --status-unrated-text: #94a3b8;
-  --status-unrated-border: rgba(148, 163, 184, 0.3);
+  --status-unrated-bg: var(--secondary);
+  --status-unrated-text: var(--text-muted);
+  --status-unrated-border: var(--border);
 
   /* Backgrounds & Surface Colors */
   --surface-bg: #f7f4ed;

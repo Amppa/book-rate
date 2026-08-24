@@ -79,13 +79,9 @@
   border-bottom: 1px solid var(--border-light);
 }
 
-.candidate-card:last-child {
-  border-bottom: 0;
-}
-
-.select-work:active {
-  transform: scale(0.95);
-  opacity: 0.85;
+.candidate-card .select-work {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .candidate-card h3,
