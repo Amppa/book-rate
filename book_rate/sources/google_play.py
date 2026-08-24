@@ -8,6 +8,7 @@ from typing import Optional, List
 from book_rate.models import Work, SourceRating, SourceStatus
 from book_rate.sources.base import BaseSource
 from book_rate.utils.isbn import clean_isbn
+from book_rate.utils.text_parser import clean_text, parse_json_ld_book
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +42,8 @@ class GooglePlaySource(BaseSource):
     def default_strategy(self) -> str:
         return "title_author"
 
-    def _extract_volume_id_from_url(self, url: Optional[str]) -> Optional[str]:
+    @classmethod
+    def _extract_volume_id_from_url(cls, url: Optional[str]) -> Optional[str]:
         if not url:
             return None
         m = re.search(r'[?&]id=([^&]+)', url)
@@ -65,78 +67,27 @@ class GooglePlaySource(BaseSource):
             return PlayDetails(None, None, used_curl, None, None, {})
 
         title: Optional[str] = None
-        author = None
-        publisher = None
-        pub_date = None
-        isbn = None
-        language = None
-        translator = None
+        author: Optional[str] = None
+        publisher: Optional[str] = None
+        pub_date: Optional[str] = None
+        isbn: Optional[str] = None
+        language: Optional[str] = None
+        translator: Optional[str] = None
         rate: Optional[float] = None
         count: Optional[int] = None
 
         # 1. Try JSON-LD application/ld+json
-        ld_json_blocks = re.findall(r'<script[^>]*type="application/ld\+json"[^>]*>(.*?)</script>', html_content, re.DOTALL)
-        for block in ld_json_blocks:
-            try:
-                data = json.loads(block.strip())
-                items = [data]
-                if isinstance(data, dict) and "@graph" in data and isinstance(data["@graph"], list):
-                    items.extend(data["@graph"])
-
-                for item in items:
-                    if isinstance(item, dict):
-                        if not title and "name" in item and item.get("@type") in ("Book", "http://schema.org/Book"):
-                            raw_t = item.get("name")
-                            if raw_t and isinstance(raw_t, str):
-                                title = html.unescape(raw_t.strip())
-                        if not author and "author" in item:
-                            auth_val = item.get("author")
-                            if isinstance(auth_val, list):
-                                names = [a.get("name") for a in auth_val if isinstance(a, dict) and a.get("name")]
-                                if names:
-                                    author = ", ".join(names)
-                            elif isinstance(auth_val, dict) and auth_val.get("name"):
-                                author = auth_val.get("name")
-                            elif isinstance(auth_val, str):
-                                author = auth_val.strip()
-                        if not translator and "translator" in item:
-                            trans_val = item.get("translator")
-                            if isinstance(trans_val, list):
-                                names = [t.get("name") for t in trans_val if isinstance(t, dict) and t.get("name")]
-                                if names:
-                                    translator = ", ".join(names)
-                            elif isinstance(trans_val, dict) and trans_val.get("name"):
-                                translator = trans_val.get("name")
-                            elif isinstance(trans_val, str):
-                                translator = trans_val.strip()
-                        if not publisher and "publisher" in item:
-                            pub_val = item.get("publisher")
-                            if isinstance(pub_val, dict) and pub_val.get("name"):
-                                publisher = pub_val.get("name")
-                            elif isinstance(pub_val, str):
-                                publisher = pub_val.strip()
-                        if not pub_date and "datePublished" in item:
-                            pub_date = str(item.get("datePublished")).strip()
-                        if not isbn and "isbn" in item:
-                            isbn = clean_isbn(str(item.get("isbn")).strip())
-                        if not language and "inLanguage" in item:
-                            language = str(item.get("inLanguage")).strip()
-                        if "aggregateRating" in item and isinstance(item["aggregateRating"], dict):
-                            ar = item["aggregateRating"]
-                            r_val = ar.get("ratingValue")
-                            r_count = ar.get("ratingCount")
-                            if r_val is not None and rate is None:
-                                try:
-                                    rate = float(r_val)
-                                except (ValueError, TypeError):
-                                    pass
-                            if r_count is not None and count is None:
-                                try:
-                                    count = int(r_count)
-                                except (ValueError, TypeError):
-                                    pass
-            except Exception as e:
-                logger.debug(f"Failed to parse JSON-LD block: {e}")
+        json_ld = parse_json_ld_book(html_content)
+        if json_ld:
+            title = json_ld.get("title")
+            author = json_ld.get("author")
+            translator = json_ld.get("translator")
+            publisher = json_ld.get("publisher")
+            pub_date = json_ld.get("publish_date")
+            isbn = json_ld.get("isbn")
+            language = json_ld.get("language")
+            rate = json_ld.get("rate")
+            count = json_ld.get("count")
 
         # 2. Try regex parsing for rating
         if rate is None or count is None:
@@ -154,7 +105,7 @@ class GooglePlaySource(BaseSource):
         if not title:
             m_og = re.search(r'<meta\s+(?:property|name)=["\']og:title["\']\s+content=["\'](.*?)["\']', html_content, re.IGNORECASE)
             if m_og:
-                og_t = html.unescape(m_og.group(1).strip())
+                og_t = clean_text(m_og.group(1)) or ""
                 m_book = re.search(r'《(.*?)》', og_t)
                 if m_book:
                     title = m_book.group(1)
@@ -165,7 +116,7 @@ class GooglePlaySource(BaseSource):
         if not title:
             m_h1 = re.search(r'<h1[^>]*itemprop="name"[^>]*>(.*?)</h1>', html_content, re.DOTALL)
             if m_h1:
-                title = html.unescape(re.sub(r'<[^>]+>', '', m_h1.group(1)).strip())
+                title = clean_text(m_h1.group(1))
 
         meta = {
             "title": title,

@@ -7,23 +7,14 @@ from typing import List, Optional
 from book_rate.models import Work, Edition, SourceRating, SourceStatus
 from book_rate.sources.base import BaseSource, SourceNetworkError
 from book_rate.utils.isbn import clean_isbn
+from book_rate.utils.text_parser import clean_text, extract_year, parse_compact_number
 
 logger = logging.getLogger(__name__)
 
 
 def _parse_compact_number(val_str: str) -> Optional[int]:
-    """Parse number strings like '1.5k', '2.3M', '1,500', '304' into integers."""
-    if not val_str:
-        return None
-    cleaned = val_str.strip().replace(",", "").replace("+", "").lower()
-    try:
-        if cleaned.endswith("k"):
-            return int(float(cleaned[:-1]) * 1000)
-        elif cleaned.endswith("m"):
-            return int(float(cleaned[:-1]) * 1000000)
-        return int(float(cleaned))
-    except (ValueError, TypeError):
-        return None
+    """Backward compatible wrapper delegating to text_parser.parse_compact_number."""
+    return parse_compact_number(val_str)
 
 
 class StoryGraphSource(BaseSource):
@@ -111,7 +102,7 @@ class StoryGraphSource(BaseSource):
                 m_text = editions_match.group(1) if editions_match.lastindex else editions_match.group(0)
                 num_match = re.search(r'([0-9\.]+\s*[kKmM]?)\+?', m_text)
                 if num_match:
-                    res["editions_count"] = _parse_compact_number(num_match.group(1))
+                    res["editions_count"] = parse_compact_number(num_match.group(1))
 
             # 2. Extract ISBN/UID (e.g. <span class="font-semibold">ISBN/UID:</span> 9781846558238)
             isbn_match = re.search(r'ISBN/UID:</span>\s*([a-zA-Z0-9]+)', html_str, re.IGNORECASE)
@@ -121,11 +112,9 @@ class StoryGraphSource(BaseSource):
             # 3. Extract publication year
             pub_date_match = re.search(r'Edition Pub Date:</span>\s*([^<]+)', html_str, re.IGNORECASE)
             if pub_date_match:
-                date_str = pub_date_match.group(1).strip()
+                date_str = clean_text(pub_date_match.group(1))
                 res["pub_date"] = date_str
-                year_match = re.search(r'\b\d{4}\b', date_str)
-                if year_match:
-                    res["pub_year"] = year_match.group(0)
+                res["pub_year"] = extract_year(date_str)
             else:
                 year_match = re.search(r'•\s*</span>\s*(\d{4})\b', html_str)
                 if year_match:
@@ -134,24 +123,24 @@ class StoryGraphSource(BaseSource):
             # 4. Extract publisher and language
             pub_match = re.search(r'Publisher:</span>\s*([^<]+)', html_str, re.IGNORECASE)
             if pub_match:
-                res["publisher"] = html.unescape(pub_match.group(1).strip())
+                res["publisher"] = clean_text(pub_match.group(1))
 
             lang_match = re.search(r'(?:Edition\s+)?Language:</span>\s*([^<]+)', html_str, re.IGNORECASE)
             if lang_match:
-                res["language"] = html.unescape(lang_match.group(1).strip())
+                res["language"] = clean_text(lang_match.group(1))
 
             trans_match = re.search(r'Translator:</span>\s*(?:<a[^>]*>)?([^<\n]+)', html_str, re.IGNORECASE)
             if trans_match:
-                res["translator"] = html.unescape(trans_match.group(1).strip())
+                res["translator"] = clean_text(trans_match.group(1))
 
             # 5. Extract title and author if not found
             title_match = re.search(r'<h3 class="[^"]*text-2xl[^"]*">\s*(.*?)\s*</h3>', html_str, re.DOTALL)
             if title_match:
-                res["title"] = html.unescape(re.sub(r'<[^>]+>', '', title_match.group(1)).strip())
+                res["title"] = clean_text(title_match.group(1))
 
             author_match = re.search(r'href="/authors/[^"]+">\s*(.*?)\s*</a>', html_str, re.DOTALL)
             if author_match:
-                res["author"] = html.unescape(re.sub(r'<[^>]+>', '', author_match.group(1)).strip())
+                res["author"] = clean_text(author_match.group(1))
 
         except Exception as e:
             logger.warning(f"Failed to fetch StoryGraph book details for '{book_id}': {e}")

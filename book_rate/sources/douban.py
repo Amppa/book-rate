@@ -8,6 +8,7 @@ from typing import List, Optional
 from book_rate.models import Work, Edition, SourceRating, SourceStatus
 from book_rate.sources.base import BaseSource
 from book_rate.utils.isbn import clean_isbn
+from book_rate.utils.text_parser import clean_text
 
 logger = logging.getLogger(__name__)
 
@@ -61,25 +62,25 @@ def _parse_subject_html(html_str: str, url: str) -> dict:
             pass
 
     if title_match:
-        res["title"] = html.unescape(title_match.group(1).strip())
+        res["title"] = clean_text(title_match.group(1))
 
     if author_match:
-        res["author"] = html.unescape(re.sub(r'<[^>]+>', '', author_match.group(1)).strip())
+        res["author"] = clean_text(author_match.group(1))
 
     if translator_match:
-        res["translator"] = html.unescape(re.sub(r'<[^>]+>', '', translator_match.group(1)).strip())
+        res["translator"] = clean_text(translator_match.group(1))
 
     if publisher_match:
-        res["publisher"] = html.unescape(re.sub(r'<[^>]+>', '', publisher_match.group(1)).strip())
+        res["publisher"] = clean_text(publisher_match.group(1))
 
     if orig_match:
-        res["original_title"] = html.unescape(orig_match.group(1).strip())
+        res["original_title"] = clean_text(orig_match.group(1))
 
     if isbn_match:
         res["isbn"] = clean_isbn(isbn_match.group(1))
 
     if pub_match:
-        res["pub_year"] = pub_match.group(1).strip()
+        res["pub_year"] = clean_text(pub_match.group(1))
 
     editions_match = re.search(r'这本书的其他版本.*?全部(\d+)', html_str, re.DOTALL)
     if editions_match:

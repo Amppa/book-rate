@@ -8,6 +8,7 @@ from typing import List, Optional, Tuple
 from book_rate.models import Work, Edition, SourceRating, SourceStatus
 from book_rate.sources.base import BaseSource, SearchStrategy, SourceNetworkError
 from book_rate.utils.isbn import clean_isbn
+from book_rate.utils.text_parser import clean_text, extract_year
 
 _ITEM_LINK_RE = re.compile(r'/item/([A-Z0-9]+)/')
 
@@ -31,12 +32,10 @@ class BooksTwSource(BaseSource):
     def default_strategy(self) -> str:
         return "title_zh_list"
 
-    def _clean_text(self, text: Optional[str]) -> str:
-        if not text:
-            return ""
-        # Strip HTML tags
-        clean = re.sub(r'<[^>]+>', '', text)
-        return html.unescape(clean.strip())
+    @staticmethod
+    def _clean_text(text: Optional[str]) -> Optional[str]:
+        """Backward compatible helper delegating to clean_text."""
+        return clean_text(text)
 
     def _fetch_books_html(self, url: str, referer: Optional[str] = None) -> Tuple[Optional[str], bool]:
         """Fetch URL with Accept-Language header and optional Referer to bypass Books.com.tw WAF."""
@@ -83,29 +82,29 @@ class BooksTwSource(BaseSource):
         # Title extraction
         title_m = re.search(r'<h1[^>]*>(.*?)</h1>', html_str, re.DOTALL)
         if title_m:
-            res["title"] = self._clean_text(title_m.group(1))
+            res["title"] = clean_text(title_m.group(1))
 
         # Author extraction
         author_m = re.search(r'作者[：:]\s*<a[^>]*>(.*?)</a>', html_str, re.DOTALL)
         if author_m:
-            res["author"] = self._clean_text(author_m.group(1))
+            res["author"] = clean_text(author_m.group(1))
 
         # Translator extraction
         trans_m = re.search(r'譯者[：:]\s*<a[^>]*>(.*?)</a>', html_str, re.DOTALL)
         if trans_m:
-            res["translator"] = self._clean_text(trans_m.group(1))
+            res["translator"] = clean_text(trans_m.group(1))
 
         # Publisher extraction
         pub_m = re.search(r'出版社[：:]\s*<a[^>]*>(.*?)</a>', html_str, re.DOTALL) or re.search(r'<li>出版社[：:]\s*([^<\n]+)', html_str) or re.search(r'出版社[：:]\s*([^，,<\n"]+)', html_str)
         if pub_m:
-            val = self._clean_text(pub_m.group(1))
-            if val and len(val) < 100:
+            val = clean_text(pub_m.group(1), max_len=100)
+            if val:
                 res["publisher"] = val
 
         # Publish date extraction
         date_m = re.search(r'出版日期[：:]\s*<time[^>]*>(.*?)</time>', html_str, re.DOTALL) or re.search(r'出版日期[：:]\s*([0-9/ -]+)', html_str)
         if date_m:
-            res["publish_date"] = self._clean_text(date_m.group(1))
+            res["publish_date"] = clean_text(date_m.group(1))
 
         # ISBN extraction
         isbn_m = re.search(r'ISBN[：:]\s*([0-9Xx-]+)', html_str)
@@ -115,15 +114,15 @@ class BooksTwSource(BaseSource):
         # Language extraction
         lang_m = re.search(r'<li>語言[：:]\s*([^<\n]+)', html_str) or re.search(r'語言[：:]\s*([^，,<\n"]+)', html_str)
         if lang_m:
-            val = self._clean_text(lang_m.group(1))
-            if val and len(val) < 50:
+            val = clean_text(lang_m.group(1), max_len=50)
+            if val:
                 res["language"] = val
 
         # Original title extraction
         orig_m = re.search(r'<li>原文書名[：:]\s*([^<\n]+)', html_str) or re.search(r'原文書名[：:]\s*([^，,<\n"]+)', html_str)
         if orig_m:
-            val = self._clean_text(orig_m.group(1))
-            if val and len(val) < 150:
+            val = clean_text(orig_m.group(1), max_len=150)
+            if val:
                 res["original_title"] = val
 
         # Rating score extraction (e.g. <div class="average">\n 5 \n</div> or 4.8)
@@ -232,7 +231,7 @@ class BooksTwSource(BaseSource):
             if not title_m:
                 title_m = re.search(r'title=[\'"]([^\'"]+)[\'"]', row)
             if title_m:
-                title = self._clean_text(title_m.group(1))
+                title = clean_text(title_m.group(1))
 
             # Author extraction
             author = None
@@ -242,18 +241,15 @@ class BooksTwSource(BaseSource):
             if not author_m:
                 author_m = re.search(r'作者[：:]\s*<a[^>]*>(.*?)</a>', row, re.DOTALL)
             if author_m:
-                author = self._clean_text(author_m.group(1))
+                author = clean_text(author_m.group(1))
 
             # Pub year extraction
             pub_year = None
-            pub_m = re.search(r'出版日期[：:]\s*([\d-]+)', row)
-            if not pub_m:
-                pub_m = re.search(r'(\b(?:19|20)\d\d[-\.\/]\d\d[-\.\/]\d\d\b|\b(?:19|20)\d\d\b)', row)
+            pub_m = re.search(r'出版日期[：:]\s*([\d-]+)', row) or re.search(r'(\b(?:19|20)\d\d[-\.\/]\d\d[-\.\/]\d\d\b|\b(?:19|20)\d\d\b)', row)
             if pub_m:
-                raw_pub = pub_m.group(1)
-                year_m = re.search(r'\b(19\d\d|20\d\d)\b', raw_pub)
-                if year_m:
-                    pub_year = int(year_m.group(1))
+                y_str = extract_year(pub_m.group(1))
+                if y_str:
+                    pub_year = int(y_str)
 
             items.append({
                 "book_id": item_id,

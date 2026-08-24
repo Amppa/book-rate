@@ -7,6 +7,7 @@ from urllib.parse import quote_plus
 from book_rate.models import Work, SourceRating
 from book_rate.sources.base import BaseSource, SourceNetworkError
 from book_rate.utils.isbn import clean_isbn
+from book_rate.utils.text_parser import clean_text, clean_author_name
 
 logger = logging.getLogger(__name__)
 
@@ -115,12 +116,8 @@ class AmazonSource(BaseSource):
 
     @staticmethod
     def _clean_author_name(author_str: str) -> str:
-        """Clean author string by removing common prefixes, suffixes, and extra spaces."""
-        val = author_str.strip()
-        val = re.sub(r'^(?:by\s+|作者\s*[:：]?\s*|著者\s*[:：]?\s*|著\s*[:：]\s*)', '', val, flags=re.IGNORECASE).strip()
-        val = re.sub(r'\s*(?:著|原著|等著|等訳)$', '', val).strip()
-        val = re.sub(r'\s+', ' ', val).strip()
-        return val
+        """Clean author string by delegating to clean_author_name."""
+        return clean_author_name(author_str) or author_str.strip()
 
     def _parse_search_block(self, block: str, clean_query: str) -> Optional[Work]:
         """Parse an Amazon search result HTML item block into a Work object."""
@@ -132,7 +129,7 @@ class AmazonSource(BaseSource):
         if not title_match:
             return None
 
-        raw_title = html.unescape(re.sub(r'<[^>]+>', '', title_match.group(1)).strip())
+        raw_title = clean_text(title_match.group(1))
         if not raw_title:
             return None
 
@@ -162,7 +159,7 @@ class AmazonSource(BaseSource):
             # Check for dedicated author links in metadata row
             author_link_matches = re.findall(r'<a[^>]*href="[^"]*(?:/e/[A-Z0-9]+|/author/|p_27%3A|field-author)[^"]*"[^>]*>(.*?)</a>', row_content, re.DOTALL)
             if author_link_matches:
-                authors = [self._clean_author_name(html.unescape(re.sub(r'<[^>]+>', '', a))) for a in author_link_matches]
+                authors = [self._clean_author_name(clean_text(a) or "") for a in author_link_matches]
                 authors = [a for a in authors if a and not self._is_non_author_text(a)]
                 if authors:
                     author_name = ", ".join(authors)
@@ -170,7 +167,7 @@ class AmazonSource(BaseSource):
             parts = [p.strip() for p in re.split(r'\||<span[^>]*class="[^"]*a-letter-space[^"]*"[^>]*>', row_content) if p.strip()]
 
             for p in parts:
-                clean_p = html.unescape(re.sub(r'<[^>]+>', '', p)).strip()
+                clean_p = clean_text(p) or ""
                 if not pub_date and self._is_date_text(clean_p):
                     pub_date = clean_p
                 if not translator and re.search(r'(?:訳|翻訳|等訳|translator)\b', clean_p, re.IGNORECASE):

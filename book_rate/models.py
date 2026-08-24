@@ -69,6 +69,25 @@ class SourceRating:
         count_str = f"{self.rating_count} reviews" if self.rating_count is not None else "0 reviews"
         return f"{rate_str} / {count_str}"
 
+    def to_book_info(self) -> Optional[dict]:
+        """Serialize the 9 standard book metadata fields into a clean dictionary, preserving existing self.book_info if present."""
+        if self.book_info:
+            return self.book_info
+
+        info = {
+            "author": self.author,
+            "translator": self.translator,
+            "publisher": self.publisher,
+            "publish_date": self.publish_date,
+            "language": self.language,
+            "original_title": self.original_title,
+            "edition_count": self.edition_count,
+            "isbn": self.isbn,
+            "work_id": self.work_id,
+        }
+        cleaned = {k: v for k, v in info.items() if v not in (None, "", "Unknown", "None")}
+        return cleaned if cleaned else None
+
 
 @dataclass
 class Edition:
