@@ -1102,29 +1102,37 @@ class TestOrchestratorKeyedGoogleInstance(unittest.TestCase):
 
 
 class TestDoubanApiWorkPreparation(unittest.TestCase):
-    @patch("book_rate.sources.base.BaseSource._fetch_html")
-    @patch("requests.Session.get")
-    def test_dbapi_routes_to_douban_details_not_open_library(self, mock_get, mock_fetch_html):
-        """Regression: dbapi: ids must resolve through douban details, never
+    def test_dbapi_routes_to_douban_details_not_open_library(self):
+        """Regression: dbapi: ids must resolve cleanly with douban_api status, never
         fall into the Open Library branch that fabricated /works/dbapi:x ids."""
-        mock_fetch_html.return_value = ("", False)
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = []
-        mock_resp.text = ""
-        mock_get.return_value = mock_resp
-
         from book_rate.work_preparer import WorkPreparer
         preparer = WorkPreparer()
         ol_rating, editions, target_work, crawler_status = \
             preparer.resolve_work_editions_and_ol_rating(
-                work_id="dbapi:10785583", title="", author="", active_title_sources=[]
+                work_id="dbapi:10785583", title="Mock Title", author="Mock Author", active_title_sources=[]
             )
 
         self.assertIn("douban_api", crawler_status)
         self.assertEqual(target_work.work_id, "dbapi:10785583")
+        self.assertEqual(target_work.title, "Mock Title")
+        self.assertEqual(target_work.author, "Mock Author")
         self.assertFalse(target_work.work_id.startswith("/works/dbapi"))
-        self.assertTrue(len(editions) >= 1)
+        self.assertEqual(editions, [])
+
+    def test_quick_mode_custom_work_id_preparation(self):
+        """Path A: Quick Mode custom: prefix must resolve cleanly in zero-I/O."""
+        from book_rate.work_preparer import WorkPreparer
+        preparer = WorkPreparer()
+        ol_rating, editions, target_work, crawler_status = \
+            preparer.resolve_work_editions_and_ol_rating(
+                work_id="custom:原子習慣", title="原子習慣", author="詹姆斯·克利爾", active_title_sources=["open_library"]
+            )
+
+        self.assertIn("custom", crawler_status)
+        self.assertEqual(target_work.work_id, "custom:原子習慣")
+        self.assertEqual(target_work.title, "原子習慣")
+        self.assertEqual(target_work.author, "詹姆斯·克利爾")
+        self.assertEqual(editions, [])
 
 
 class TestGoogleBooksTitleCleaner(unittest.TestCase):
