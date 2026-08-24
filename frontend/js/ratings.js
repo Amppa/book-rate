@@ -302,29 +302,6 @@ export function renderSourceCell(row, prefix, data, maxRate = 5) {
   }
 }
 
-/** Renders the Open Library rating into the row after the "init" SSE event. */
-export function updateWorkDetailRow(row, { work, ratings }, strategies) {
-  if (!row) return;
-  // The server always includes OL data in the "init" event regardless of the
-  // requested engines. Skip rendering (and caching) when the Open Library
-  // toggle is off so the static "Disable Source" placeholder stays intact.
-  const olCheckbox = document.querySelector("#score-ol");
-  if (olCheckbox && !olCheckbox.checked) return;
-  const olUrl = ratings?.url
-    || ((work.key && work.key.startsWith("/works/")) ? `${OPEN_LIBRARY_BASE_URL}${work.key}` : null);
-  const olData = {
-    average: ratings?.average,
-    count: ratings?.count,
-    url: olUrl,
-    status: (ratings?.average ? "MATCH" : "NO_MATCH")
-  };
-  renderSourceCell(row, "ol", olData, 5);
-
-  if (strategies) {
-    const olStrategy = strategies.open_library || getSourceDefaultStrat("open_library");
-    setRatingCache(work.key, "open_library", olStrategy, olData);
-  }
-}
 
 // ---------------------------------------------------------------------------
 // SSE orchestration
@@ -473,7 +450,6 @@ export async function selectWork(work) {
           collectedDetails.ratings = data.ratings;
           collectedDetails.editions = data.editions;
           collectedDetails.crawler_status = data.crawler_status;
-          updateWorkDetailRow(row, collectedDetails, strategies);
         } else if (data.type === "source") {
           const sourceKey = data.source;
           collectedDetails[sourceKey] = data.data;
