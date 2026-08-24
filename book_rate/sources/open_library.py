@@ -32,7 +32,7 @@ class OpenLibrarySource(BaseSource):
             "q": clean_query,
             "limit": limit,
             "page": page,
-            "fields": "key,title,author_name,first_publish_year,edition_count,isbn,ratings_average,ratings_count"
+            "fields": "key,title,author_name,first_publish_year,edition_count,isbn,ratings_average,ratings_count,publisher,publish_date,language"
         }
 
         try:
@@ -58,22 +58,39 @@ class OpenLibrarySource(BaseSource):
             isbns = doc.get("isbn", [])
             cleaned_isbn = clean_isbn(isbns[0]) if isbns else None
 
+            publishers = doc.get("publisher", [])
+            publisher_str = publishers[0] if publishers else None
+
+            pub_dates = doc.get("publish_date", [])
+            pub_date_str = pub_dates[0] if pub_dates else (str(doc.get("first_publish_year")) if doc.get("first_publish_year") else None)
+
+            languages = doc.get("language", [])
+            lang_str = languages[0] if languages else None
+            ed_count = doc.get("edition_count", 0)
+
             work = Work(
                 work_id=work_key,
                 title=title,
                 author=author_str,
                 first_publish_year=doc.get("first_publish_year"),
-                edition_count=doc.get("edition_count", 0),
+                edition_count=ed_count,
                 isbn=cleaned_isbn
             )
 
-            if avg_rating is not None or rating_count is not None:
-                work.ratings[self.name] = SourceRating(
-                    source_name=self.name,
-                    rate=float(avg_rating) if avg_rating is not None else None,
-                    rating_count=int(rating_count) if rating_count is not None else 0,
-                    url=f"{self.BASE_URL}{work_key}" if work_key else None
-                )
+            work.ratings[self.name] = SourceRating(
+                source_name=self.name,
+                rate=float(avg_rating) if avg_rating is not None else None,
+                rating_count=int(rating_count) if rating_count is not None else 0,
+                url=f"{self.BASE_URL}{work_key}" if work_key else None,
+                title=title,
+                author=author_str if author_str != "Unknown Author" else None,
+                publisher=publisher_str,
+                publish_date=pub_date_str,
+                isbn=cleaned_isbn,
+                language=lang_str,
+                work_id=f"ol:{work_key}" if work_key else None,
+                edition_count=ed_count
+            )
 
             if include_details:
                 work.editions = self.fetch_editions(work_key, limit=10)

@@ -109,7 +109,11 @@ def _parse_goodreads_search_html(html_str: str, used_curl: bool, limit: int = 5)
             rating_text=rating_text,
             url=book_url,
             title=title,
-            status=status_val
+            status=status_val,
+            author=author_name if author_name != "Unknown Author" else None,
+            publish_date=str(pub_year) if pub_year else None,
+            work_id=f"gr:{book_id}" if book_id else work_key,
+            edition_count=editions_count
         )
         work.editions.append(Edition(
             edition_id=book_id or "1",
@@ -293,7 +297,9 @@ class GoodreadsSource(BaseSource):
                 rating_text=rating_text,
                 url=book_url,
                 title=title,
-                status=status_val
+                status=status_val,
+                author=author_name if author_name != "Unknown Author" else None,
+                work_id=work_key
             )
 
             edition = Edition(

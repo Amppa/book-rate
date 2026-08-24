@@ -75,9 +75,11 @@ class StoryGraphSource(BaseSource):
             "isbn": None,
             "pub_year": None,
             "editions_count": None,
-            "work_id": book_id,
             "title": None,
             "author": None,
+            "translator": None,
+            "publisher": None,
+            "language": None,
             "crawler_status": "Normal",
             "url": url,
             "used_curl": False,
@@ -116,21 +118,32 @@ class StoryGraphSource(BaseSource):
                 res["isbn"] = isbn_match.group(1).strip()
 
             # 3. Extract publication year
-            # Looking for: <span class="text-darkerGrey dark:text-lightGrey"> • </span>2011
-            # Or Edition Pub Date: 25 Feb 2015
             pub_date_match = re.search(r'Edition Pub Date:</span>\s*([^<]+)', html_str, re.IGNORECASE)
             if pub_date_match:
                 date_str = pub_date_match.group(1).strip()
+                res["pub_date"] = date_str
                 year_match = re.search(r'\b\d{4}\b', date_str)
                 if year_match:
                     res["pub_year"] = year_match.group(0)
             else:
-                # Try simple year match on lines with bullet points
                 year_match = re.search(r'•\s*</span>\s*(\d{4})\b', html_str)
                 if year_match:
                     res["pub_year"] = year_match.group(1)
 
-            # 4. Extract title and author if not found
+            # 4. Extract publisher and language
+            pub_match = re.search(r'Publisher:</span>\s*([^<]+)', html_str, re.IGNORECASE)
+            if pub_match:
+                res["publisher"] = html.unescape(pub_match.group(1).strip())
+
+            lang_match = re.search(r'(?:Edition\s+)?Language:</span>\s*([^<]+)', html_str, re.IGNORECASE)
+            if lang_match:
+                res["language"] = html.unescape(lang_match.group(1).strip())
+
+            trans_match = re.search(r'Translator:</span>\s*(?:<a[^>]*>)?([^<\n]+)', html_str, re.IGNORECASE)
+            if trans_match:
+                res["translator"] = html.unescape(trans_match.group(1).strip())
+
+            # 5. Extract title and author if not found
             title_match = re.search(r'<h3 class="[^"]*text-2xl[^"]*">\s*(.*?)\s*</h3>', html_str, re.DOTALL)
             if title_match:
                 res["title"] = html.unescape(re.sub(r'<[^>]+>', '', title_match.group(1)).strip())
@@ -208,10 +221,11 @@ class StoryGraphSource(BaseSource):
                 if details.get("crawler_status") == "Normal":
                     details["crawler_status"] = f"Rating error: {e}"
 
+            parsed_author = details.get("author") or author_name
             work = Work(
                 work_id=f"sg:{b_id}",
                 title=details.get("title") or title,
-                author=details.get("author") or author_name,
+                author=parsed_author,
                 edition_count=details.get("editions_count"),
                 first_publish_year=int(details.get("pub_year")) if details.get("pub_year") and str(details.get("pub_year")).isdigit() else None,
                 isbn=details.get("isbn")
@@ -227,7 +241,15 @@ class StoryGraphSource(BaseSource):
                 rating_count=votes,
                 url=subject_url,
                 title=details.get("title") or title,
-                status=status_val
+                status=status_val,
+                author=parsed_author if parsed_author != "Unknown Author" else None,
+                translator=details.get("translator"),
+                publisher=details.get("publisher"),
+                publish_date=details.get("pub_date") or (str(details.get("pub_year")) if details.get("pub_year") else None),
+                isbn=details.get("isbn"),
+                language=details.get("language"),
+                work_id=f"sg:{b_id}",
+                edition_count=details.get("editions_count")
             )
 
             edition = Edition(edition_id=b_id, title=details.get("title") or title)

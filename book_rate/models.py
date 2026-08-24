@@ -47,6 +47,17 @@ class SourceRating:
     error_message: Optional[str] = None
     rating_text: Optional[str] = None
     results: List[dict] = field(default_factory=list)
+    author: Optional[str] = None
+    translator: Optional[str] = None
+    publisher: Optional[str] = None
+    publish_date: Optional[str] = None
+    language: Optional[str] = None
+    original_title: Optional[str] = None
+    edition_count: Optional[int] = None
+    isbn: Optional[str] = None
+    work_id: Optional[str] = None
+    book_info: Optional[dict] = None
+
 
 
     def format_rate_count(self) -> str:

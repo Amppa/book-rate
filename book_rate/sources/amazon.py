@@ -153,6 +153,8 @@ class AmazonSource(BaseSource):
             re.search(r'</h2>.*?<div class="a-row[^"]*">(.*?)</div>', block, re.DOTALL) or
             re.search(r'</h2>.*?<div[^>]*data-cy="title-recipe"[^>]*>.*?<div class="a-row[^"]*">(.*?)</div>', block, re.DOTALL)
         )
+        pub_date = None
+        translator = None
         if sub_match:
             row_content = sub_match.group(1)
 
@@ -164,9 +166,18 @@ class AmazonSource(BaseSource):
                 if authors:
                     author_name = ", ".join(authors)
 
-            if author_name == "Unknown":
-                parts = [p.strip() for p in re.split(r'\||<span[^>]*class="[^"]*a-letter-space[^"]*"[^>]*>', row_content) if p.strip()]
+            parts = [p.strip() for p in re.split(r'\||<span[^>]*class="[^"]*a-letter-space[^"]*"[^>]*>', row_content) if p.strip()]
 
+            for p in parts:
+                clean_p = html.unescape(re.sub(r'<[^>]+>', '', p)).strip()
+                if not pub_date and self._is_date_text(clean_p):
+                    pub_date = clean_p
+                if not translator and re.search(r'(?:訳|翻訳|等訳|translator)\b', clean_p, re.IGNORECASE):
+                    t_val = self._clean_author_name(clean_p)
+                    if t_val:
+                        translator = t_val
+
+            if author_name == "Unknown":
                 # Date-preceding heuristic: the segment right before the publication date is very likely the author(s)
                 for idx, p in enumerate(parts):
                     clean_p = html.unescape(re.sub(r'<[^>]+>', '', p)).strip()
@@ -245,7 +256,8 @@ class AmazonSource(BaseSource):
         work = Work(
             work_id=work_id,
             title=raw_title,
-            author=author_name
+            author=author_name,
+            isbn=asin or None
         )
         if avg_rate is not None or count_val is not None or book_url:
             work.ratings[self.name] = SourceRating(
@@ -253,7 +265,12 @@ class AmazonSource(BaseSource):
                 rate=avg_rate,
                 rating_count=count_val,
                 url=book_url,
-                title=raw_title
+                title=raw_title,
+                author=author_name if author_name != "Unknown" else None,
+                translator=translator,
+                publish_date=pub_date,
+                isbn=asin or None,
+                work_id=f"{self.WORK_ID_PREFIX}:{asin}" if asin else None
             )
 
         return work

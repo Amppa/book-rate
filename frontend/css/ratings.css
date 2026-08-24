@@ -248,3 +248,65 @@ a.source-book-title:hover {
   color: var(--primary);
   text-decoration: underline;
 }
+
+/* 7. Collapsible Source Book Details (Step 3) */
+.source-book-details {
+  margin-top: var(--space-2);
+  width: 100%;
+  text-align: left;
+}
+
+.source-details-summary {
+  cursor: pointer;
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 1px 2px;
+  border-radius: var(--radius-sm);
+  user-select: none;
+  display: inline-block;
+  list-style: none;
+  background: transparent;
+  transition: color var(--transition-fast);
+}
+
+.source-details-summary::-webkit-details-marker {
+  display: none;
+}
+
+.source-details-summary::marker {
+  display: none;
+}
+
+.source-details-summary:hover {
+  color: var(--primary);
+}
+
+.source-details-content {
+  margin-top: var(--space-1);
+  padding: 4px 0;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  line-height: 1.35;
+}
+
+.source-detail-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-size: var(--fs-2xs);
+  word-break: break-all;
+}
+
+.source-detail-label {
+  color: var(--text-muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.source-detail-value {
+  color: var(--text-primary);
+  word-break: break-word;
+}

@@ -214,6 +214,66 @@ function _buildStatusTag(status, data, tagText) {
   return tag;
 }
 
+/** Builds collapsible book details element without emoji. */
+function _buildBookDetailsElement(bookInfo) {
+  if (!bookInfo || typeof bookInfo !== "object") return null;
+
+  const fieldDefs = [
+    { key: "author", label: "作者:" },
+    { key: "translator", label: "譯者:" },
+    { key: "publisher", label: "出版社:" },
+    { key: "publish_date", label: "出版日期:" },
+    { key: "language", label: "語言:" },
+    { key: "original_title", label: "原作名:" },
+    { key: "edition_count", label: "版本數:" },
+    { key: "isbn", label: "ISBN:" },
+    { key: "work_id", label: "ID:" }
+  ];
+
+  const validEntries = fieldDefs.filter(f => {
+    const v = bookInfo[f.key];
+    return v !== null && v !== undefined && String(v).trim() !== "";
+  });
+
+  if (validEntries.length === 0) return null;
+
+  const details = document.createElement("details");
+  details.className = "source-book-details";
+
+  const summary = document.createElement("summary");
+  summary.className = "source-details-summary";
+  summary.textContent = "details  ▶";
+
+  details.addEventListener("toggle", () => {
+    summary.textContent = details.open ? "details  ▼" : "details  ▶";
+  });
+
+  details.appendChild(summary);
+
+  const content = document.createElement("div");
+  content.className = "source-details-content";
+
+  validEntries.forEach(f => {
+    const row = document.createElement("div");
+    row.className = "source-detail-row";
+
+    const label = document.createElement("span");
+    label.className = "source-detail-label";
+    label.textContent = f.label;
+
+    const val = document.createElement("span");
+    val.className = "source-detail-value";
+    val.textContent = String(bookInfo[f.key]);
+
+    row.appendChild(label);
+    row.appendChild(val);
+    content.appendChild(row);
+  });
+
+  details.appendChild(content);
+  return details;
+}
+
 /** Renders multi-result list for Strategy 4/5 into the cell. */
 function _renderMultiResult(rateEl, countEl, results, maxRate) {
   const listContainer = document.createElement("div");
@@ -244,6 +304,10 @@ function _renderMultiResult(rateEl, countEl, results, maxRate) {
     item.appendChild(strong);
     item.appendChild(small);
     item.appendChild(badge);
+
+    const detailsEl = _buildBookDetailsElement(res.book_info);
+    if (detailsEl) item.appendChild(detailsEl);
+
     listContainer.appendChild(item);
   });
 
@@ -277,6 +341,9 @@ function _renderSingleResult(cell, rateEl, countEl, data, maxRate) {
 
   const tag = _buildStatusTag(display.status, data, display.tagText);
   cell.appendChild(tag);
+
+  const detailsEl = _buildBookDetailsElement(data.book_info);
+  if (detailsEl) cell.appendChild(detailsEl);
 }
 
 /**
@@ -292,7 +359,7 @@ export function renderSourceCell(row, prefix, data, maxRate = 5) {
 
   const cell = rateEl.closest("td");
   if (cell) {
-    cell.querySelectorAll(".source-book-title, :scope > .search-status-tag").forEach(el => el.remove());
+    cell.querySelectorAll(".source-book-title, :scope > .search-status-tag, .source-book-details").forEach(el => el.remove());
   }
 
   if (data.results && data.results.length > 0) {

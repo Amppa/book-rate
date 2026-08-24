@@ -1186,6 +1186,102 @@ class TestGoogleBooksTitleCleaner(unittest.TestCase):
         self.assertEqual(works[0].editions[0].title, "哈利·波特与魔法石 ((Harry Potter and the Philosopher's Stone)")
 
 
+class TestBookInfoMetadataExtraction(unittest.TestCase):
+    """Unit tests verifying book_info metadata parsing and serialization without extra queries."""
+
+    def test_format_rating_response_book_info(self):
+        from book_rate.utils.formatters import format_rating_response
+        rating = SourceRating(
+            source_name="Books.com.tw",
+            rate=4.8,
+            rating_count=120,
+            url="https://www.books.com.tw/products/001",
+            title="魔戒",
+            author="J.R.R. Tolkien",
+            translator="朱學恆",
+            publisher="聯經出版公司",
+            publish_date="2020/01/01",
+            isbn="9789570850000",
+            language="繁體中文",
+            original_title="The Lord of the Rings",
+            work_id="bk:001",
+            edition_count=10
+        )
+        res = format_rating_response("books_tw", rating, "Fallback")
+        self.assertIn("book_info", res)
+        self.assertEqual(res["book_info"]["author"], "J.R.R. Tolkien")
+        self.assertEqual(res["book_info"]["translator"], "朱學恆")
+        self.assertEqual(res["book_info"]["publisher"], "聯經出版公司")
+        self.assertEqual(res["book_info"]["publish_date"], "2020/01/01")
+        self.assertEqual(res["book_info"]["language"], "繁體中文")
+        self.assertEqual(res["book_info"]["original_title"], "The Lord of the Rings")
+        self.assertEqual(res["book_info"]["edition_count"], 10)
+        self.assertEqual(res["book_info"]["isbn"], "9789570850000")
+        self.assertEqual(res["book_info"]["work_id"], "bk:001")
+
+    @patch("requests.Session.get")
+    def test_google_books_book_info_extraction(self, mock_get):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "items": [
+                {
+                    "id": "gb123",
+                    "volumeInfo": {
+                        "title": "Clean Code",
+                        "authors": ["Robert C. Martin"],
+                        "publisher": "Prentice Hall",
+                        "publishedDate": "2008-08-01",
+                        "language": "en",
+                        "industryIdentifiers": [{"type": "ISBN_13", "identifier": "9780132350884"}],
+                        "averageRating": 4.5,
+                        "ratingsCount": 2500
+                    }
+                }
+            ]
+        }
+        mock_get.return_value = mock_resp
+        source = GoogleBooksSource()
+        works = source.search_works("Clean Code", limit=1)
+        self.assertEqual(len(works), 1)
+        r = works[0].ratings["Google Books"]
+        self.assertEqual(r.author, "Robert C. Martin")
+        self.assertEqual(r.publisher, "Prentice Hall")
+        self.assertEqual(r.publish_date, "2008-08-01")
+        self.assertEqual(r.language, "en")
+        self.assertEqual(r.isbn, "9780132350884")
+        self.assertEqual(r.work_id, "gb:gb123")
+
+    def test_douban_subject_html_book_info_extraction(self):
+        from book_rate.sources.douban import _parse_subject_html
+        sample_html = """
+        <html>
+          <span property="v:itemreviewed">深入理解计算机系统</span>
+          <div id="info">
+            <span><span class="pl">作者:</span> <a href="/search/Randal">Randal E. Bryant</a></span><br/>
+            <span><span class="pl">出版社:</span> 机械工业出版社</span><br/>
+            <span><span class="pl">译者:</span> <a href="/search/Gong">龚奕利</a></span><br/>
+            <span class="pl">出版年:</span> 2016-11<br/>
+            <span class="pl">ISBN:</span> 9787111544937<br/>
+          </div>
+          <strong property="v:average">9.8</strong>
+          <span property="v:votes">6500</span>
+          <div class="more-after">这本书的其他版本 (全部12)</div>
+        </html>
+        """
+        details = _parse_subject_html(sample_html, "https://book.douban.com/subject/26857945/")
+        self.assertEqual(details["title"], "深入理解计算机系统")
+        self.assertEqual(details["author"], "Randal E. Bryant")
+        self.assertEqual(details["publisher"], "机械工业出版社")
+        self.assertEqual(details["translator"], "龚奕利")
+        self.assertEqual(details["pub_year"], "2016-11")
+        self.assertEqual(details["isbn"], "9787111544937")
+        self.assertEqual(details["editions_count"], 12)
+        self.assertEqual(details["rate"], 9.8)
+        self.assertEqual(details["votes"], 6500)
+
+
 if __name__ == "__main__":
     unittest.main()
+
 

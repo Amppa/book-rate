@@ -88,6 +88,30 @@ def format_rating_response(
     quota_exceeded: bool = False
 ) -> dict:
     """Format single provider SourceRating metric into standard response shape."""
+    book_info = None
+    if s_rating:
+        info = {}
+        if s_rating.author:
+            info["author"] = s_rating.author
+        if s_rating.translator:
+            info["translator"] = s_rating.translator
+        if s_rating.publisher:
+            info["publisher"] = s_rating.publisher
+        if s_rating.publish_date:
+            info["publish_date"] = s_rating.publish_date
+        if s_rating.language:
+            info["language"] = s_rating.language
+        if s_rating.original_title:
+            info["original_title"] = s_rating.original_title
+        if s_rating.edition_count is not None:
+            info["edition_count"] = s_rating.edition_count
+        if s_rating.isbn:
+            info["isbn"] = s_rating.isbn
+        if s_rating.work_id:
+            info["work_id"] = s_rating.work_id
+        if info:
+            book_info = info
+
     return {
         "average": s_rating.rate if s_rating and s_rating.rate is not None else 0,
         "count": s_rating.rating_count if s_rating and s_rating.rating_count is not None else 0,
@@ -98,5 +122,6 @@ def format_rating_response(
         "query": s_rating.query if s_rating else "",
         "status": s_rating.status if s_rating else SourceStatus.NO_MATCH.value,
         "quota_exceeded": quota_exceeded,
-        "results": s_rating.results if s_rating else []
+        "results": s_rating.results if s_rating else [],
+        "book_info": book_info
     }

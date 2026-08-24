@@ -291,7 +291,31 @@ class BaseSource:
                 else 0
             )
         )
-        return best_work.ratings.get(self.name)
+        rating = best_work.ratings.get(self.name)
+        if rating:
+            if not rating.author and best_work.author and best_work.author not in ("Unknown", "Unknown Author"):
+                rating.author = best_work.author
+            if not rating.original_title and best_work.original_title:
+                rating.original_title = best_work.original_title
+            if not rating.isbn and best_work.isbn:
+                rating.isbn = best_work.isbn
+            if not rating.work_id and best_work.work_id:
+                rating.work_id = best_work.work_id
+            if rating.edition_count is None and best_work.edition_count is not None:
+                rating.edition_count = best_work.edition_count
+            if not rating.publish_date and best_work.first_publish_year:
+                rating.publish_date = str(best_work.first_publish_year)
+            if best_work.editions:
+                ed0 = best_work.editions[0]
+                if not rating.publisher and ed0.publisher:
+                    rating.publisher = ed0.publisher
+                if not rating.language and ed0.language:
+                    rating.language = ed0.language
+                if not rating.publish_date and ed0.publish_year:
+                    rating.publish_date = str(ed0.publish_year)
+                if not rating.isbn and (ed0.isbn_13 or ed0.isbn_10):
+                    rating.isbn = ed0.isbn_13 or ed0.isbn_10
+        return rating
 
 
 
@@ -426,13 +450,25 @@ class BaseSource:
 
         for t in unique_titles[:4]:
             r = self._evaluate_single_query(t, strat, search)
+            info_dict = {}
+            if r.author: info_dict["author"] = r.author
+            if r.translator: info_dict["translator"] = r.translator
+            if r.publisher: info_dict["publisher"] = r.publisher
+            if r.publish_date: info_dict["publish_date"] = r.publish_date
+            if r.language: info_dict["language"] = r.language
+            if r.original_title: info_dict["original_title"] = r.original_title
+            if r.edition_count is not None: info_dict["edition_count"] = r.edition_count
+            if r.isbn: info_dict["isbn"] = r.isbn
+            if r.work_id: info_dict["work_id"] = r.work_id
+
             results_list.append({
                 "average": r.rate,
                 "count": r.rating_count,
                 "url": r.url,
                 "title": r.title or t,
                 "status": r.status,
-                "query": t
+                "query": t,
+                "book_info": info_dict if info_dict else None
             })
             if r.status in (SourceStatus.MATCH.value, SourceStatus.CURL_MATCH.value):
                 if not best_rating or (r.rating_count or 0) > (best_rating.rating_count or 0):

@@ -18,7 +18,19 @@ def _build_subject_url(sub_id: str) -> str:
 
 def _parse_subject_html(html_str: str, url: str) -> dict:
     """Parse Douban subject HTML page and extract rating, votes count, ISBN, pub_year, title, and editions_count."""
-    res = {"rate": None, "votes": None, "isbn": None, "pub_year": None, "title": None, "url": url, "editions_count": None}
+    res = {
+        "rate": None,
+        "votes": None,
+        "isbn": None,
+        "pub_year": None,
+        "title": None,
+        "author": None,
+        "translator": None,
+        "publisher": None,
+        "original_title": None,
+        "url": url,
+        "editions_count": None
+    }
     if not html_str:
         return res
 
@@ -27,6 +39,10 @@ def _parse_subject_html(html_str: str, url: str) -> dict:
     title_match = re.search(r'<span property="v:itemreviewed">(.*?)</span>', html_str)
     isbn_match = re.search(r'ISBN:</span>\s*([\d-]+)', html_str)
     pub_match = re.search(r'出版年:</span>\s*([^\n<]+)', html_str)
+    author_match = re.search(r'作者:?</span>\s*<a[^>]*>(.*?)</a>', html_str, re.DOTALL)
+    translator_match = re.search(r'译者:?</span>\s*<a[^>]*>(.*?)</a>', html_str, re.DOTALL)
+    publisher_match = re.search(r'出版社:?</span>\s*(?:<a[^>]*>)?([^<\n]+)', html_str)
+    orig_match = re.search(r'原作名:?</span>\s*([^\n<]+)', html_str)
 
     if rate_match:
         try:
@@ -47,12 +63,23 @@ def _parse_subject_html(html_str: str, url: str) -> dict:
     if title_match:
         res["title"] = html.unescape(title_match.group(1).strip())
 
+    if author_match:
+        res["author"] = html.unescape(re.sub(r'<[^>]+>', '', author_match.group(1)).strip())
+
+    if translator_match:
+        res["translator"] = html.unescape(re.sub(r'<[^>]+>', '', translator_match.group(1)).strip())
+
+    if publisher_match:
+        res["publisher"] = html.unescape(re.sub(r'<[^>]+>', '', publisher_match.group(1)).strip())
+
+    if orig_match:
+        res["original_title"] = html.unescape(orig_match.group(1).strip())
+
     if isbn_match:
         res["isbn"] = clean_isbn(isbn_match.group(1))
 
     if pub_match:
         res["pub_year"] = pub_match.group(1).strip()
-
 
     editions_match = re.search(r'这本书的其他版本.*?全部(\d+)', html_str, re.DOTALL)
     if editions_match:
@@ -105,9 +132,10 @@ def _parse_search_item(item: dict, used_curl: bool, source_name: str = "Douban")
     else:
         rating_text = "暂无评分"
 
-    # 2. Parse abstract for author and pub_year
+    # 2. Parse abstract for author, publisher, and pub_year
     abstract_str = item.get("abstract", "")
     author_name = "Unknown Author"
+    publisher_str = None
     pub_year_str = ""
     pub_year = None
     if abstract_str:
@@ -116,10 +144,11 @@ def _parse_search_item(item: dict, used_curl: bool, source_name: str = "Douban")
             author_name = parts[0]
             for p in parts[1:]:
                 year_match = re.search(r'\b(\d{4})\b', p)
-                if year_match:
+                if year_match and not pub_year_str:
                     pub_year_str = year_match.group(1)
                     pub_year = int(pub_year_str)
-                    break
+                elif not publisher_str and not re.search(r'\d', p) and "元" not in p:
+                    publisher_str = p
 
     is_match = (rate is not None or bool(null_reason))
     status_val = (SourceStatus.CURL_MATCH.value if used_curl else SourceStatus.MATCH.value) if is_match else SourceStatus.NO_MATCH.value
@@ -138,12 +167,17 @@ def _parse_search_item(item: dict, used_curl: bool, source_name: str = "Douban")
         rating_text=rating_text,
         url=subject_url,
         title=title,
-        status=status_val
+        status=status_val,
+        author=author_name if author_name != "Unknown Author" else None,
+        publisher=publisher_str,
+        publish_date=pub_year_str or None,
+        work_id=f"db:{sub_id}"
     )
     work.editions.append(Edition(
         edition_id=sub_id,
         title=title,
-        publish_year=pub_year_str
+        publish_year=pub_year_str,
+        publisher=publisher_str
     ))
     return work
 
@@ -179,7 +213,7 @@ class DoubanSource(BaseSource):
             return _parse_subject_html(resp.text, url)
         except Exception as e:
             logger.warning(f"Failed to fetch Douban subject details from '{url}': {e}")
-            return {"rate": None, "votes": None, "isbn": None, "pub_year": None, "title": None, "url": url, "editions_count": None}
+            return {"rate": None, "votes": None, "isbn": None, "pub_year": None, "title": None, "author": None, "translator": None, "publisher": None, "url": url, "editions_count": None}
 
     def _enrich_with_book_page(self, rating: SourceRating) -> SourceRating:
         """Enrich a candidate rating with detailed subject page score & votes."""
@@ -192,6 +226,20 @@ class DoubanSource(BaseSource):
             rating.rating_count = details["votes"]
         if details.get("title"):
             rating.title = details["title"]
+        if details.get("author"):
+            rating.author = details["author"]
+        if details.get("translator"):
+            rating.translator = details["translator"]
+        if details.get("publisher"):
+            rating.publisher = details["publisher"]
+        if details.get("original_title"):
+            rating.original_title = details["original_title"]
+        if details.get("pub_year"):
+            rating.publish_date = details["pub_year"]
+        if details.get("isbn"):
+            rating.isbn = details["isbn"]
+        if details.get("editions_count") is not None:
+            rating.edition_count = details["editions_count"]
         return rating
 
     def _lookup_by_isbn(self, isbn: str) -> Optional[SourceRating]:
@@ -222,9 +270,16 @@ class DoubanSource(BaseSource):
                 rate=details["rate"],
                 rating_count=details["votes"],
                 url=subject_url,
-                title=details["title"]
+                title=details["title"],
+                author=details.get("author"),
+                translator=details.get("translator"),
+                publisher=details.get("publisher"),
+                original_title=details.get("original_title"),
+                publish_date=details.get("pub_year"),
+                isbn=details.get("isbn") or isbn_str,
+                work_id=f"db:{sub_id}",
+                edition_count=details.get("editions_count")
             )
-            rating.editions_count = details.get("editions_count")
             return rating
         except Exception as e:
             logger.debug(f"Douban ISBN lookup failed for '{isbn_str}': {e}")

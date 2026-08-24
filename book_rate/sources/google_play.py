@@ -11,6 +11,15 @@ from book_rate.sources.base import BaseSource
 logger = logging.getLogger(__name__)
 
 
+class PlayDetails(tuple):
+    """5-element tuple for backward compatibility with attached metadata dictionary."""
+    def __new__(cls, rate, count, used_curl, title, author, meta=None):
+        return super().__new__(cls, (rate, count, used_curl, title, author))
+
+    def __init__(self, rate, count, used_curl, title, author, meta=None):
+        self.meta = meta or {}
+
+
 class GooglePlaySource(BaseSource):
     """Source for fetching ratings directly from Google Play Books store (play.google.com)."""
 
@@ -42,7 +51,7 @@ class GooglePlaySource(BaseSource):
             return m2.group(1)
         return None
 
-    def _parse_play_details(self, volume_id: str) -> tuple[Optional[float], Optional[int], bool, Optional[str], Optional[str]]:
+    def _parse_play_details(self, volume_id: str) -> PlayDetails:
         """Parse rating value, vote count, title, and author from Google Play Books store detail page."""
         url = f"{self.BASE_URL}?id={volume_id}"
         fetch_res = self._fetch_html(url)
@@ -52,10 +61,15 @@ class GooglePlaySource(BaseSource):
             html_content, used_curl = str(fetch_res), False
 
         if not html_content:
-            return None, None, used_curl, None, None
+            return PlayDetails(None, None, used_curl, None, None, {})
 
         title: Optional[str] = None
-        author: Optional[str] = None
+        author = None
+        publisher = None
+        pub_date = None
+        isbn = None
+        language = None
+        translator = None
         rate: Optional[float] = None
         count: Optional[int] = None
 
@@ -84,6 +98,28 @@ class GooglePlaySource(BaseSource):
                                 author = auth_val.get("name")
                             elif isinstance(auth_val, str):
                                 author = auth_val.strip()
+                        if not translator and "translator" in item:
+                            trans_val = item.get("translator")
+                            if isinstance(trans_val, list):
+                                names = [t.get("name") for t in trans_val if isinstance(t, dict) and t.get("name")]
+                                if names:
+                                    translator = ", ".join(names)
+                            elif isinstance(trans_val, dict) and trans_val.get("name"):
+                                translator = trans_val.get("name")
+                            elif isinstance(trans_val, str):
+                                translator = trans_val.strip()
+                        if not publisher and "publisher" in item:
+                            pub_val = item.get("publisher")
+                            if isinstance(pub_val, dict) and pub_val.get("name"):
+                                publisher = pub_val.get("name")
+                            elif isinstance(pub_val, str):
+                                publisher = pub_val.strip()
+                        if not pub_date and "datePublished" in item:
+                            pub_date = str(item.get("datePublished")).strip()
+                        if not isbn and "isbn" in item:
+                            isbn = str(item.get("isbn")).strip()
+                        if not language and "inLanguage" in item:
+                            language = str(item.get("inLanguage")).strip()
                         if "aggregateRating" in item and isinstance(item["aggregateRating"], dict):
                             ar = item["aggregateRating"]
                             r_val = ar.get("ratingValue")
@@ -130,11 +166,21 @@ class GooglePlaySource(BaseSource):
             if m_h1:
                 title = html.unescape(re.sub(r'<[^>]+>', '', m_h1.group(1)).strip())
 
-        return rate, count, used_curl, title, author
+        meta = {
+            "title": title,
+            "author": author,
+            "translator": translator,
+            "publisher": publisher,
+            "publish_date": pub_date,
+            "isbn": isbn,
+            "language": language
+        }
+        return PlayDetails(rate, count, used_curl, title, author, meta)
 
     def _parse_play_rating(self, volume_id: str) -> tuple[Optional[float], Optional[int], bool]:
         """Parse rating value and vote count from Google Play Books store detail page."""
-        rate, count, used_curl, _, _ = self._parse_play_details(volume_id)
+        res = self._parse_play_details(volume_id)
+        rate, count, used_curl, _, _ = res[:5]
         return rate, count, used_curl
 
     def search_works(self, query: str, limit: int = 5, include_details: bool = True, page: int = 1) -> List[Work]:
@@ -179,7 +225,9 @@ class GooglePlaySource(BaseSource):
         works = []
         for slug, vid, card_title in candidates[:limit]:
             play_url = f"{self.BASE_URL}/{slug}?id={vid}" if slug else f"{self.BASE_URL}?id={vid}"
-            rate, count, rating_used_curl, detail_title, detail_author = self._parse_play_details(vid)
+            detail_res = self._parse_play_details(vid)
+            rate, count, rating_used_curl, detail_title, detail_author = detail_res[:5]
+            meta = getattr(detail_res, "meta", {})
 
             parsed_title = detail_title or card_title
             parsed_author = detail_author or "Unknown"
@@ -199,7 +247,8 @@ class GooglePlaySource(BaseSource):
             w = Work(
                 work_id=f"play:{vid}",
                 title=parsed_title,
-                author=parsed_author
+                author=parsed_author,
+                isbn=meta.get("isbn")
             )
 
             is_match = (rate is not None)
@@ -212,7 +261,14 @@ class GooglePlaySource(BaseSource):
                 rating_count=count,
                 url=play_url,
                 title=parsed_title,
-                status=status_val
+                status=status_val,
+                author=parsed_author if parsed_author != "Unknown" else None,
+                translator=meta.get("translator"),
+                publisher=meta.get("publisher"),
+                publish_date=meta.get("publish_date"),
+                isbn=meta.get("isbn"),
+                language=meta.get("language"),
+                work_id=f"play:{vid}"
             )
             works.append(w)
         return works
@@ -221,7 +277,9 @@ class GooglePlaySource(BaseSource):
         """Fetch rating from Google Play Books store using full SearchStrategy evaluation."""
         if work.work_id and (work.work_id.startswith("gb:") or work.work_id.startswith("play:")):
             volume_id = work.work_id.split(":", 1)[1]
-            rate, count, rating_used_curl, detail_title, _ = self._parse_play_details(volume_id)
+            detail_res = self._parse_play_details(volume_id)
+            rate, count, rating_used_curl, detail_title, detail_author = detail_res[:5]
+            meta = getattr(detail_res, "meta", {})
             play_url = f"{self.BASE_URL}?id={volume_id}"
             is_match = (rate is not None)
             status_val = (SourceStatus.CURL_MATCH.value if rating_used_curl else SourceStatus.MATCH.value) if is_match else SourceStatus.NO_MATCH.value
@@ -232,9 +290,15 @@ class GooglePlaySource(BaseSource):
                 url=play_url,
                 title=detail_title or work.title,
                 strategy=strategy,
-                status=status_val
+                status=status_val,
+                author=detail_author or work.author,
+                translator=meta.get("translator"),
+                publisher=meta.get("publisher"),
+                publish_date=meta.get("publish_date"),
+                isbn=meta.get("isbn"),
+                language=meta.get("language"),
+                work_id=f"play:{volume_id}"
             )
 
         rating = self._fetch_ratings(work, strategy=strategy)
         return rating if rating else SourceRating(source_name=self.name, strategy=strategy, status=SourceStatus.NOT_FOUND.value)
-

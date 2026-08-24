@@ -67,6 +67,12 @@ class BooksTwSource(BaseSource):
             "count": None,
             "title": None,
             "author": None,
+            "translator": None,
+            "publisher": None,
+            "publish_date": None,
+            "isbn": None,
+            "language": None,
+            "original_title": None,
             "url": url,
         }
 
@@ -82,6 +88,36 @@ class BooksTwSource(BaseSource):
         author_m = re.search(r'作者[：:]\s*<a[^>]*>(.*?)</a>', html_str, re.DOTALL)
         if author_m:
             res["author"] = self._clean_text(author_m.group(1))
+
+        # Translator extraction
+        trans_m = re.search(r'譯者[：:]\s*<a[^>]*>(.*?)</a>', html_str, re.DOTALL)
+        if trans_m:
+            res["translator"] = self._clean_text(trans_m.group(1))
+
+        # Publisher extraction
+        pub_m = re.search(r'出版社[：:]\s*<a[^>]*>(.*?)</a>', html_str, re.DOTALL) or re.search(r'出版社[：:]\s*([^<\n]+)', html_str)
+        if pub_m:
+            res["publisher"] = self._clean_text(pub_m.group(1))
+
+        # Publish date extraction
+        date_m = re.search(r'出版日期[：:]\s*<time[^>]*>(.*?)</time>', html_str, re.DOTALL) or re.search(r'出版日期[：:]\s*([0-9/ -]+)', html_str)
+        if date_m:
+            res["publish_date"] = self._clean_text(date_m.group(1))
+
+        # ISBN extraction
+        isbn_m = re.search(r'ISBN[：:]\s*([0-9Xx-]+)', html_str)
+        if isbn_m:
+            res["isbn"] = clean_isbn(isbn_m.group(1))
+
+        # Language extraction
+        lang_m = re.search(r'語言[：:]\s*([^<\n]+)', html_str)
+        if lang_m:
+            res["language"] = self._clean_text(lang_m.group(1))
+
+        # Original title extraction
+        orig_m = re.search(r'原文書名[：:]\s*([^<\n]+)', html_str)
+        if orig_m:
+            res["original_title"] = self._clean_text(orig_m.group(1))
 
         # Rating score extraction (e.g. <div class="average">\n 5 \n</div> or 4.8)
         score_m = re.search(r'<div class="average">\s*([\d.]+)\s*</div>', html_str, re.DOTALL)
@@ -120,6 +156,14 @@ class BooksTwSource(BaseSource):
             query=query,
             status=status,
             title=page["title"],
+            author=page.get("author"),
+            translator=page.get("translator"),
+            publisher=page.get("publisher"),
+            publish_date=page.get("publish_date"),
+            isbn=page.get("isbn"),
+            language=page.get("language"),
+            original_title=page.get("original_title"),
+            work_id=f"bk:{page['book_id']}" if page.get("book_id") else None
         )
 
     def _select_best_rating(
@@ -336,6 +380,22 @@ class BooksTwSource(BaseSource):
             rating.rating_count = page["count"]
         if not rating.title and page["title"]:
             rating.title = page["title"]
+        if page.get("author"):
+            rating.author = page["author"]
+        if page.get("translator"):
+            rating.translator = page["translator"]
+        if page.get("publisher"):
+            rating.publisher = page["publisher"]
+        if page.get("publish_date"):
+            rating.publish_date = page["publish_date"]
+        if page.get("isbn"):
+            rating.isbn = page["isbn"]
+        if page.get("language"):
+            rating.language = page["language"]
+        if page.get("original_title"):
+            rating.original_title = page["original_title"]
+        if not rating.work_id:
+            rating.work_id = f"bk:{item_id}"
         if page["rate"] is not None or page["count"] is not None:
             rating.status = SourceStatus.CURL_MATCH.value if (rating.status == SourceStatus.CURL_MATCH.value or used_curl) else SourceStatus.MATCH.value
 

@@ -44,11 +44,16 @@ class ReadmooSource(BaseSource):
         s, used_curl = self._fetch_html(url)
         if not s:
             logger.warning(f"Failed to fetch Readmoo book page HTML for '{url}'")
-            return {"book_id": book_id, "rate": None, "count": None, "title": None, "author": None, "url": url}, used_curl
+            return {"book_id": book_id, "rate": None, "count": None, "title": None, "author": None, "translator": None, "publisher": None, "publish_date": None, "isbn": None, "language": None, "url": url}, used_curl
         rate = None
         count = None
         title = None
         author = None
+        translator = None
+        publisher = None
+        publish_date = None
+        isbn = None
+        language = None
 
         score_m = re.search(r'data-score="([\d.]+)"', s) or re.search(
             r'itemprop="ratingValue"\s+content="([\d.]+)"', s
@@ -74,11 +79,43 @@ class ReadmooSource(BaseSource):
         if title_m:
             title = self._clean_text(title_m.group(1))
 
-        author_m = re.search(r'itemprop="author"[^>]*>.*?itemprop="name"[^>]*>(.*?)</a>', s, re.DOTALL)
+        author_m = re.search(r'itemprop="author"[^>]*>.*?itemprop="name"[^>]*>(.*?)</a>', s, re.DOTALL) or re.search(r'作者[：:]\s*<a[^>]*>(.*?)</a>', s)
         if author_m:
             author = self._clean_text(author_m.group(1))
 
-        return {"book_id": book_id, "rate": rate, "count": count, "title": title, "author": author, "url": url}, used_curl
+        trans_m = re.search(r'itemprop="translator"[^>]*>.*?itemprop="name"[^>]*>(.*?)</a>', s, re.DOTALL) or re.search(r'譯者[：:]\s*<a[^>]*>(.*?)</a>', s)
+        if trans_m:
+            translator = self._clean_text(trans_m.group(1))
+
+        pub_m = re.search(r'itemprop="publisher"[^>]*>.*?itemprop="name"[^>]*>(.*?)</a>', s, re.DOTALL) or re.search(r'出版社[：:]\s*<a[^>]*>(.*?)</a>', s)
+        if pub_m:
+            publisher = self._clean_text(pub_m.group(1))
+
+        date_m = re.search(r'itemprop="datePublished"[^>]*content="([^"]+)"', s) or re.search(r'出版日期[：:]\s*([0-9/ -]+)', s)
+        if date_m:
+            publish_date = self._clean_text(date_m.group(1))
+
+        isbn_m = re.search(r'itemprop="isbn"[^>]*content="([^"]+)"', s) or re.search(r'ISBN[：:]\s*([0-9Xx-]+)', s)
+        if isbn_m:
+            isbn = clean_isbn(isbn_m.group(1))
+
+        lang_m = re.search(r'itemprop="inLanguage"[^>]*content="([^"]+)"', s) or re.search(r'語言[：:]\s*([^<\n]+)', s)
+        if lang_m:
+            language = self._clean_text(lang_m.group(1))
+
+        return {
+            "book_id": book_id,
+            "rate": rate,
+            "count": count,
+            "title": title,
+            "author": author,
+            "translator": translator,
+            "publisher": publisher,
+            "publish_date": publish_date,
+            "isbn": isbn,
+            "language": language,
+            "url": url
+        }, used_curl
 
     def _select_best_rating(
         self, works: List[Work], target_title: Optional[str] = None
@@ -214,6 +251,13 @@ class ReadmooSource(BaseSource):
             strategy=strategy,
             query=query,
             status=status_val,
+            author=page.get("author"),
+            translator=page.get("translator"),
+            publisher=page.get("publisher"),
+            publish_date=page.get("publish_date"),
+            isbn=page.get("isbn"),
+            language=page.get("language"),
+            work_id=f"rm:{page['book_id']}" if page.get("book_id") else None
         )
 
     def _enrich_with_book_page(self, rating: SourceRating) -> SourceRating:
@@ -234,6 +278,20 @@ class ReadmooSource(BaseSource):
             rating.rating_count = page["count"]
         if not rating.title and page["title"]:
             rating.title = page["title"]
+        if page.get("author"):
+            rating.author = page["author"]
+        if page.get("translator"):
+            rating.translator = page["translator"]
+        if page.get("publisher"):
+            rating.publisher = page["publisher"]
+        if page.get("publish_date"):
+            rating.publish_date = page["publish_date"]
+        if page.get("isbn"):
+            rating.isbn = page["isbn"]
+        if page.get("language"):
+            rating.language = page["language"]
+        if not rating.work_id:
+            rating.work_id = f"rm:{book_id}"
         rating.status = SourceStatus.CURL_MATCH.value if (rating.status == SourceStatus.CURL_MATCH.value or used_curl) else SourceStatus.MATCH.value
         return rating
 
