@@ -5,6 +5,7 @@
   /* Fonts & Text Colors */
   --font-family: "Inter", "Noto Sans TC", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft JhengHei", sans-serif;
   --text-primary: #1d2b25;
+  --text-secondary: #4a5750;
   --text-muted: #647068;
   --text-contrast: #ffffff;
 
@@ -34,9 +35,14 @@
   --status-error-bg: #fce8e6;
   --status-error-border: #fad2cf;
 
+  --status-unrated-bg: rgba(148, 163, 184, 0.15);
+  --status-unrated-text: #94a3b8;
+  --status-unrated-border: rgba(148, 163, 184, 0.3);
+
   /* Backgrounds & Surface Colors */
   --surface-bg: #f7f4ed;
   --surface-card: #fffdfa;
+  --surface-subtle: #f2efe9;
   --overlay: rgba(29, 43, 37, 0.4);
 
   /* Button Disabled State */
@@ -73,7 +79,9 @@
   --z-index-modal: 1000;
 
   /* Font Sizes */
+  --fs-2xs: 0.7rem;
   --fs-xs: 0.75rem;
+  --fs-xs2: 0.78rem;
   --fs-sm: 0.82rem;
   --fs-md: 0.86rem;
   --fs-lg: 0.9rem;

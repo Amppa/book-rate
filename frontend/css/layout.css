@@ -40,7 +40,7 @@ header {
   position: absolute;
   top: 0;
   left: 0;
-  transition: opacity 0.3s ease, visibility 0.3s ease;
+  transition: opacity var(--transition-normal), visibility var(--transition-normal);
 }
 
 .wizard-step.active {

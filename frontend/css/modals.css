@@ -15,7 +15,7 @@
   z-index: var(--z-index-modal);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.3s ease;
+  transition: opacity var(--transition-normal);
 }
 
 .modal-content {
@@ -29,7 +29,7 @@
   flex-direction: column;
   overflow: hidden;
   transform: translateY(20px);
-  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform var(--transition-normal) cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .modal.open {
@@ -42,7 +42,7 @@
 }
 
 .modal-header {
-  padding: 1.25rem 1.5rem;
+  padding: var(--space-5) var(--space-6);
   border-bottom: 1px solid var(--border-light);
   display: flex;
   align-items: center;
@@ -65,7 +65,7 @@
   line-height: 1;
   padding: 0;
   cursor: pointer;
-  transition: color 0.2s ease;
+  transition: color var(--transition-fast);
 }
 
 .close-btn:hover {

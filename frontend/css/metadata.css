@@ -10,7 +10,7 @@
 }
 
 .step3-split-layout {
-  transition: gap 0.3s ease;
+  transition: gap var(--transition-normal);
 }
 
 .step2-left-panel,
@@ -29,7 +29,7 @@
 }
 
 .step3-left-panel {
-  transition: width 0.3s ease, opacity 0.2s ease;
+  transition: width var(--transition-normal), opacity var(--transition-fast);
   overflow: hidden;
 }
 
@@ -68,7 +68,7 @@
   border: none;
   cursor: pointer;
   white-space: nowrap;
-  transition: all 0.2s ease;
+  transition: var(--transition-fast);
   box-shadow: var(--shadow-sm);
 }
 
@@ -100,7 +100,7 @@
 .bm-field-group {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .bm-field-group label {
@@ -119,7 +119,7 @@ textarea.bm-input {
   border: 1px solid var(--border);
   background: var(--surface-card);
   color: var(--text-primary);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 textarea.bm-input {
