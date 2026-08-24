@@ -1,4 +1,5 @@
 import html
+import json
 import logging
 import re
 import urllib.parse
@@ -6,6 +7,7 @@ from typing import List, Optional, Tuple
 
 from book_rate.models import Work, Edition, SourceRating, SourceStatus
 from book_rate.sources.base import BaseSource
+from book_rate.utils.isbn import clean_isbn
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +33,10 @@ class ReadmooSource(BaseSource):
 
     @staticmethod
     def _clean_text(raw: str) -> str:
-        return html.unescape(raw).strip()
+        if not raw:
+            return ""
+        no_html = re.sub(r'<[^>]+>', '', raw)
+        return html.unescape(no_html).strip()
 
     @classmethod
     def _extract_book_id_from_url(cls, url: str) -> Optional[str]:
@@ -44,64 +49,211 @@ class ReadmooSource(BaseSource):
         s, used_curl = self._fetch_html(url)
         if not s:
             logger.warning(f"Failed to fetch Readmoo book page HTML for '{url}'")
-            return {"book_id": book_id, "rate": None, "count": None, "title": None, "author": None, "translator": None, "publisher": None, "publish_date": None, "isbn": None, "language": None, "url": url}, used_curl
-        rate = None
-        count = None
-        title = None
-        author = None
-        translator = None
-        publisher = None
-        publish_date = None
-        isbn = None
-        language = None
+            return {
+                "book_id": book_id,
+                "rate": None,
+                "count": None,
+                "title": None,
+                "author": None,
+                "translator": None,
+                "publisher": None,
+                "publish_date": None,
+                "isbn": None,
+                "language": None,
+                "original_title": None,
+                "url": url
+            }, used_curl
 
-        score_m = re.search(r'data-score="([\d.]+)"', s) or re.search(
-            r'itemprop="ratingValue"\s+content="([\d.]+)"', s
-        )
-        if score_m:
+        rate: Optional[float] = None
+        count: Optional[int] = None
+        title: Optional[str] = None
+        author: Optional[str] = None
+        translator: Optional[str] = None
+        publisher: Optional[str] = None
+        publish_date: Optional[str] = None
+        isbn: Optional[str] = None
+        language: Optional[str] = None
+        original_title: Optional[str] = None
+
+        # 1. Try parsing JSON-LD schema.org/Book
+        ld_json_blocks = re.findall(r'<script[^>]*type="application/ld\+json"[^>]*>(.*?)</script>', s, re.DOTALL)
+        for block in ld_json_blocks:
             try:
-                rv = float(score_m.group(1))
-                if rv > 0:
-                    rate = rv
-            except ValueError:
-                pass
+                data = json.loads(block.strip())
+                items = [data]
+                if isinstance(data, dict) and "@graph" in data and isinstance(data["@graph"], list):
+                    items.extend(data["@graph"])
 
-        count_m = re.search(r'itemprop="ratingCount">\s*([\d,]+)\s*<', s)
-        if count_m:
-            try:
-                cv = int(count_m.group(1).replace(",", ""))
-                if cv > 0:
-                    count = cv
-            except ValueError:
-                pass
+                for item in items:
+                    if isinstance(item, dict) and item.get("@type") in ("Book", "http://schema.org/Book", "schema:Book"):
+                        if not title and item.get("name"):
+                            title = self._clean_text(str(item["name"]))
+                        if not author and item.get("author"):
+                            auth_val = item["author"]
+                            if isinstance(auth_val, list):
+                                names = [a.get("name") for a in auth_val if isinstance(a, dict) and a.get("name")]
+                                if names:
+                                    author = ", ".join(names)
+                            elif isinstance(auth_val, dict) and auth_val.get("name"):
+                                author = auth_val.get("name")
+                            elif isinstance(auth_val, str):
+                                author = auth_val.strip()
+                        if not translator and item.get("translator"):
+                            trans_val = item["translator"]
+                            if isinstance(trans_val, list):
+                                names = [t.get("name") for t in trans_val if isinstance(t, dict) and t.get("name")]
+                                if names:
+                                    translator = ", ".join(names)
+                            elif isinstance(trans_val, dict) and trans_val.get("name"):
+                                translator = trans_val.get("name")
+                            elif isinstance(trans_val, str):
+                                translator = trans_val.strip()
+                        if not publisher and item.get("publisher"):
+                            pub_val = item["publisher"]
+                            if isinstance(pub_val, dict) and pub_val.get("name"):
+                                publisher = pub_val.get("name")
+                            elif isinstance(pub_val, str):
+                                publisher = pub_val.strip()
+                        if not publish_date and item.get("datePublished"):
+                            publish_date = str(item["datePublished"]).strip()
+                        if not isbn and item.get("isbn"):
+                            isbn = clean_isbn(str(item["isbn"]).strip())
+                        if not language and item.get("inLanguage"):
+                            language = str(item["inLanguage"]).strip()
+                        if "aggregateRating" in item and isinstance(item["aggregateRating"], dict):
+                            ar = item["aggregateRating"]
+                            if ar.get("ratingValue") is not None and rate is None:
+                                try:
+                                    rate = float(ar["ratingValue"])
+                                except (ValueError, TypeError):
+                                    pass
+                            if ar.get("ratingCount") is not None and count is None:
+                                try:
+                                    count = int(ar["ratingCount"])
+                                except (ValueError, TypeError):
+                                    pass
+            except Exception as e:
+                logger.debug(f"Failed to parse Readmoo JSON-LD: {e}")
 
-        title_m = re.search(r'<h1\s+class="book-detail-title"[^>]*>(.*?)</h1>', s, re.DOTALL)
-        if title_m:
-            title = self._clean_text(title_m.group(1))
+        # 2. Score and review count HTML extraction fallbacks
+        if rate is None:
+            score_m = re.search(r'data-score="([\d.]+)"', s) or re.search(
+                r'itemprop="ratingValue"\s+content="([\d.]+)"', s
+            )
+            if score_m:
+                try:
+                    rv = float(score_m.group(1))
+                    if rv > 0:
+                        rate = rv
+                except ValueError:
+                    pass
 
-        author_m = re.search(r'itemprop="author"[^>]*>.*?itemprop="name"[^>]*>(.*?)</a>', s, re.DOTALL) or re.search(r'作者[：:]\s*<a[^>]*>(.*?)</a>', s)
-        if author_m:
-            author = self._clean_text(author_m.group(1))
+        if count is None:
+            count_m = re.search(r'itemprop="ratingCount">\s*([\d,]+)\s*<', s) or re.search(
+                r'itemprop="ratingCount"\s+content="([\d,]+)"', s
+            )
+            if count_m:
+                try:
+                    cv = int(count_m.group(1).replace(",", ""))
+                    if cv > 0:
+                        count = cv
+                except ValueError:
+                    pass
 
-        trans_m = re.search(r'itemprop="translator"[^>]*>.*?itemprop="name"[^>]*>(.*?)</a>', s, re.DOTALL) or re.search(r'譯者[：:]\s*<a[^>]*>(.*?)</a>', s)
-        if trans_m:
-            translator = self._clean_text(trans_m.group(1))
+        # 3. HTML metadata extraction fallbacks
+        if not title:
+            title_m = re.search(r'<h1\s+class="book-detail-title"[^>]*>(.*?)</h1>', s, re.DOTALL)
+            if title_m:
+                title = self._clean_text(title_m.group(1))
 
-        pub_m = re.search(r'itemprop="publisher"[^>]*>.*?itemprop="name"[^>]*>(.*?)</a>', s, re.DOTALL) or re.search(r'出版社[：:]\s*<a[^>]*>(.*?)</a>', s)
-        if pub_m:
-            publisher = self._clean_text(pub_m.group(1))
+        if not author:
+            author_block_m = re.search(r'<li[^>]*class="contributors-list-item"[^>]*>\s*作者[：:]\s*(.*?)(?:</li>|<li)', s, re.DOTALL)
+            if author_block_m:
+                names = re.findall(r'<a[^>]*itemprop="name"[^>]*>(.*?)</a>', author_block_m.group(1), re.DOTALL)
+                if not names:
+                    names = re.findall(r'<a[^>]*href="[^"]*/contributor/[^"]*"[^>]*>(.*?)</a>', author_block_m.group(1), re.DOTALL)
+                cleaned_names = [self._clean_text(n) for n in names if self._clean_text(n)]
+                if cleaned_names:
+                    author = ", ".join(cleaned_names)
+            if not author:
+                author_m = (
+                    re.search(r'itemprop="author"[^>]*>.*?itemprop="name"[^>]*>([^<]+)</a>', s) or
+                    re.search(r'itemprop="author"[^>]*>(?:<[^>]+>)*([^<\n]+)', s) or
+                    re.search(r'作者[：:]\s*(?:<[^>]+>)*([^<\n]+)', s)
+                )
+                if author_m:
+                    val = self._clean_text(author_m.group(1))
+                    if val and len(val) < 100:
+                        author = val
 
-        date_m = re.search(r'itemprop="datePublished"[^>]*content="([^"]+)"', s) or re.search(r'出版日期[：:]\s*([0-9/ -]+)', s)
-        if date_m:
-            publish_date = self._clean_text(date_m.group(1))
+        if not translator:
+            trans_block_m = re.search(r'<li[^>]*class="contributors-list-item"[^>]*>\s*譯者[：:]\s*(.*?)(?:</li>|<li)', s, re.DOTALL)
+            if trans_block_m:
+                names = re.findall(r'<a[^>]*itemprop="name"[^>]*>(.*?)</a>', trans_block_m.group(1), re.DOTALL)
+                if not names:
+                    names = re.findall(r'<a[^>]*href="[^"]*/contributor/[^"]*"[^>]*>(.*?)</a>', trans_block_m.group(1), re.DOTALL)
+                cleaned_names = [self._clean_text(n) for n in names if self._clean_text(n)]
+                if cleaned_names:
+                    translator = ", ".join(cleaned_names)
+            if not translator:
+                trans_m = (
+                    re.search(r'itemprop="translator"[^>]*>.*?itemprop="name"[^>]*>([^<]+)</a>', s) or
+                    re.search(r'itemprop="translator"[^>]*>(?:<[^>]+>)*([^<\n]+)', s) or
+                    re.search(r'譯者[：:]\s*(?:<[^>]+>)*([^<\n]+)', s)
+                )
+                if trans_m:
+                    val = self._clean_text(trans_m.group(1))
+                    if val and len(val) < 100:
+                        translator = val
 
-        isbn_m = re.search(r'itemprop="isbn"[^>]*content="([^"]+)"', s) or re.search(r'ISBN[：:]\s*([0-9Xx-]+)', s)
-        if isbn_m:
-            isbn = clean_isbn(isbn_m.group(1))
+        if not publisher:
+            pub_m = (
+                re.search(r'出版社[：:]\s*<a[^>]*>(.*?)</a>', s) or
+                re.search(r'itemprop="publisher"[^>]*>([^<]+)', s) or
+                re.search(r'出版社[：:]\s*([^<\n]+)', s)
+            )
+            if pub_m:
+                val = self._clean_text(pub_m.group(1))
+                if val and len(val) < 100 and not val.startswith("<"):
+                    publisher = val
 
-        lang_m = re.search(r'itemprop="inLanguage"[^>]*content="([^"]+)"', s) or re.search(r'語言[：:]\s*([^<\n]+)', s)
-        if lang_m:
-            language = self._clean_text(lang_m.group(1))
+        if not publish_date:
+            date_m = (
+                re.search(r'itemprop="datePublished"[^>]*content="([^"]+)"', s) or
+                re.search(r'出版日期[：:]\s*(?:<[^>]+>)*([0-9/ -]+)', s)
+            )
+            if date_m:
+                publish_date = self._clean_text(date_m.group(1))
+
+        if not isbn:
+            isbn_m = (
+                re.search(r'ISBN:?\s*<span[^>]*itemprop="isbn"[^>]*>([^<]+)</span>', s) or
+                re.search(r'itemprop="isbn"[^>]*content="([^"]+)"', s) or
+                re.search(r'ISBN[：:]\s*(?:<[^>]+>)*([0-9Xx-]+)', s)
+            )
+            if isbn_m:
+                isbn = clean_isbn(isbn_m.group(1))
+
+        if not language:
+            lang_m = (
+                re.search(r'語言[：:]\s*<span[^>]*itemprop="inLanguage"[^>]*>([^<]+)</span>', s) or
+                re.search(r'itemprop="inLanguage"[^>]*content="([^"]+)"', s) or
+                re.search(r'語言[：:]\s*([^<\n]+)', s)
+            )
+            if lang_m:
+                val = self._clean_text(lang_m.group(1))
+                if val and len(val) < 50:
+                    language = val
+
+        if not original_title:
+            orig_m = (
+                re.search(r'<h2\s+class="book-detail-original-title"[^>]*>(.*?)</h2>', s, re.DOTALL) or
+                re.search(r'原文書名[：:]\s*(?:<[^>]+>)*([^<\n]+)', s)
+            )
+            if orig_m:
+                val = re.sub(r'\s+', ' ', self._clean_text(orig_m.group(1)))
+                if val and len(val) < 200:
+                    original_title = val
 
         return {
             "book_id": book_id,
@@ -114,6 +266,7 @@ class ReadmooSource(BaseSource):
             "publish_date": publish_date,
             "isbn": isbn,
             "language": language,
+            "original_title": original_title,
             "url": url
         }, used_curl
 
@@ -257,6 +410,7 @@ class ReadmooSource(BaseSource):
             publish_date=page.get("publish_date"),
             isbn=page.get("isbn"),
             language=page.get("language"),
+            original_title=page.get("original_title"),
             work_id=f"rm:{page['book_id']}" if page.get("book_id") else None
         )
 
@@ -290,6 +444,8 @@ class ReadmooSource(BaseSource):
             rating.isbn = page["isbn"]
         if page.get("language"):
             rating.language = page["language"]
+        if page.get("original_title"):
+            rating.original_title = page["original_title"]
         if not rating.work_id:
             rating.work_id = f"rm:{book_id}"
         rating.status = SourceStatus.CURL_MATCH.value if (rating.status == SourceStatus.CURL_MATCH.value or used_curl) else SourceStatus.MATCH.value
