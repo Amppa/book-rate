@@ -1371,6 +1371,33 @@ class TestBookInfoMetadataExtraction(unittest.TestCase):
         self.assertEqual(page["rate"], 4.4)
         self.assertEqual(page["count"], 8)
 
+    @patch("book_rate.sources.books_tw.BooksTwSource._fetch_books_html")
+    def test_books_tw_book_page_metadata_with_meta_description(self, mock_fetch):
+        sample_html = """
+        <head>
+          <meta name="description" content="書名：變動下的思考：AI 越快，你更要慢，語言：繁體中文，ISBN：9786269931040，頁數：280，出版社：長河，作者：黃冠華，出版日期：2026/05/15，類別：商業理財">
+        </head>
+        <body>
+          <h1>變動下的思考：AI 越快，你更要慢</h1>
+          <ul class="type02_m058">
+            <li>作者：<a href="/search/author">黃冠華</a></li>
+            <li>出版社：<a href="/search/pub">長河</a></li>
+            <li>出版日期：<time>2026/05/15</time></li>
+            <li>語言：繁體中文</li>
+            <li>ISBN：9786269931040</li>
+          </ul>
+        </body>
+        """
+        mock_fetch.return_value = (sample_html, False)
+        source = BooksTwSource()
+        page, _ = source._fetch_book_page("0011052009")
+        self.assertEqual(page["title"], "變動下的思考：AI 越快，你更要慢")
+        self.assertEqual(page["author"], "黃冠華")
+        self.assertEqual(page["publisher"], "長河")
+        self.assertEqual(page["publish_date"], "2026/05/15")
+        self.assertEqual(page["language"], "繁體中文")
+        self.assertEqual(page["isbn"], "9786269931040")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -96,9 +96,11 @@ class BooksTwSource(BaseSource):
             res["translator"] = self._clean_text(trans_m.group(1))
 
         # Publisher extraction
-        pub_m = re.search(r'出版社[：:]\s*<a[^>]*>(.*?)</a>', html_str, re.DOTALL) or re.search(r'出版社[：:]\s*([^<\n]+)', html_str)
+        pub_m = re.search(r'出版社[：:]\s*<a[^>]*>(.*?)</a>', html_str, re.DOTALL) or re.search(r'<li>出版社[：:]\s*([^<\n]+)', html_str) or re.search(r'出版社[：:]\s*([^，,<\n"]+)', html_str)
         if pub_m:
-            res["publisher"] = self._clean_text(pub_m.group(1))
+            val = self._clean_text(pub_m.group(1))
+            if val and len(val) < 100:
+                res["publisher"] = val
 
         # Publish date extraction
         date_m = re.search(r'出版日期[：:]\s*<time[^>]*>(.*?)</time>', html_str, re.DOTALL) or re.search(r'出版日期[：:]\s*([0-9/ -]+)', html_str)
@@ -111,14 +113,18 @@ class BooksTwSource(BaseSource):
             res["isbn"] = clean_isbn(isbn_m.group(1))
 
         # Language extraction
-        lang_m = re.search(r'語言[：:]\s*([^<\n]+)', html_str)
+        lang_m = re.search(r'<li>語言[：:]\s*([^<\n]+)', html_str) or re.search(r'語言[：:]\s*([^，,<\n"]+)', html_str)
         if lang_m:
-            res["language"] = self._clean_text(lang_m.group(1))
+            val = self._clean_text(lang_m.group(1))
+            if val and len(val) < 50:
+                res["language"] = val
 
         # Original title extraction
-        orig_m = re.search(r'原文書名[：:]\s*([^<\n]+)', html_str)
+        orig_m = re.search(r'<li>原文書名[：:]\s*([^<\n]+)', html_str) or re.search(r'原文書名[：:]\s*([^，,<\n"]+)', html_str)
         if orig_m:
-            res["original_title"] = self._clean_text(orig_m.group(1))
+            val = self._clean_text(orig_m.group(1))
+            if val and len(val) < 150:
+                res["original_title"] = val
 
         # Rating score extraction (e.g. <div class="average">\n 5 \n</div> or 4.8)
         score_m = re.search(r'<div class="average">\s*([\d.]+)\s*</div>', html_str, re.DOTALL)
