@@ -254,6 +254,9 @@ a.source-book-title:hover {
   margin-top: var(--space-2);
   width: 100%;
   text-align: left;
+  font-weight: 400;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
 }
 
 .source-details-summary {
@@ -290,6 +293,7 @@ a.source-book-title:hover {
   flex-direction: column;
   gap: 3px;
   line-height: 1.35;
+  font-weight: 400;
 }
 
 .source-detail-row {
@@ -298,6 +302,7 @@ a.source-book-title:hover {
   gap: 4px;
   font-size: var(--fs-2xs);
   word-break: break-all;
+  font-weight: 400;
 }
 
 .source-detail-label {
@@ -308,5 +313,6 @@ a.source-book-title:hover {
 
 .source-detail-value {
   color: var(--text-primary);
+  font-weight: 400;
   word-break: break-word;
 }
