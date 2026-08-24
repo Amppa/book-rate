@@ -10,6 +10,13 @@ from book_rate.utils.isbn import clean_isbn
 
 logger = logging.getLogger(__name__)
 
+BOOK_TYPE_VARIANTS = {
+    "book",
+    "http://schema.org/book",
+    "https://schema.org/book",
+    "schema:book",
+}
+
 
 def clean_text(raw: Optional[str], max_len: Optional[int] = None) -> Optional[str]:
     """
@@ -38,18 +45,18 @@ def clean_text(raw: Optional[str], max_len: Optional[int] = None) -> Optional[st
 def clean_author_name(name: Optional[str]) -> Optional[str]:
     """
     Cleans up author/translator string by stripping common prefixes and annotations.
-    e.g. "by John Doe", "作者：張三", "鈴木一郎 (著)", "佐藤次郎 訳", "陳儀 譯"
+    e.g. "by John Doe", "作者：張三", "張三 著", "張三 原著", "張三 等著", "鈴木一郎 (著)", "佐藤次郎 訳", "陳儀 譯"
     """
     cleaned = clean_text(name)
     if not cleaned:
         return None
 
     # Strip common leading prefixes
-    cleaned = re.sub(r'^(?:by\s+|作者\s*[:：]?\s*|著者\s*[:：]?\s*|譯者\s*[:：]?\s*|訳者\s*[:：]?\s*)', '', cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r'^(?:by\s+|作者\s*[:：]?\s*|著者\s*[:：]?\s*|譯者\s*[:：]?\s*|訳者\s*[:：]?\s*|著\s*[:：]\s*)', '', cleaned, flags=re.IGNORECASE)
 
     # Strip common trailing annotations
-    cleaned = re.sub(r'\s*\((?:著|著者|作者|譯|譯者|訳|訳者|翻訳|等訳|Author|Editor|Translator)\)$', '', cleaned, flags=re.IGNORECASE)
-    cleaned = re.sub(r'\s+(?:著|著者|作者|譯|譯者|訳|訳者|翻訳|等訳)$', '', cleaned)
+    cleaned = re.sub(r'\s*\((?:著|著者|作者|原著|等著|譯|譯者|等譯|訳|訳者|翻訳|等訳|Author|Editor|Translator)\)$', '', cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r'\s+(?:著|著者|作者|原著|等著|譯|譯者|等譯|訳|訳者|翻訳|等訳)$', '', cleaned)
 
     cleaned = cleaned.strip()
     return cleaned if cleaned else None
@@ -87,7 +94,7 @@ def parse_json_ld_book(html_str: str) -> Optional[Dict[str, Any]]:
     """
     Scans HTML for <script type="application/ld+json"> blocks and extracts standard
     schema.org/Book metadata fields.
-    
+
     Returns a dictionary containing:
       title, author, translator, publisher, publish_date, isbn, language, rate, count
     or None if no valid Book schema is found.
@@ -95,7 +102,8 @@ def parse_json_ld_book(html_str: str) -> Optional[Dict[str, Any]]:
     if not html_str or "application/ld+json" not in html_str:
         return None
 
-    blocks = re.findall(r'<script[^>]*type="application/ld\+json"[^>]*>(.*?)</script>', html_str, re.DOTALL)
+    # Matches both single-quoted and double-quoted application/ld+json script tags
+    blocks = re.findall(r'<script[^>]*type=[\'"]application/ld\+json[\'"][^>]*>(.*?)</script>', html_str, re.DOTALL | re.IGNORECASE)
     if not blocks:
         return None
 
@@ -120,18 +128,24 @@ def parse_json_ld_book(html_str: str) -> Optional[Dict[str, Any]]:
                 continue
             data = json.loads(raw_json)
 
-            items: List[Any] = [data]
-            if isinstance(data, dict) and "@graph" in data and isinstance(data["@graph"], list):
-                items.extend(data["@graph"])
+            items: List[Any] = []
+            if isinstance(data, list):
+                items.extend(data)
+            elif isinstance(data, dict):
+                items.append(data)
+                if "@graph" in data and isinstance(data["@graph"], list):
+                    items.extend(data["@graph"])
 
             for item in items:
                 if not isinstance(item, dict):
                     continue
 
                 item_type = item.get("@type")
-                is_book = item_type in ("Book", "http://schema.org/Book", "schema:Book") or (
-                    isinstance(item_type, list) and any(t in ("Book", "http://schema.org/Book", "schema:Book") for t in item_type)
-                )
+                is_book = False
+                if isinstance(item_type, str) and item_type.lower() in BOOK_TYPE_VARIANTS:
+                    is_book = True
+                elif isinstance(item_type, list) and any(isinstance(t, str) and t.lower() in BOOK_TYPE_VARIANTS for t in item_type):
+                    is_book = True
 
                 if is_book:
                     found_book = True

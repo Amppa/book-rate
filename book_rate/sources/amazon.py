@@ -1,4 +1,3 @@
-import html
 import logging
 import re
 from typing import List, Optional
@@ -178,17 +177,17 @@ class AmazonSource(BaseSource):
             if author_name == "Unknown":
                 # Date-preceding heuristic: the segment right before the publication date is very likely the author(s)
                 for idx, p in enumerate(parts):
-                    clean_p = html.unescape(re.sub(r'<[^>]+>', '', p)).strip()
+                    clean_p = clean_text(p) or ""
                     if self._is_date_text(clean_p) and idx > 0:
                         prev_part = parts[idx - 1]
                         prev_links = re.findall(r'<a[^>]*href="[^"]*(?:/e/[A-Z0-9]+|/author/|p_27%3A|field-author)[^"]*"[^>]*>(.*?)</a>', prev_part, re.DOTALL)
                         if prev_links:
-                            prev_authors = [self._clean_author_name(html.unescape(re.sub(r'<[^>]+>', '', a))) for a in prev_links]
+                            prev_authors = [self._clean_author_name(clean_text(a) or "") for a in prev_links]
                             prev_authors = [a for a in prev_authors if a and not self._is_non_author_text(a)]
                             if prev_authors:
                                 author_name = ", ".join(prev_authors)
                                 break
-                        clean_prev = html.unescape(re.sub(r'<[^>]+>', '', prev_part)).strip()
+                        clean_prev = clean_text(prev_part) or ""
                         if not self._is_non_author_text(clean_prev):
                             val = self._clean_author_name(clean_prev)
                             if val and len(val) > 1 and not val.isdigit():
@@ -199,7 +198,7 @@ class AmazonSource(BaseSource):
                 if author_name == "Unknown":
                     candidates = []
                     for p in parts:
-                        clean_p = html.unescape(re.sub(r'<[^>]+>', '', p)).strip()
+                        clean_p = clean_text(p) or ""
                         if not clean_p:
                             continue
                         if re.match(r'^(?:by\s+|作者\s*[:：]?|著者\s*[:：]?)', clean_p, re.IGNORECASE):
@@ -219,7 +218,7 @@ class AmazonSource(BaseSource):
         if author_name == "Unknown":
             direct_link_match = re.findall(r'<a[^>]*href="[^"]*(?:/e/[A-Z0-9]+|/author/|p_27%3A|field-author)[^"]*"[^>]*>(.*?)</a>', block, re.DOTALL)
             if direct_link_match:
-                authors = [self._clean_author_name(html.unescape(re.sub(r'<[^>]+>', '', a))) for a in direct_link_match]
+                authors = [self._clean_author_name(clean_text(a) or "") for a in direct_link_match]
                 authors = [a for a in authors if a and not self._is_non_author_text(a)]
                 if authors:
                     author_name = ", ".join(authors)
@@ -230,7 +229,7 @@ class AmazonSource(BaseSource):
                 re.search(r'(?:著者|作者)\s*[:：]?\s*(?:<[^>]+>\s*)*<a[^>]*>(.*?)</a>', block)
             )
             if direct_match:
-                val = self._clean_author_name(html.unescape(re.sub(r'<[^>]+>', '', direct_match.group(1))))
+                val = self._clean_author_name(clean_text(direct_match.group(1)) or "")
                 if val and not self._is_non_author_text(val):
                     author_name = val
 

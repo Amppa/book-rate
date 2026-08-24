@@ -1,5 +1,3 @@
-import html
-import json
 import logging
 import re
 import urllib.parse
@@ -7,7 +5,6 @@ from typing import Optional, List
 
 from book_rate.models import Work, SourceRating, SourceStatus
 from book_rate.sources.base import BaseSource
-from book_rate.utils.isbn import clean_isbn
 from book_rate.utils.text_parser import clean_text, parse_json_ld_book
 
 logger = logging.getLogger(__name__)
@@ -164,7 +161,7 @@ class GooglePlaySource(BaseSource):
             seen_ids.add(vid)
             inner = m.group(3)
             title_m = re.search(r'<div\s+title="([^"]+)"', inner) or re.search(r'class="Epkrse[^"]*">([^<]+)<', inner)
-            card_title = html.unescape(title_m.group(1).strip()) if title_m else None
+            card_title = clean_text(title_m.group(1)) if title_m else None
             candidates.append((slug, vid, card_title))
 
         if not candidates:

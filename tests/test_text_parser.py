@@ -1,6 +1,7 @@
-"""Unit tests for book_rate.utils.text_parser module."""
+"""Unit tests for book_rate.utils.text_parser and models.to_book_info."""
 
 import unittest
+from book_rate.models import SourceRating
 from book_rate.utils.text_parser import (
     clean_text,
     clean_author_name,
@@ -25,6 +26,10 @@ class TestTextParser(unittest.TestCase):
         self.assertEqual(clean_author_name("作者：馬克斯．菲爾普斯"), "馬克斯．菲爾普斯")
         self.assertEqual(clean_author_name("著者：東野圭吾"), "東野圭吾")
         self.assertEqual(clean_author_name("鈴木一郎 (著)"), "鈴木一郎")
+        self.assertEqual(clean_author_name("張三 著"), "張三")
+        self.assertEqual(clean_author_name("張三 原著"), "張三")
+        self.assertEqual(clean_author_name("張三 等著"), "張三")
+        self.assertEqual(clean_author_name("佐藤次郎 等訳"), "佐藤次郎")
         self.assertEqual(clean_author_name("陳儀 譯"), "陳儀")
         self.assertEqual(clean_author_name("John Doe (Author)"), "John Doe")
 
@@ -110,6 +115,58 @@ class TestTextParser(unittest.TestCase):
         self.assertEqual(data["author"], "摩根．豪瑟")
         self.assertEqual(data["publish_date"], "2021/01/27")
         self.assertEqual(data["isbn"], "9789865535971")
+
+    def test_parse_json_ld_book_array_root_and_single_quotes(self):
+        html_doc = """
+        <html>
+          <head>
+            <script type='application/ld+json'>
+            [
+              {
+                "@context": "https://schema.org",
+                "@type": "https://schema.org/Book",
+                "name": "Atomic Habits",
+                "author": "James Clear",
+                "isbn": "9780735211292"
+              }
+            ]
+            </script>
+          </head>
+        </html>
+        """
+        data = parse_json_ld_book(html_doc)
+        self.assertIsNotNone(data)
+        self.assertEqual(data["title"], "Atomic Habits")
+        self.assertEqual(data["author"], "James Clear")
+        self.assertEqual(data["isbn"], "9780735211292")
+
+    def test_source_rating_to_book_info_copy_and_clean(self):
+        # 1. Dataclass fields fallback
+        r1 = SourceRating(
+            source_name="Test",
+            author="Author One",
+            publisher="Publisher A",
+            language="None",
+            original_title="Unknown",
+            isbn="9780000000000"
+        )
+        info1 = r1.to_book_info()
+        self.assertIsNotNone(info1)
+        self.assertEqual(info1["author"], "Author One")
+        self.assertEqual(info1["publisher"], "Publisher A")
+        self.assertEqual(info1["isbn"], "9780000000000")
+        self.assertNotIn("language", info1)
+        self.assertNotIn("original_title", info1)
+
+        # 2. Existing book_info dict copy isolation
+        orig_dict = {"author": "Custom Author", "language": "en", "extra_bad": "none"}
+        r2 = SourceRating(source_name="Test", book_info=orig_dict)
+        info2 = r2.to_book_info()
+        self.assertEqual(info2["author"], "Custom Author")
+        self.assertNotIn("extra_bad", info2)
+        # Verify modifying returned dict does not mutate orig_dict
+        info2["author"] = "Mutated"
+        self.assertEqual(orig_dict["author"], "Custom Author")
 
 
 if __name__ == "__main__":

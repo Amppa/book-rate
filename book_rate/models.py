@@ -70,9 +70,10 @@ class SourceRating:
         return f"{rate_str} / {count_str}"
 
     def to_book_info(self) -> Optional[dict]:
-        """Serialize the 9 standard book metadata fields into a clean dictionary, preserving existing self.book_info if present."""
+        """Serialize the 9 standard book metadata fields into a clean dictionary copy, preserving existing self.book_info if present."""
         if self.book_info:
-            return self.book_info
+            cleaned = {k: v for k, v in self.book_info.items() if v not in (None, "", "Unknown", "None", "unknown", "none")}
+            return dict(cleaned) if cleaned else None
 
         info = {
             "author": self.author,
@@ -85,8 +86,8 @@ class SourceRating:
             "isbn": self.isbn,
             "work_id": self.work_id,
         }
-        cleaned = {k: v for k, v in info.items() if v not in (None, "", "Unknown", "None")}
-        return cleaned if cleaned else None
+        cleaned = {k: v for k, v in info.items() if v not in (None, "", "Unknown", "None", "unknown", "none")}
+        return dict(cleaned) if cleaned else None
 
 
 @dataclass

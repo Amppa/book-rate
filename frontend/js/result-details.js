@@ -19,7 +19,7 @@ const INVALID_METADATA_VALUES = new Set(["", "none", "unknown", "null", "undefin
 
 /**
  * Checks whether a metadata field value is valid and displayable.
- * @param {*} val 
+ * @param {*} val
  * @returns {boolean}
  */
 export function isValidDetailValue(val) {

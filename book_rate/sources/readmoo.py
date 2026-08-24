@@ -1,5 +1,3 @@
-import html
-import json
 import logging
 import re
 import urllib.parse

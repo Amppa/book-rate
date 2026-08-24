@@ -1,4 +1,3 @@
-import html
 import logging
 import re
 import urllib.parse
@@ -187,9 +186,9 @@ class StoryGraphSource(BaseSource):
                 if b_id in seen_ids:
                     continue
                 seen_ids.add(b_id)
-                title = html.unescape(raw_title.strip())
-                author = html.unescape(author_matches[len(unique_books)].strip()) if len(unique_books) < len(author_matches) else "Unknown Author"
-                unique_books.append((href, b_id, title, author))
+                title = clean_text(raw_title) or "Unknown Title"
+                author = clean_text(author_matches[len(unique_books)]) if len(unique_books) < len(author_matches) else "Unknown Author"
+                unique_books.append((href, b_id, title, author or "Unknown Author"))
 
         def process_single_item(item):
             href, b_id, title, author_name = item
@@ -298,7 +297,7 @@ class StoryGraphSource(BaseSource):
                 if not title_match:
                     continue
 
-                title = html.unescape(re.sub(r'<[^>]+>', '', title_match.group(1)).strip())
+                title = clean_text(title_match.group(1))
                 if not title:
                     continue
 
@@ -327,12 +326,12 @@ class StoryGraphSource(BaseSource):
                 pub_match = re.search(r'Publisher:\s*</span>\s*([^<]+)', block, re.IGNORECASE) or \
                             re.search(r'<span[^>]*>\s*Publisher:\s*([^<]+?)\s*</span>', block, re.IGNORECASE) or \
                             re.search(r'class="publisher"[^>]*>\s*([^<]+)\s*<', block, re.IGNORECASE)
-                publisher = html.unescape(pub_match.group(1).strip()) if pub_match else None
+                publisher = clean_text(pub_match.group(1)) if pub_match else None
 
                 # Extract language
                 lang_match = re.search(r'Language:\s*</span>\s*([^<]+)', block, re.IGNORECASE) or \
                 re.search(r'>\s*Language:\s*([^<]+)<', block, re.IGNORECASE)
-                language = lang_match.group(1).strip() if lang_match else None
+                language = clean_text(lang_match.group(1)) if lang_match else None
 
                 editions.append(Edition(
                     edition_id=ed_id,

@@ -134,12 +134,14 @@ export function buildStatusTag(status, data, tagText) {
 }
 
 /**
- * Standardized single result block renderer used by both single-cell and multi-result list flows.
+ * Standardized result block renderer used by both single-cell and multi-result list flows.
  * @param {HTMLElement} container - Parent element (e.g. td or .multi-result-item)
  * @param {Object} result - Result data item
- * @param {Object} context - { maxRate, showTitle, titleBefore }
+ * @param {Object} context - { maxRate, showTitle, titleBefore, rateEl, countEl }
  */
 export function renderRatingResult(container, result, context = {}) {
+  if (!container || !result || typeof result !== "object") return;
+
   const maxRate = context.maxRate || 5;
   const display = resolveRatingDisplay(result, maxRate);
 
@@ -161,23 +163,32 @@ export function renderRatingResult(container, result, context = {}) {
   }
 
   // 2. Score and count display
-  const strong = document.createElement("strong");
-  strong.className = context.rateClass || "rating-score";
-  if (display.rateHtml) {
-    strong.innerHTML = display.rateHtml;
+  if (context.rateEl && context.countEl) {
+    if (display.rateHtml) {
+      context.rateEl.innerHTML = display.rateHtml;
+    } else {
+      context.rateEl.textContent = display.rateText;
+    }
+    context.countEl.textContent = display.countText;
   } else {
-    strong.textContent = display.rateText;
-  }
+    const strong = document.createElement("strong");
+    strong.className = context.rateClass || "rating-score";
+    if (display.rateHtml) {
+      strong.innerHTML = display.rateHtml;
+    } else {
+      strong.textContent = display.rateText;
+    }
 
-  const small = document.createElement("small");
-  small.className = context.countClass || "rating-count";
-  small.textContent = display.countText;
+    const small = document.createElement("small");
+    small.className = context.countClass || "rating-count";
+    small.textContent = display.countText;
+
+    container.appendChild(strong);
+    container.appendChild(small);
+  }
 
   // 3. Status badge
   const badge = buildStatusTag(display.status, result, display.tagText);
-
-  container.appendChild(strong);
-  container.appendChild(small);
   container.appendChild(badge);
 
   // 4. Collapsible metadata details
@@ -248,28 +259,14 @@ export function renderSourceCell(row, optionsOrPrefix, legacyData, legacyMaxRate
     return;
   }
 
-  // Single result
-  const display = resolveRatingDisplay(data, maxRate);
-  let titleLabel = data.title;
-  if (!titleLabel || titleLabel === "Unknown") {
-    titleLabel = (typeof data.query === "string" && data.query) ? data.query : "";
+  // Single result (delegating directly to renderRatingResult)
+  if (cell) {
+    renderRatingResult(cell, data, {
+      maxRate,
+      showTitle: true,
+      titleBefore: rateEl,
+      rateEl,
+      countEl
+    });
   }
-
-  if (titleLabel && !display.emptyTitle && cell) {
-    const titleEl = buildTitleElement(titleLabel, data.url);
-    if (titleEl) cell.insertBefore(titleEl, rateEl);
-  }
-
-  if (display.rateHtml) {
-    rateEl.innerHTML = display.rateHtml;
-  } else {
-    rateEl.textContent = display.rateText;
-  }
-  countEl.textContent = display.countText;
-
-  const tag = buildStatusTag(display.status, data, display.tagText);
-  if (cell) cell.appendChild(tag);
-
-  const detailsEl = buildBookDetailsElement(data.book_info);
-  if (detailsEl && cell) cell.appendChild(detailsEl);
 }

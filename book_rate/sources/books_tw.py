@@ -1,6 +1,5 @@
 """Books.com.tw (博客來) crawler source implementation."""
 
-import html
 import re
 import urllib.parse
 from typing import List, Optional, Tuple
