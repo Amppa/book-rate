@@ -62,7 +62,7 @@ class WorkPreparer:
         if ol_work_mapped:
             ol_source = self.get_source("open_library")
             ol_rating = ol_source.fetch_ratings(ol_work_mapped)
-            return ol_rating, ol_source.fetch_editions(ol_work_mapped.work_id, limit=self.DEFAULT_EDITION_LIMIT)
+            return ol_rating, []
         return SourceRating("Open Library"), []
 
     _DISPATCH = {
@@ -288,7 +288,6 @@ class WorkPreparer:
         work_id = c["work_id"]
         full_work_id = work_id if work_id.startswith("/works/") else f"/works/{work_id}"
         crawler_status = {"open_library": "Normal"}
-        resolved_isbn = None
 
         ol_source = self.get_source("open_library")
         if "open_library" in c["active_title_sources"]:
@@ -296,14 +295,7 @@ class WorkPreparer:
         else:
             ol_rating = SourceRating(source_name="Open Library")
 
-        editions = ol_source.fetch_editions(full_work_id, limit=self.DEFAULT_EDITION_LIMIT)
-        if editions:
-            for ed in editions:
-                if ed.isbn_13 or ed.isbn_10:
-                    resolved_isbn = ed.isbn_13 or ed.isbn_10
-                    break
-
         return self._finalize(
-            ol_rating, editions, full_work_id, c["title"], c["author"], crawler_status,
-            isbn=resolved_isbn,
+            ol_rating, [], full_work_id, c["title"], c["author"], crawler_status,
+            isbn=None,
         )

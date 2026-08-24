@@ -22,7 +22,7 @@ class OpenLibrarySource(BaseSource):
     def enable_extend_editions(self) -> bool:
         return True
 
-    def search_works(self, query: str, limit: int = 5, page: int = 1, include_details: bool = True) -> List[Work]:
+    def search_works(self, query: str, limit: int = 5, page: int = 1, include_details: bool = False) -> List[Work]:
         """Search Open Library for works matching query."""
         clean_query = query.strip()
         if not clean_query:
