@@ -1,7 +1,7 @@
 import logging
 import re
 import subprocess
-from typing import List, Optional, Callable, Tuple
+from typing import List, Optional, Callable, Tuple, Any, Dict
 from book_rate.models import Work, Edition, SourceRating, SourceStatus
 from book_rate.utils.isbn import clean_isbn, extract_isbns_from_work
 from book_rate.utils.rate_limiter import global_rate_limiter
@@ -38,6 +38,15 @@ class SourceNetworkError(Exception):
         self.status_code = status_code
 
 
+from dataclasses import dataclass
+
+@dataclass
+class FetchCandidate:
+    url: str
+    referer: Optional[str] = None
+    headers: Optional[dict] = None
+
+
 class BaseSource:
     """Base abstract class for all book rating sources."""
 
@@ -64,6 +73,47 @@ class BaseSource:
         self.session = requests.Session()
         self.session.headers.update(self.DEFAULT_HEADERS)
         self.last_network_error = None
+
+    def _fetch_first_available(
+        self,
+        candidates: List[FetchCandidate],
+        is_invalid: Optional[Callable[[Optional[str]], bool]] = None,
+        fetcher: Optional[Callable[..., Any]] = None,
+    ) -> Tuple[Optional[str], bool, Optional[str]]:
+        """
+        Iterate through URL candidates in sequence and return the first valid HTML page.
+        Returns:
+            (html_str, used_curl, successful_url)
+        """
+        used_curl_any = False
+        validator = is_invalid or (lambda h: not h or not str(h).strip())
+
+        for c in candidates:
+            if not c.url:
+                continue
+            req_headers = dict(c.headers or {})
+            if c.referer:
+                req_headers["Referer"] = c.referer
+            try:
+                if fetcher is not None:
+                    try:
+                        fetch_res = fetcher(c.url, headers=req_headers if req_headers else None)
+                    except TypeError:
+                        fetch_res = fetcher(c.url)
+                else:
+                    fetch_res = self._fetch_html(c.url, headers=req_headers if req_headers else None)
+                if isinstance(fetch_res, tuple):
+                    html_str, used_curl = fetch_res
+                else:
+                    html_str, used_curl = str(fetch_res), False
+
+                if html_str and not validator(html_str):
+                    return html_str, used_curl, c.url
+            except Exception as e:
+                logger.debug(f"{self.name} fetch candidate '{c.url}' failed: {e}")
+                continue
+
+        return None, False, None
 
     def _get(self, url, **kwargs):
         """Explicit request wrapper: enforce cooldown, capture network errors."""
