@@ -138,8 +138,10 @@ In Step 3, rate providers fetch ratings using one of 6 single-factor search stra
 * **Mock Unit Tests (`pytest`)**:
   - Live-network tests carry the `live` marker. Default `pytest` runs the offline tier only; run `pytest -m live` for real HTTP integration tests.
   - Mock tests are guaranteed offline: `tests/conftest.py` blocks sockets and subprocesses unless a test is marked `live`.
-  - Active test suite:
-    - **`tests/test_all_sources.py`**: Unit tests for all 11 source adapters, compact number parsing (`_parse_compact_number`), and edge cases.
+  - Active test suite (127 unit tests):
+    - **`tests/sources/`**: Modular per-source test suites (`test_amazon.py`, `test_goodreads.py`, `test_douban.py`, `test_google_play.py`, `test_google_books.py`, `test_books_tw.py`, `test_readmoo.py`, `test_storygraph.py`, `test_open_library.py`).
+    - **`tests/test_registry.py`**: Source registry & prefix matching tests.
+    - **`tests/test_orchestrator.py`**: Orchestrator query flows, streams, and API preparation tests.
     - **`tests/test_models.py`**: Model dataclasses.
     - **`tests/test_resolver.py`**: ID prefixes and work resolvers.
     - **`tests/test_aggregator.py`**: Aggregator coordination.
