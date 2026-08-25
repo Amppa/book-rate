@@ -10,6 +10,71 @@ from book_rate.utils.text_parser import clean_text, parse_json_ld_book
 logger = logging.getLogger(__name__)
 
 
+from book_rate.utils.metadata import empty_book_metadata, merge_book_metadata
+
+
+def _parse_google_play_html(html_content: str, volume_id: str, url: str) -> dict:
+    """Pure parsing function for Google Play Books store detail page HTML."""
+    res = {}
+    if not html_content:
+        return res
+
+    # 1. Try JSON-LD application/ld+json
+    json_ld = parse_json_ld_book(html_content)
+    if json_ld:
+        if json_ld.get("title"):
+            res["title"] = json_ld["title"]
+        if json_ld.get("author"):
+            res["author"] = json_ld["author"]
+        if json_ld.get("translator"):
+            res["translator"] = json_ld["translator"]
+        if json_ld.get("publisher"):
+            res["publisher"] = json_ld["publisher"]
+        if json_ld.get("publish_date"):
+            res["publish_date"] = json_ld["publish_date"]
+        if json_ld.get("isbn"):
+            res["isbn"] = json_ld["isbn"]
+        if json_ld.get("language"):
+            res["language"] = json_ld["language"]
+        if json_ld.get("rate") is not None:
+            res["rate"] = json_ld["rate"]
+        if json_ld.get("count") is not None:
+            res["rating_count"] = json_ld["count"]
+
+    # 2. Try regex parsing for rating
+    if res.get("rate") is None or res.get("rating_count") is None:
+        try:
+            rv = re.search(r'"ratingValue"\s*:\s*"([^"]+)"', html_content)
+            rc = re.search(r'"ratingCount"\s*:\s*"([^"]+)"', html_content)
+            if rv and res.get("rate") is None:
+                res["rate"] = float(rv.group(1))
+            if rc and res.get("rating_count") is None:
+                res["rating_count"] = int(rc.group(1))
+        except Exception as e:
+            logger.debug(f"Fallback regex parsing failed: {e}")
+
+    # 3. Fallbacks for title and author if not in JSON-LD
+    if not res.get("title"):
+        m_og = re.search(r'<meta\s+(?:property|name)=["\']og:title["\']\s+content=["\'](.*?)["\']', html_content, re.IGNORECASE)
+        if m_og:
+            og_t = clean_text(m_og.group(1)) or ""
+            m_book = re.search(r'《(.*?)》', og_t)
+            if m_book:
+                res["title"] = m_book.group(1)
+            else:
+                cleaned_t = re.sub(r'\s+-\s+Google\s+Play.*$', '', og_t, flags=re.IGNORECASE)
+                res["title"] = cleaned_t
+
+    if not res.get("title"):
+        m_h1 = re.search(r'<h1[^>]*itemprop="name"[^>]*>(.*?)</h1>', html_content, re.DOTALL)
+        if m_h1:
+            res["title"] = clean_text(m_h1.group(1))
+
+    res["url"] = url
+    res["work_id"] = f"gp:{volume_id}"
+    return res
+
+
 class PlayDetails(tuple):
     """5-element tuple for backward compatibility with attached metadata dictionary."""
     def __new__(cls, rate, count, used_curl, title, author, meta=None):
@@ -60,71 +125,21 @@ class GooglePlaySource(BaseSource):
         else:
             html_content, used_curl = str(fetch_res), False
 
-        if not html_content:
-            return PlayDetails(None, None, used_curl, None, None, {})
-
-        title: Optional[str] = None
-        author: Optional[str] = None
-        publisher: Optional[str] = None
-        pub_date: Optional[str] = None
-        isbn: Optional[str] = None
-        language: Optional[str] = None
-        translator: Optional[str] = None
-        rate: Optional[float] = None
-        count: Optional[int] = None
-
-        # 1. Try JSON-LD application/ld+json
-        json_ld = parse_json_ld_book(html_content)
-        if json_ld:
-            title = json_ld.get("title")
-            author = json_ld.get("author")
-            translator = json_ld.get("translator")
-            publisher = json_ld.get("publisher")
-            pub_date = json_ld.get("publish_date")
-            isbn = json_ld.get("isbn")
-            language = json_ld.get("language")
-            rate = json_ld.get("rate")
-            count = json_ld.get("count")
-
-        # 2. Try regex parsing for rating
-        if rate is None or count is None:
-            try:
-                rv = re.search(r'"ratingValue"\s*:\s*"([^"]+)"', html_content)
-                rc = re.search(r'"ratingCount"\s*:\s*"([^"]+)"', html_content)
-                if rv and rate is None:
-                    rate = float(rv.group(1))
-                if rc and count is None:
-                    count = int(rc.group(1))
-            except Exception as e:
-                logger.debug(f"Fallback regex parsing failed: {e}")
-
-        # 3. Fallbacks for title and author if not in JSON-LD
-        if not title:
-            m_og = re.search(r'<meta\s+(?:property|name)=["\']og:title["\']\s+content=["\'](.*?)["\']', html_content, re.IGNORECASE)
-            if m_og:
-                og_t = clean_text(m_og.group(1)) or ""
-                m_book = re.search(r'《(.*?)》', og_t)
-                if m_book:
-                    title = m_book.group(1)
-                else:
-                    cleaned_t = re.sub(r'\s+-\s+Google\s+Play.*$', '', og_t, flags=re.IGNORECASE)
-                    title = cleaned_t
-
-        if not title:
-            m_h1 = re.search(r'<h1[^>]*itemprop="name"[^>]*>(.*?)</h1>', html_content, re.DOTALL)
-            if m_h1:
-                title = clean_text(m_h1.group(1))
+        base = empty_book_metadata(url=url, work_id=f"gp:{volume_id}")
+        if html_content:
+            parsed = _parse_google_play_html(html_content, volume_id, url)
+            merge_book_metadata(base, parsed)
 
         meta = {
-            "title": title,
-            "author": author,
-            "translator": translator,
-            "publisher": publisher,
-            "publish_date": pub_date,
-            "isbn": isbn,
-            "language": language
+            "title": base.get("title"),
+            "author": base.get("author"),
+            "translator": base.get("translator"),
+            "publisher": base.get("publisher"),
+            "publish_date": base.get("publish_date"),
+            "isbn": base.get("isbn"),
+            "language": base.get("language")
         }
-        return PlayDetails(rate, count, used_curl, title, author, meta)
+        return PlayDetails(base.get("rate"), base.get("rating_count"), used_curl, base.get("title"), base.get("author"), meta)
 
     def _parse_play_rating(self, volume_id: str) -> tuple[Optional[float], Optional[int], bool]:
         """Parse rating value and vote count from Google Play Books store detail page."""

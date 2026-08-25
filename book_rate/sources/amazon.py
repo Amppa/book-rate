@@ -11,6 +11,98 @@ from book_rate.utils.text_parser import clean_text, clean_author_name
 logger = logging.getLogger(__name__)
 
 
+from book_rate.utils.metadata import empty_book_metadata, merge_book_metadata
+
+
+def _parse_amazon_product_html(html_str: str, asin: str, url: str) -> dict:
+    """Pure parsing function for Amazon product detail page HTML."""
+    res = {}
+    if not html_str:
+        return res
+
+    # 1. Title
+    t_match = re.search(r'id="productTitle"[^>]*>\s*([^<]+)', html_str) or \
+              re.search(r'id="ebooksProductTitle"[^>]*>\s*([^<]+)', html_str)
+    if t_match:
+        res["title"] = clean_text(t_match.group(1))
+
+    # 2. Author
+    author_matches = re.findall(r'<span class="author[^"]*"[^>]*>.*?<a[^>]*>(.*?)</a>', html_str, re.DOTALL)
+    if author_matches:
+        authors = [clean_author_name(clean_text(a) or "") for a in author_matches]
+        authors = [a for a in authors if a and not AmazonSource._is_non_author_text(a)]
+        if authors:
+            res["author"] = ", ".join(authors)
+
+    # 3. Publisher & Publish Date
+    pub_m = re.search(r'(?:Publisher|出版社)\s*[:：]?\s*(?:</span>)?\s*<span[^>]*>\s*([^<]+)', html_str, re.IGNORECASE) or \
+            re.search(r'<th[^>]*>(?:Publisher|出版社)</th>\s*<td[^>]*>(.*?)</td>', html_str, re.IGNORECASE | re.DOTALL) or \
+            re.search(r'class="rpi-attribute-label"[^>]*>\s*<span>(?:Publisher|出版社)</span>.*?class="rpi-attribute-value"[^>]*>\s*<span>(.*?)</span>', html_str, re.DOTALL | re.IGNORECASE)
+    if pub_m:
+        raw_pub = clean_text(pub_m.group(1)) or ""
+        date_in_paren = re.search(r'\(([^)]+)\)', raw_pub)
+        if date_in_paren and AmazonSource._is_date_text(date_in_paren.group(1)):
+            res["publisher"] = re.sub(r'\s*\([^)]+\)', '', raw_pub).strip()
+            if not res.get("publish_date"):
+                res["publish_date"] = date_in_paren.group(1).strip()
+        else:
+            res["publisher"] = raw_pub.strip()
+
+    date_m = re.search(r'(?:Publication date|発売日|出版日期)\s*[:：]?\s*(?:</span>)?\s*<span[^>]*>\s*([^<]+)', html_str, re.IGNORECASE) or \
+             re.search(r'<th[^>]*>(?:Publication date|発売日|出版日期)</th>\s*<td[^>]*>(.*?)</td>', html_str, re.IGNORECASE | re.DOTALL) or \
+             re.search(r'class="rpi-attribute-label"[^>]*>\s*<span>(?:Publication date|発売日)</span>.*?class="rpi-attribute-value"[^>]*>\s*<span>(.*?)</span>', html_str, re.DOTALL | re.IGNORECASE)
+    if date_m and not res.get("publish_date"):
+        res["publish_date"] = clean_text(date_m.group(1))
+
+    # 4. Language
+    lang_m = re.search(r'(?:Language|言語|语言)\s*[:：]?\s*(?:</span>)?\s*<span[^>]*>\s*([^<]+)', html_str, re.IGNORECASE) or \
+             re.search(r'<th[^>]*>(?:Language|言語|语言)</th>\s*<td[^>]*>(.*?)</td>', html_str, re.IGNORECASE | re.DOTALL) or \
+             re.search(r'class="rpi-attribute-label"[^>]*>\s*<span>(?:Language|言語)</span>.*?class="rpi-attribute-value"[^>]*>\s*<span>(.*?)</span>', html_str, re.DOTALL | re.IGNORECASE)
+    if lang_m:
+        res["language"] = clean_text(lang_m.group(1))
+    elif res.get("title"):
+        lang_bracket_m = re.search(r'\(([A-Za-z]+)\s+Edition\)', res["title"], re.IGNORECASE)
+        if lang_bracket_m:
+            res["language"] = lang_bracket_m.group(1).strip()
+
+    # 5. ISBN-10, ISBN-13
+    isbn13_m = re.search(r'ISBN-13\s*[:：]?\s*(?:</span>)?\s*<span[^>]*>\s*([0-9Xx-]+)', html_str, re.IGNORECASE) or \
+               re.search(r'<th[^>]*>ISBN-13</th>\s*<td[^>]*>\s*([0-9Xx-]+)', html_str, re.IGNORECASE)
+    if isbn13_m:
+        res["isbn13"] = clean_isbn(isbn13_m.group(1))
+        res["isbn"] = res["isbn13"]
+
+    isbn10_m = re.search(r'ISBN-10\s*[:：]?\s*(?:</span>)?\s*<span[^>]*>\s*([0-9Xx-]+)', html_str, re.IGNORECASE) or \
+               re.search(r'<th[^>]*>ISBN-10</th>\s*<td[^>]*>\s*([0-9Xx-]+)', html_str, re.IGNORECASE)
+    if isbn10_m:
+        res["isbn10"] = clean_isbn(isbn10_m.group(1))
+        if not res.get("isbn") or len(res["isbn"]) != 13:
+            res["isbn"] = res["isbn10"]
+
+    # 6. Rating and Review count
+    rate_m = re.search(r'id="acrPopover"[^>]*title="([0-9.]+)\s*out of 5 stars"', html_str) or \
+             re.search(r'(\d+(?:\.\d+)?)\s*out of 5 stars', html_str, re.IGNORECASE) or \
+             re.search(r'5つ星のうち\s*([\d\.]+)', html_str)
+    if rate_m:
+        try:
+            res["rate"] = float(rate_m.group(1))
+        except (ValueError, TypeError):
+            pass
+
+    count_m = re.search(r'id="acrCustomerReviewText"[^>]*>([\d,]+)\s*(?:ratings|個の評価|reviews|件のレビュー)', html_str, re.IGNORECASE) or \
+              re.search(r'aria-label="[\d\.\s星つ分個の評価件]+ ([\d,]+)"', html_str)
+    if count_m:
+        try:
+            res["rating_count"] = int(count_m.group(1).replace(",", ""))
+        except (ValueError, TypeError):
+            pass
+
+    res["url"] = url
+    if asin:
+        res["asin"] = asin
+    return res
+
+
 class AmazonSource(BaseSource):
     """Unified source adapter for querying Amazon US, JP, and regional book ratings."""
 
@@ -315,129 +407,39 @@ class AmazonSource(BaseSource):
         return m.group(1) if m else None
 
     def fetch_book_details(self, url_or_asin: str) -> dict:
-        """Fetch book detail page from Amazon and extract publisher, language, publish_date, format, pages, etc."""
-        asin = self._extract_asin_from_url(url_or_asin)
-        url = url_or_asin if url_or_asin.startswith("http") else (f"{self.BASE_DOMAIN}/dp/{asin}" if asin else url_or_asin)
-        res = {
-            "asin": asin,
-            "isbn": asin,
-            "isbn10": None,
-            "isbn13": None,
-            "title": None,
-            "author": None,
-            "publisher": None,
-            "publish_date": None,
-            "pub_year": None,
-            "language": None,
-            "format": None,
-            "rate": None,
-            "rating_count": None,
-            "crawler_status": "Normal",
-            "url": url
-        }
+        """Fetch Amazon book page and extract metadata."""
+        if url_or_asin.startswith("http"):
+            url = url_or_asin
+            asin_m = re.search(r'/(?:dp|gp/product|d)/([A-Z0-9]{10})', url)
+            asin = asin_m.group(1) if asin_m else ""
+        else:
+            asin = url_or_asin
+            url = f"{self.BASE_DOMAIN}/dp/{asin}"
+
+        base = empty_book_metadata(url=url, work_id=f"{self.WORK_ID_PREFIX}:{asin}" if asin else None)
+        base["used_curl"] = False
+        base["crawler_status"] = "Normal"
+        if asin:
+            base["asin"] = asin
 
         try:
             fetch_res = self._fetch_html(url, headers={"Referer": self.SEARCH_URL})
             html_str, used_curl = fetch_res if isinstance(fetch_res, tuple) else (str(fetch_res), False)
+            base["used_curl"] = used_curl
             if not html_str or "api-services-support@amazon.com" in html_str or "triggerInterstitialChallenge" in html_str:
-                res["crawler_status"] = "WAF Challenge" if "api-services-support" in (html_str or "") else "Fetch Empty"
-                return res
+                base["crawler_status"] = "WAF Challenge" if "api-services-support" in (html_str or "") else "Fetch Empty"
+                return base
 
-            res["crawler_status"] = "Normal"
-
-            # 1. Title
-            t_match = re.search(r'id="productTitle"[^>]*>\s*([^<]+)', html_str) or \
-                      re.search(r'id="ebooksProductTitle"[^>]*>\s*([^<]+)', html_str)
-            if t_match:
-                res["title"] = clean_text(t_match.group(1))
-
-            # 2. Author
-            author_matches = re.findall(r'<span class="author[^"]*"[^>]*>.*?<a[^>]*>(.*?)</a>', html_str, re.DOTALL)
-            if author_matches:
-                authors = [clean_author_name(clean_text(a) or "") for a in author_matches]
-                authors = [a for a in authors if a and not self._is_non_author_text(a)]
-                if authors:
-                    res["author"] = ", ".join(authors)
-
-            # 3. Publisher & Publish Date
-            pub_m = re.search(r'(?:Publisher|出版社)\s*[:：]?\s*(?:</span>)?\s*<span[^>]*>\s*([^<]+)', html_str, re.IGNORECASE) or \
-                    re.search(r'<th[^>]*>(?:Publisher|出版社)</th>\s*<td[^>]*>(.*?)</td>', html_str, re.IGNORECASE | re.DOTALL) or \
-                    re.search(r'class="rpi-attribute-label"[^>]*>\s*<span>(?:Publisher|出版社)</span>.*?class="rpi-attribute-value"[^>]*>\s*<span>(.*?)</span>', html_str, re.DOTALL | re.IGNORECASE)
-            if pub_m:
-                raw_pub = clean_text(pub_m.group(1)) or ""
-                date_in_paren = re.search(r'\(([^)]+)\)', raw_pub)
-                if date_in_paren and self._is_date_text(date_in_paren.group(1)):
-                    res["publisher"] = re.sub(r'\s*\([^)]+\)', '', raw_pub).strip()
-                    if not res["publish_date"]:
-                        res["publish_date"] = date_in_paren.group(1).strip()
-                else:
-                    res["publisher"] = raw_pub.strip()
-
-            date_m = re.search(r'(?:Publication date|発売日|出版日期)\s*[:：]?\s*(?:</span>)?\s*<span[^>]*>\s*([^<]+)', html_str, re.IGNORECASE) or \
-                     re.search(r'<th[^>]*>(?:Publication date|発売日|出版日期)</th>\s*<td[^>]*>(.*?)</td>', html_str, re.IGNORECASE | re.DOTALL) or \
-                     re.search(r'class="rpi-attribute-label"[^>]*>\s*<span>(?:Publication date|発売日)</span>.*?class="rpi-attribute-value"[^>]*>\s*<span>(.*?)</span>', html_str, re.DOTALL | re.IGNORECASE)
-            if date_m and not res["publish_date"]:
-                res["publish_date"] = clean_text(date_m.group(1))
-
-            if res["publish_date"]:
-                y_m = re.search(r'\b(19\d\d|20\d\d)\b', res["publish_date"])
-                if y_m:
-                    res["pub_year"] = y_m.group(1)
-
-            # 4. Language
-            lang_m = re.search(r'(?:Language|言語|语言)\s*[:：]?\s*(?:</span>)?\s*<span[^>]*>\s*([^<]+)', html_str, re.IGNORECASE) or \
-                     re.search(r'<th[^>]*>(?:Language|言語|语言)</th>\s*<td[^>]*>(.*?)</td>', html_str, re.IGNORECASE | re.DOTALL) or \
-                     re.search(r'class="rpi-attribute-label"[^>]*>\s*<span>(?:Language|言語)</span>.*?class="rpi-attribute-value"[^>]*>\s*<span>(.*?)</span>', html_str, re.DOTALL | re.IGNORECASE)
-            if lang_m:
-                res["language"] = clean_text(lang_m.group(1))
-            elif res["title"]:
-                lang_bracket_m = re.search(r'\(([A-Za-z]+)\s+Edition\)', res["title"], re.IGNORECASE)
-                if lang_bracket_m:
-                    res["language"] = lang_bracket_m.group(1).strip()
-
-            # 5. ISBN-10, ISBN-13
-            isbn13_m = re.search(r'ISBN-13\s*[:：]?\s*(?:</span>)?\s*<span[^>]*>\s*([0-9Xx-]+)', html_str, re.IGNORECASE) or \
-                       re.search(r'<th[^>]*>ISBN-13</th>\s*<td[^>]*>\s*([0-9Xx-]+)', html_str, re.IGNORECASE)
-            if isbn13_m:
-                res["isbn13"] = clean_isbn(isbn13_m.group(1))
-                res["isbn"] = res["isbn13"]
-
-            isbn10_m = re.search(r'ISBN-10\s*[:：]?\s*(?:</span>)?\s*<span[^>]*>\s*([0-9Xx-]+)', html_str, re.IGNORECASE) or \
-                       re.search(r'<th[^>]*>ISBN-10</th>\s*<td[^>]*>\s*([0-9Xx-]+)', html_str, re.IGNORECASE)
-            if isbn10_m:
-                res["isbn10"] = clean_isbn(isbn10_m.group(1))
-                if not res["isbn"] or len(res["isbn"]) != 13:
-                    res["isbn"] = res["isbn10"]
-
-            # 6. Format
-            format_m = re.search(r'id="productSubtitle"[^>]*>\s*([^<]+)', html_str) or \
-                       re.search(r'class="slot-title"[^>]*>\s*<span>([^<]+)</span>', html_str)
-            if format_m:
-                res["format"] = clean_text(format_m.group(1))
-
-            # 7. Rating and Review count
-            rate_m = re.search(r'id="acrPopover"[^>]*title="([0-9.]+)\s*out of 5 stars"', html_str) or \
-                     re.search(r'(\d+(?:\.\d+)?)\s*out of 5 stars', html_str, re.IGNORECASE) or \
-                     re.search(r'5つ星のうち\s*([\d\.]+)', html_str)
-            if rate_m:
-                try:
-                    res["rate"] = float(rate_m.group(1))
-                except (ValueError, TypeError):
-                    pass
-
-            count_m = re.search(r'id="acrCustomerReviewText"[^>]*>([\d,]+)\s*(?:ratings|個の評価|reviews|件のレビュー)', html_str, re.IGNORECASE) or \
-                      re.search(r'aria-label="[\d\.\s星つ分個の評価件]+ ([\d,]+)"', html_str)
-            if count_m:
-                try:
-                    res["rating_count"] = int(count_m.group(1).replace(",", ""))
-                except (ValueError, TypeError):
-                    pass
-
+            parsed = _parse_amazon_product_html(html_str, asin, url)
+            merge_book_metadata(base, parsed)
+            if base.get("publish_date"):
+                from book_rate.utils.text_parser import extract_year
+                base["pub_year"] = extract_year(base["publish_date"])
         except Exception as e:
             logger.debug(f"Failed to fetch Amazon book details for '{url_or_asin}': {e}")
-            res["crawler_status"] = f"Error: {e}"
+            base["crawler_status"] = f"Error: {e}"
 
-        return res
+        return base
 
     def _enrich_with_book_page(self, rating: SourceRating) -> SourceRating:
         """Enrich a candidate rating with Amazon book page metadata (publisher, language, etc.)."""
@@ -459,11 +461,6 @@ class AmazonSource(BaseSource):
                 rating.isbn = details["isbn"]
             if details.get("author") and not rating.author:
                 rating.author = details["author"]
-
-            # Store metadata
-            for k in ("format", "asin", "isbn10", "isbn13"):
-                if details.get(k):
-                    rating.metadata[k] = details[k]
         except Exception as e:
             logger.debug(f"Amazon enrichment failed for {rating.url}: {e}")
         return rating

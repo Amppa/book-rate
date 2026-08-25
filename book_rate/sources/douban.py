@@ -7,6 +7,7 @@ from typing import List, Optional
 from book_rate.models import Work, Edition, SourceRating, SourceStatus
 from book_rate.sources.base import BaseSource
 from book_rate.utils.isbn import clean_isbn
+from book_rate.utils.metadata import empty_book_metadata, merge_book_metadata
 from book_rate.utils.text_parser import clean_text
 
 logger = logging.getLogger(__name__)
@@ -28,23 +29,17 @@ def _extract_douban_info_field(html_str: str, label_pattern: str) -> Optional[st
 
 
 def _parse_subject_html(html_str: str, url: str) -> dict:
-    """Parse Douban subject HTML page and extract rating, votes count, ISBN, pub_year, title, and editions_count."""
-    res = {
-        "rate": None,
-        "votes": None,
-        "isbn": None,
-        "pub_year": None,
-        "title": None,
-        "author": None,
-        "translator": None,
-        "publisher": None,
-        "original_title": None,
-        "url": url,
-        "editions_count": None
-    }
+    """Pure parsing function for Douban subject detail page HTML."""
+    sub_id_m = re.search(r'/subject/(\d+)', url)
+    sub_id = sub_id_m.group(1) if sub_id_m else None
+    base = empty_book_metadata(url=url, work_id=f"db:{sub_id}" if sub_id else None)
     if not html_str:
-        return res
+        base["votes"] = None
+        base["pub_year"] = None
+        base["editions_count"] = None
+        return base
 
+    parsed = {}
     rate_match = re.search(r'property="v:average">\s*([\d\.]+)\s*</', html_str)
     votes_match = re.search(r'property="v:votes">\s*(\d+)\s*</', html_str)
     title_match = re.search(r'<span property="v:itemreviewed">(.*?)</span>', html_str)
@@ -53,7 +48,7 @@ def _parse_subject_html(html_str: str, url: str) -> dict:
         try:
             r_val = float(rate_match.group(1))
             if r_val > 0:
-                res["rate"] = r_val
+                parsed["rate"] = r_val
         except ValueError:
             pass
 
@@ -61,59 +56,64 @@ def _parse_subject_html(html_str: str, url: str) -> dict:
         try:
             v_val = int(votes_match.group(1))
             if v_val > 0:
-                res["votes"] = v_val
+                parsed["rating_count"] = v_val
         except ValueError:
             pass
 
     if title_match:
-        res["title"] = clean_text(title_match.group(1))
+        parsed["title"] = clean_text(title_match.group(1))
 
     # Extract info block fields
     author_val = _extract_douban_info_field(html_str, r'(?:作者|著者|编者|编|著)')
     if author_val:
-        res["author"] = author_val
+        parsed["author"] = author_val
 
     translator_val = _extract_douban_info_field(html_str, r'(?:译者|譯者)')
     if translator_val:
-        res["translator"] = translator_val
+        parsed["translator"] = translator_val
 
     publisher_val = _extract_douban_info_field(html_str, r'出版社')
     if publisher_val:
-        res["publisher"] = publisher_val
+        parsed["publisher"] = publisher_val
 
     orig_val = _extract_douban_info_field(html_str, r'(?:原作名|原名|英文名)')
     if orig_val:
-        res["original_title"] = orig_val
+        parsed["original_title"] = orig_val
 
     pub_val = _extract_douban_info_field(html_str, r'(?:出版年|出版日期)')
     if pub_val:
-        res["pub_year"] = pub_val
+        parsed["publish_date"] = pub_val
 
     isbn_val = _extract_douban_info_field(html_str, r'ISBN')
     if isbn_val:
-        res["isbn"] = clean_isbn(isbn_val) or isbn_val
+        parsed["isbn"] = clean_isbn(isbn_val) or isbn_val
 
     pages_val = _extract_douban_info_field(html_str, r'(?:页数|頁數)')
     if pages_val:
-        res["pages"] = pages_val
+        parsed["pages"] = pages_val
 
     binding_val = _extract_douban_info_field(html_str, r'(?:装帧|裝幀|裝訂)')
     if binding_val:
-        res["binding"] = binding_val
+        parsed["binding"] = binding_val
 
     price_val = _extract_douban_info_field(html_str, r'(?:定价|定價)')
     if price_val:
-        res["price"] = price_val
+        parsed["price"] = price_val
 
     series_val = _extract_douban_info_field(html_str, r'(?:丛书|叢書)')
     if series_val:
-        res["series"] = series_val
+        parsed["series"] = series_val
 
     editions_match = re.search(r'这本书的其他版本.*?全部(\d+)', html_str, re.DOTALL)
     if editions_match:
-        res["editions_count"] = int(editions_match.group(1))
+        parsed["edition_count"] = int(editions_match.group(1))
 
-    return res
+    merge_book_metadata(base, parsed)
+    # Backward compatible aliases
+    base["votes"] = base.get("rating_count")
+    base["pub_year"] = base.get("publish_date")
+    base["editions_count"] = base.get("edition_count")
+    return base
 
 
 def _parse_search_item(item: dict, used_curl: bool, source_name: str = "Douban") -> Optional[Work]:

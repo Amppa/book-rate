@@ -127,6 +127,146 @@ def _parse_goodreads_search_html(html_str: str, used_curl: bool, limit: int = 5)
     return works
 
 
+from book_rate.utils.metadata import empty_book_metadata, merge_book_metadata
+
+
+def _parse_goodreads_book_html(page_html: str, book_id: str, url: str) -> dict:
+    """Pure parsing function for Goodreads book/editions page HTML."""
+    res = {}
+    if not page_html:
+        return res
+
+    # 1. Extract work_id from final redirected URL or HTML
+    work_id_m = re.search(r'/work/editions/(\d+)', page_html)
+    if work_id_m:
+        res["work_id"] = work_id_m.group(1)
+
+    # 2. Extract editions count from page HTML
+    count_m = re.search(r'showing\s+\d+.*?of\s+(\d+[,.\d]*)', page_html, re.IGNORECASE) or \
+              re.search(r'of\s+(\d+[,.\d]*)\s*editions', page_html, re.IGNORECASE)
+    if count_m:
+        res["edition_count"] = int(count_m.group(1).replace(",", ""))
+
+    # 3. Extract title and author
+    title_m = re.search(r'<h1>\s*<a[^>]*>([^<]+)</a>\s*&gt;\s*Editions\s*</h1>', page_html, re.IGNORECASE | re.DOTALL) or \
+              re.search(r'data-testid="bookTitle"[^>]*>([^<]+)<', page_html) or \
+              re.search(r'<a class="bookTitle"[^>]*>([^<]+)</a>', page_html)
+    if title_m:
+        raw_title = html.unescape(title_m.group(1).strip())
+        fmt_title_m = re.search(r'\((Paperback|Hardcover|Kindle Edition|Mass Market Paperback|ebook|audiobook|Board book|Leather Bound|Audio CD)\)', raw_title, re.IGNORECASE)
+        if fmt_title_m:
+            res["format"] = fmt_title_m.group(1)
+            clean_t = re.sub(r'\s*\((Paperback|Hardcover|Kindle Edition|Mass Market Paperback|ebook|audiobook|Board book|Leather Bound|Audio CD)\)', '', raw_title, flags=re.IGNORECASE).strip()
+            res["title"] = clean_t
+        else:
+            res["title"] = raw_title
+
+    author_m = re.search(r'<h2>\s*by\s*<a[^>]*>([^<]+)</a>', page_html, re.IGNORECASE | re.DOTALL) or \
+               re.search(r'<a class="authorName"[^>]*><span[^>]*>([^<]+)</span></a>', page_html) or \
+               re.search(r'class="ContributorLink__name"[^>]*>([^<]+)<', page_html)
+    if author_m:
+        res["author"] = html.unescape(author_m.group(1).strip())
+
+    # 4. Extract Original title
+    orig_m = re.search(r'Original title:\s*</div>\s*<div class="dataValue">\s*([^<]+)', page_html, re.IGNORECASE) or \
+             re.search(r'data-testid="originalTitle"[^>]*>(.*?)<', page_html) or \
+             re.search(r'"originalTitle"\s*:\s*"([^"]+)"', page_html)
+    if orig_m:
+        res["original_title"] = html.unescape(orig_m.group(1).strip())
+
+    # 5. Extract Language
+    lang_m = re.search(r'Edition language:\s*</div>\s*<div class="dataValue">\s*([^<]+)', page_html, re.IGNORECASE) or \
+             re.search(r'data-testid="language"[^>]*>(.*?)<', page_html) or \
+             re.search(r'"language"\s*:\s*\{[^}]*"name"\s*:\s*"([^"]+)"', page_html) or \
+             re.search(r'"inLanguage"\s*:\s*"([^"]+)"', page_html)
+    if lang_m:
+        res["language"] = html.unescape(lang_m.group(1).strip())
+
+    # 6. Extract ISBN, ASIN, and Publish Date from edition blocks
+    blocks = page_html.split('<div class="elementList clearFix">')
+    target_block = blocks[1] if len(blocks) > 1 else page_html
+
+    isbn_match = re.search(r'ISBN:\s*</div>\s*<div class="dataValue">\s*([0-9Xx]+)?(?:\s*<span class="greyText">\s*\(ISBN10:\s*([0-9Xx]+)\)\s*</span>)?', target_block, re.IGNORECASE | re.DOTALL)
+    if isbn_match:
+        isbn13_val = isbn_match.group(1)
+        isbn10_val = isbn_match.group(2)
+        if isbn13_val:
+            res["isbn13"] = clean_isbn(isbn13_val.strip())
+        if isbn10_val:
+            res["isbn10"] = clean_isbn(isbn10_val.strip())
+        res["isbn"] = clean_isbn((isbn13_val or isbn10_val or "").strip())
+
+    if not res.get("isbn"):
+        json_ld_isbn_m = re.search(r'"isbn"\s*:\s*"([0-9Xx]+)"', page_html)
+        if json_ld_isbn_m:
+            res["isbn"] = clean_isbn(json_ld_isbn_m.group(1))
+            if len(res["isbn"]) == 13:
+                res["isbn13"] = res["isbn"]
+            elif len(res["isbn"]) == 10:
+                res["isbn10"] = res["isbn"]
+
+    asin_match = re.search(r'ASIN:\s*</div>\s*<div class="dataValue">\s*([a-zA-Z0-9]+)\s*</div>', target_block, re.IGNORECASE | re.DOTALL) or \
+                 re.search(r'data-testid="asin"[^>]*>(.*?)<', page_html) or \
+                 re.search(r'"asin"\s*:\s*"([a-zA-Z0-9]+)"', page_html)
+    if asin_match:
+        res["asin"] = asin_match.group(1).strip()
+        if not res.get("isbn"):
+            res["isbn"] = res["asin"]
+
+    pub_div_match = re.search(r'data-testid="publication_info"[^>]*>(.*?)<', page_html) or \
+                    re.search(r'<div class="dataRow">\s*Published\s+([^<]+?)\s*</div>', target_block, re.DOTALL | re.IGNORECASE)
+    if pub_div_match:
+        pub_text = pub_div_match.group(1).strip()
+        if "by" in pub_text:
+            parts = pub_text.split("by", 1)
+            clean_pub = parts[0].strip().replace("Published", "").replace("First published", "").strip()
+            clean_pub = re.sub(r'\b(\d+)(?:st|nd|rd|th)\b', r'\1', clean_pub)
+            clean_pub = re.sub(r'([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})', r'\1 \2, \3', clean_pub)
+            res["publish_date"] = html.unescape(clean_pub)
+            res["publisher"] = html.unescape(parts[1].strip())
+        else:
+            clean_pub = pub_text.replace("Published", "").replace("First published", "").strip()
+            clean_pub = re.sub(r'\b(\d+)(?:st|nd|rd|th)\b', r'\1', clean_pub)
+            clean_pub = re.sub(r'([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})', r'\1 \2, \3', clean_pub)
+            res["publish_date"] = html.unescape(clean_pub)
+
+    # 7. Extract Format & Pages
+    format_m = re.search(r'data-testid="pagesFormat"[^>]*>(.*?)<', page_html) or \
+               re.search(r'"bookFormat"\s*:\s*"([^"]+)"', page_html) or \
+               re.search(r'Format:\s*</div>\s*<div class="dataValue">\s*([^<]+)', target_block, re.IGNORECASE) or \
+               re.search(r'<span itemprop="numberOfPages"[^>]*>([^<]+)</span>', page_html)
+    if format_m:
+        raw_fmt = clean_text(html.unescape(format_m.group(1)))
+        if raw_fmt:
+            if "page" in raw_fmt.lower():
+                parts = [p.strip() for p in raw_fmt.split(",") if p.strip()]
+                for p in parts:
+                    if "page" in p.lower():
+                        if not p.startswith("0"):
+                            res["pages"] = p
+                    else:
+                        res["format"] = p
+            else:
+                res["format"] = raw_fmt
+
+    if not res.get("format"):
+        row_fmt_m = re.search(r'<div class="dataRow">\s*([^<]*(?:Paperback|Hardcover|Kindle Edition|Mass Market Paperback|ebook|audiobook|Board book|Leather Bound|Audio CD)[^<]*)\s*</div>', target_block, re.IGNORECASE)
+        if row_fmt_m:
+            row_text = row_fmt_m.group(1).strip()
+            parts = [p.strip() for p in row_text.split(",") if p.strip()]
+            for p in parts:
+                if "page" in p.lower():
+                    if not p.startswith("0"):
+                        res["pages"] = p
+                elif any(k in p.lower() for k in ("paperback", "hardcover", "kindle", "ebook", "audio", "mass market", "board book")):
+                    res["format"] = p
+
+    res["url"] = url
+    if not res.get("work_id") and book_id:
+        res["work_id"] = book_id
+    return res
+
+
 class GoodreadsSource(BaseSource):
     """Source for querying Goodreads ratings and books."""
 
@@ -142,30 +282,13 @@ class GoodreadsSource(BaseSource):
         return True
 
     def fetch_book_details(self, book_url_or_id: str) -> dict:
-        """Fetch book detail HTML page from Goodreads and extract ISBN/ASIN, pub_year, publish_date, language, original_title, editions_count, and format."""
+        """Fetch book detail HTML page from Goodreads and extract metadata."""
         url = book_url_or_id if book_url_or_id.startswith("http") else self.BOOK_SHOW_URL.format(book_id=book_url_or_id)
-        res = {
-            "isbn": None,
-            "isbn10": None,
-            "isbn13": None,
-            "asin": None,
-            "pub_year": None,
-            "publish_date": None,
-            "publisher": None,
-            "language": None,
-            "original_title": None,
-            "editions_count": None,
-            "work_id": None,
-            "title": None,
-            "author": None,
-            "format": None,
-            "pages": None,
-            "crawler_status": "Normal",
-            "url": url
-        }
-
         book_id_m = re.search(r'/book/show/(\d+)', url) or re.search(r'/book/editions/(\d+)', url) or re.search(r'/work/editions/(\d+)', url) or re.search(r'^(?:gr:)?(\d+)$', str(book_url_or_id).strip())
         book_id = book_id_m.group(1) if book_id_m else None
+
+        base = empty_book_metadata(url=url, work_id=f"gr:{book_id}" if book_id else None)
+        base["crawler_status"] = "Normal"
 
         if book_id:
             try:
@@ -177,143 +300,19 @@ class GoodreadsSource(BaseSource):
                     page_html, used_curl = fetch_res if isinstance(fetch_res, tuple) else (str(fetch_res), False)
 
                 if page_html:
-                    res["crawler_status"] = "Normal"
-
-                    # 1. Extract work_id from final redirected URL or HTML
-                    work_id_m = re.search(r'/work/editions/(\d+)', page_html)
-                    if work_id_m:
-                        res["work_id"] = work_id_m.group(1)
-
-                    # 2. Extract editions count from page HTML
-                    count_m = re.search(r'showing\s+\d+.*?of\s+(\d+[,.\d]*)', page_html, re.IGNORECASE) or \
-                              re.search(r'of\s+(\d+[,.\d]*)\s*editions', page_html, re.IGNORECASE)
-                    if count_m:
-                        res["editions_count"] = int(count_m.group(1).replace(",", ""))
-
-                    # 3. Extract title and author if missing
-                    title_m = re.search(r'<h1>\s*<a[^>]*>([^<]+)</a>\s*&gt;\s*Editions\s*</h1>', page_html, re.IGNORECASE | re.DOTALL) or \
-                              re.search(r'data-testid="bookTitle"[^>]*>([^<]+)<', page_html) or \
-                              re.search(r'<a class="bookTitle"[^>]*>([^<]+)</a>', page_html)
-                    if title_m:
-                        raw_title = html.unescape(title_m.group(1).strip())
-                        fmt_title_m = re.search(r'\((Paperback|Hardcover|Kindle Edition|Mass Market Paperback|ebook|audiobook|Board book|Leather Bound|Audio CD)\)', raw_title, re.IGNORECASE)
-                        if fmt_title_m and not res["format"]:
-                            res["format"] = fmt_title_m.group(1)
-                            clean_t = re.sub(r'\s*\((Paperback|Hardcover|Kindle Edition|Mass Market Paperback|ebook|audiobook|Board book|Leather Bound|Audio CD)\)', '', raw_title, flags=re.IGNORECASE).strip()
-                            res["title"] = clean_t
-                        else:
-                            res["title"] = raw_title
-
-                    author_m = re.search(r'<h2>\s*by\s*<a[^>]*>([^<]+)</a>', page_html, re.IGNORECASE | re.DOTALL) or \
-                               re.search(r'<a class="authorName"[^>]*><span[^>]*>([^<]+)</span></a>', page_html) or \
-                               re.search(r'class="ContributorLink__name"[^>]*>([^<]+)<', page_html)
-                    if author_m:
-                        res["author"] = html.unescape(author_m.group(1).strip())
-
-                    # 4. Extract Original title
-                    orig_m = re.search(r'Original title:\s*</div>\s*<div class="dataValue">\s*([^<]+)', page_html, re.IGNORECASE) or \
-                             re.search(r'data-testid="originalTitle"[^>]*>(.*?)<', page_html) or \
-                             re.search(r'"originalTitle"\s*:\s*"([^"]+)"', page_html)
-                    if orig_m:
-                        res["original_title"] = html.unescape(orig_m.group(1).strip())
-
-                    # 5. Extract Language
-                    lang_m = re.search(r'Edition language:\s*</div>\s*<div class="dataValue">\s*([^<]+)', page_html, re.IGNORECASE) or \
-                             re.search(r'data-testid="language"[^>]*>(.*?)<', page_html) or \
-                             re.search(r'"language"\s*:\s*\{[^}]*"name"\s*:\s*"([^"]+)"', page_html) or \
-                             re.search(r'"inLanguage"\s*:\s*"([^"]+)"', page_html)
-                    if lang_m:
-                        res["language"] = html.unescape(lang_m.group(1).strip())
-
-                    # 6. Extract ISBN, ASIN, and Publish Date from edition blocks
-                    blocks = page_html.split('<div class="elementList clearFix">')
-                    target_block = blocks[1] if len(blocks) > 1 else page_html
-
-                    isbn_match = re.search(r'ISBN:\s*</div>\s*<div class="dataValue">\s*([0-9Xx]+)?(?:\s*<span class="greyText">\s*\(ISBN10:\s*([0-9Xx]+)\)\s*</span>)?', target_block, re.IGNORECASE | re.DOTALL)
-                    if isbn_match:
-                        isbn13_val = isbn_match.group(1)
-                        isbn10_val = isbn_match.group(2)
-                        if isbn13_val:
-                            res["isbn13"] = clean_isbn(isbn13_val.strip())
-                        if isbn10_val:
-                            res["isbn10"] = clean_isbn(isbn10_val.strip())
-                        res["isbn"] = clean_isbn((isbn13_val or isbn10_val or "").strip())
-
-                    if not res["isbn"]:
-                        json_ld_isbn_m = re.search(r'"isbn"\s*:\s*"([0-9Xx]+)"', page_html)
-                        if json_ld_isbn_m:
-                            res["isbn"] = clean_isbn(json_ld_isbn_m.group(1))
-                            if len(res["isbn"]) == 13:
-                                res["isbn13"] = res["isbn"]
-                            elif len(res["isbn"]) == 10:
-                                res["isbn10"] = res["isbn"]
-
-                    asin_match = re.search(r'ASIN:\s*</div>\s*<div class="dataValue">\s*([a-zA-Z0-9]+)\s*</div>', target_block, re.IGNORECASE | re.DOTALL) or \
-                                 re.search(r'data-testid="asin"[^>]*>(.*?)<', page_html) or \
-                                 re.search(r'"asin"\s*:\s*"([a-zA-Z0-9]+)"', page_html)
-                    if asin_match:
-                        res["asin"] = asin_match.group(1).strip()
-                        if not res["isbn"]:
-                            res["isbn"] = res["asin"]
-
-                    pub_div_match = re.search(r'data-testid="publication_info"[^>]*>(.*?)<', page_html) or \
-                                    re.search(r'<div class="dataRow">\s*Published\s+([^<]+?)\s*</div>', target_block, re.DOTALL | re.IGNORECASE)
-                    if pub_div_match:
-                        pub_text = pub_div_match.group(1).strip()
-                        if "by" in pub_text:
-                            parts = pub_text.split("by", 1)
-                            clean_pub = parts[0].strip().replace("Published", "").replace("First published", "").strip()
-                            clean_pub = re.sub(r'\b(\d+)(?:st|nd|rd|th)\b', r'\1', clean_pub)
-                            clean_pub = re.sub(r'([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})', r'\1 \2, \3', clean_pub)
-                            res["publish_date"] = html.unescape(clean_pub)
-                            res["publisher"] = html.unescape(parts[1].strip())
-                        else:
-                            clean_pub = pub_text.replace("Published", "").replace("First published", "").strip()
-                            clean_pub = re.sub(r'\b(\d+)(?:st|nd|rd|th)\b', r'\1', clean_pub)
-                            clean_pub = re.sub(r'([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})', r'\1 \2, \3', clean_pub)
-                            res["publish_date"] = html.unescape(clean_pub)
-
-                        year_match = re.search(r'\b\d{4}\b', pub_text)
-                        if year_match:
-                            res["pub_year"] = year_match.group(0)
-
-                    # 7. Extract Format & Pages
-                    format_m = re.search(r'data-testid="pagesFormat"[^>]*>(.*?)<', page_html) or \
-                               re.search(r'"bookFormat"\s*:\s*"([^"]+)"', page_html) or \
-                               re.search(r'Format:\s*</div>\s*<div class="dataValue">\s*([^<]+)', target_block, re.IGNORECASE) or \
-                               re.search(r'<span itemprop="numberOfPages"[^>]*>([^<]+)</span>', page_html)
-                    if format_m:
-                        raw_fmt = clean_text(html.unescape(format_m.group(1)))
-                        if raw_fmt:
-                            if "page" in raw_fmt.lower():
-                                parts = [p.strip() for p in raw_fmt.split(",") if p.strip()]
-                                for p in parts:
-                                    if "page" in p.lower():
-                                        if not p.startswith("0"):
-                                            res["pages"] = p
-                                    else:
-                                        res["format"] = p
-                            else:
-                                res["format"] = raw_fmt
-
-                    if not res["format"]:
-                        row_fmt_m = re.search(r'<div class="dataRow">\s*([^<]*(?:Paperback|Hardcover|Kindle Edition|Mass Market Paperback|ebook|audiobook|Board book|Leather Bound|Audio CD)[^<]*)\s*</div>', target_block, re.IGNORECASE)
-                        if row_fmt_m:
-                            row_text = row_fmt_m.group(1).strip()
-                            parts = [p.strip() for p in row_text.split(",") if p.strip()]
-                            for p in parts:
-                                if "page" in p.lower():
-                                    if not p.startswith("0"):
-                                        res["pages"] = p
-                                elif any(k in p.lower() for k in ("paperback", "hardcover", "kindle", "ebook", "audio", "mass market", "board book")):
-                                    res["format"] = p
+                    parsed = _parse_goodreads_book_html(page_html, book_id, url)
+                    merge_book_metadata(base, parsed)
+                    base["editions_count"] = base.get("edition_count")
+                    if base.get("publish_date"):
+                        from book_rate.utils.text_parser import extract_year
+                        base["pub_year"] = extract_year(base["publish_date"])
                 else:
-                    res["crawler_status"] = "Fetch Empty"
+                    base["crawler_status"] = "Fetch Empty"
             except Exception as ed_e:
                 logger.debug(f"Failed to fetch editions for book '{book_id}': {ed_e}")
-                res["crawler_status"] = f"Error: {ed_e}"
+                base["crawler_status"] = f"Error: {ed_e}"
 
-        return res
+        return base
 
     def _enrich_with_book_page(self, rating: SourceRating) -> SourceRating:
         """Enrich a candidate rating with detailed Goodreads book page metadata."""
@@ -321,20 +320,22 @@ class GoodreadsSource(BaseSource):
             return rating
         try:
             details = self.fetch_book_details(rating.url)
-            if details.get("isbn") and not rating.isbn:
-                rating.isbn = details["isbn"]
             if details.get("publish_date") and not rating.publish_date:
                 rating.publish_date = details["publish_date"]
-            elif details.get("pub_year") and not rating.publish_date:
-                rating.publish_date = str(details["pub_year"])
+            if details.get("publisher") and not rating.publisher:
+                rating.publisher = details["publisher"]
             if details.get("language") and not rating.language:
                 rating.language = details["language"]
             if details.get("original_title") and not rating.original_title:
                 rating.original_title = details["original_title"]
-            if details.get("publisher") and not rating.publisher:
-                rating.publisher = details["publisher"]
-            if details.get("editions_count") is not None and not rating.edition_count:
+            if details.get("isbn") and not rating.isbn:
+                rating.isbn = details["isbn"]
+            if details.get("edition_count") is not None and rating.edition_count is None:
+                rating.edition_count = details["edition_count"]
+            elif details.get("editions_count") is not None and rating.edition_count is None:
                 rating.edition_count = details["editions_count"]
+            if details.get("work_id") and not rating.work_id:
+                rating.work_id = details["work_id"]
 
             # Merge flexible metadata (pages, format, etc.)
             for k, v in details.items():
