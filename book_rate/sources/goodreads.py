@@ -85,9 +85,11 @@ def _parse_goodreads_search_html(html_str: str, used_curl: bool, limit: int = 5)
                 pass
 
         if work_id_str:
-            work_key = f"gr:work/{work_id_str}/book/{book_slug}"
+            work_key = f"gr:{work_id_str}"
+        elif book_id:
+            work_key = f"gr:{book_id}"
         elif book_slug:
-            work_key = f"gr:book/{book_slug}"
+            work_key = f"gr:{book_slug}"
         else:
             work_key = f"gr:{title}"
 
@@ -112,7 +114,7 @@ def _parse_goodreads_search_html(html_str: str, used_curl: bool, limit: int = 5)
             status=status_val,
             author=author_name if author_name != "Unknown Author" else None,
             publish_date=str(pub_year) if pub_year else None,
-            work_id=f"gr:{book_id}" if book_id else work_key,
+            work_id=work_key,
             edition_count=editions_count
         )
         work.editions.append(Edition(
@@ -273,9 +275,11 @@ class GoodreadsSource(BaseSource):
             book_slug = book_url_rel.split("/book/show/")[-1] if "/book/show/" in book_url_rel else (book_id or "")
 
             if work_id:
-                work_key = f"gr:work/{work_id}/book/{book_slug}"
+                work_key = f"gr:{work_id}"
+            elif book_id:
+                work_key = f"gr:{book_id}"
             elif book_slug:
-                work_key = f"gr:book/{book_slug}"
+                work_key = f"gr:{book_slug}"
             else:
                 work_key = f"gr:{title}"
 
@@ -345,7 +349,7 @@ class GoodreadsSource(BaseSource):
         if ":" in work_id:
             work_id = work_id.split(":", 1)[1]
 
-        work_id_m = re.search(r'work/(\d+)', work_id)
+        work_id_m = re.search(r'(?:work/)?(\d+)', work_id)
         if work_id_m:
             work_id = work_id_m.group(1)
         else:

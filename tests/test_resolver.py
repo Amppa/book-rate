@@ -25,6 +25,10 @@ def test_edition_resolver_resolve_source_and_id():
     assert s_key == "open_library"
     assert formatted_id == "/works/OL27479W"
 
+    s_key_ol, formatted_id_ol, _ = resolver.resolve_source_and_id("ol:OL27479W")
+    assert s_key_ol == "open_library"
+    assert formatted_id_ol == "ol:OL27479W"
+
     # Goodreads work ID
     s_key, formatted_id, _ = resolver.resolve_source_and_id("gr:12345")
     assert s_key == "goodreads"

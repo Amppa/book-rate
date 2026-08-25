@@ -47,7 +47,9 @@ class OpenLibrarySource(BaseSource):
         works: List[Work] = []
 
         for doc in docs:
-            work_key = doc.get("key", "")
+            raw_key = doc.get("key", "")
+            clean_key = raw_key.replace("/works/", "").strip()
+            work_key = f"ol:{clean_key}" if clean_key else ""
             title = doc.get("title", "Unknown Title")
             authors = doc.get("author_name", [])
             author_str = ", ".join(authors) if authors else "Unknown Author"
@@ -81,14 +83,14 @@ class OpenLibrarySource(BaseSource):
                 source_name=self.name,
                 rate=float(avg_rating) if avg_rating is not None else None,
                 rating_count=int(rating_count) if rating_count is not None else 0,
-                url=f"{self.BASE_URL}{work_key}" if work_key else None,
+                url=f"{self.BASE_URL}/works/{clean_key}" if clean_key else None,
                 title=title,
                 author=author_str if author_str != "Unknown Author" else None,
                 publisher=publisher_str,
                 publish_date=pub_date_str,
                 isbn=cleaned_isbn,
                 language=lang_str,
-                work_id=f"ol:{work_key}" if work_key else None,
+                work_id=work_key if work_key else None,
                 edition_count=ed_count
             )
 
@@ -105,10 +107,11 @@ class OpenLibrarySource(BaseSource):
 
     def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> SourceRating:
         """Fetch dedicated rating object from Open Library ratings endpoint or via strategy."""
-        work_id = work.work_id
+        work_id = work.work_id or ""
         strat = strategy or self.default_strategy
-        if work_id and (work_id.startswith("/works/") or "OL" in work_id):
-            full_id = work_id if work_id.startswith("/works/") else f"/works/{work_id}"
+        if "OL" in work_id.upper():
+            clean_id = work_id.replace("ol:", "").replace("/works/", "").strip()
+            full_id = f"/works/{clean_id}"
             try:
                 url = f"{self.BASE_URL}{full_id}/ratings.json"
                 resp = self._get(url, timeout=self.timeout)
@@ -136,7 +139,8 @@ class OpenLibrarySource(BaseSource):
         if not work_id:
             return []
 
-        full_id = work_id if work_id.startswith("/works/") else f"/works/{work_id}"
+        clean_id = work_id.replace("ol:", "").replace("/works/", "").strip()
+        full_id = f"/works/{clean_id}"
         editions: List[Edition] = []
         safe_limit = min(max(1, limit), 1000)
 

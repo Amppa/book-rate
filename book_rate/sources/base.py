@@ -528,17 +528,21 @@ class BaseSource:
                 return r
 
             prefix_map = {
+                "Open Library": "ol:",
                 "Goodreads": "gr:",
                 "Google Books": "gb:",
+                "Google Play": "play:",
                 "豆瓣": "db:",
+                "豆瓣 API": "dbapi:",
                 "Amazon JP": "amjp:",
                 "Amazon": "am:",
                 "StoryGraph": "sg:",
                 "Readmoo": "rm:",
-                "Open Library": "/works/"
+                "博客來": "bk:",
             }
             p_prefix = prefix_map.get(self.name, "")
-            if p_prefix and (work.work_id.startswith(p_prefix) or (p_prefix == "/works/" and "OL" in work.work_id)):
+            is_ol_match = (self.name == "Open Library" and ("OL" in (work.work_id or "").upper() or (work.work_id or "").startswith("/works/")))
+            if p_prefix and (work.work_id.startswith(p_prefix) or is_ol_match):
                 try:
                     candidate_works.extend(search(work.work_id))
                 except SourceNetworkError as ne:

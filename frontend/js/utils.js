@@ -83,6 +83,10 @@ export function displayCount(count) {
 
 export function getWorkExternalUrl(key) {
   if (!key) return null;
+  if (key.startsWith("ol:")) {
+    const rawId = key.slice(3).replace(/^\/works\//, "");
+    return `${OPEN_LIBRARY_BASE_URL}/works/${rawId}`;
+  }
   if (key.startsWith("/works/")) return `${OPEN_LIBRARY_BASE_URL}${key}`;
   if (key.startsWith("gb:")) return `https://books.google.com/books?id=${key.slice(3)}`;
   if (key.startsWith("gr:")) {
@@ -96,6 +100,9 @@ export function getWorkExternalUrl(key) {
       return `https://www.goodreads.com/work/editions/${rawId.slice(5)}`;
     } else if (rawId.startsWith("book/")) {
       return `https://www.goodreads.com/book/show/${rawId.slice(5)}`;
+    }
+    if (/^\d+$/.test(rawId)) {
+      return `https://www.goodreads.com/work/editions/${rawId}`;
     }
     return `https://www.goodreads.com/book/show/${rawId}`;
   }

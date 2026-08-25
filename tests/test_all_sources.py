@@ -443,7 +443,7 @@ class TestRatingOrchestrator(unittest.TestCase):
 
         self.assertEqual(len(works), 1)
         w = works[0]
-        self.assertEqual(w.work_id, "gr:work/4640799/book/3.Harry_Potter_and_the_Sorcerer_s_Stone")
+        self.assertEqual(w.work_id, "gr:4640799")
         self.assertEqual(w.title, "Harry Potter and the Sorcerer's Stone (Harry Potter, #1)")
         self.assertEqual(w.author, "J.K. Rowling")
         self.assertIn("Goodreads", w.ratings)
@@ -481,7 +481,7 @@ class TestRatingOrchestrator(unittest.TestCase):
         works = _parse_goodreads_search_html(mock_html, used_curl=True, limit=5)
         self.assertEqual(len(works), 1)
         w = works[0]
-        self.assertEqual(w.work_id, "gr:work/4640799/book/3.Harry_Potter_and_the_Sorcerer_s_Stone")
+        self.assertEqual(w.work_id, "gr:4640799")
         self.assertEqual(w.title, "Harry Potter and the Sorcerer's Stone (Harry Potter, #1)")
         self.assertEqual(w.author, "J.K. Rowling")
         self.assertEqual(w.first_publish_year, 1997)

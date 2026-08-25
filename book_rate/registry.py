@@ -52,6 +52,7 @@ class SourceRegistry:
 
     # work_id prefix - source key lookup (single source of truth).
     ID_PREFIXES = {
+        "ol:": "open_library",
         "gr:": "goodreads",
         "sg:": "storygraph",
         "db:": "douban",
