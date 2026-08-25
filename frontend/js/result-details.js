@@ -19,6 +19,8 @@ export const KNOWN_FIELD_ORDER = [
   "original_title",
   "edition_count",
   "isbn",
+  "isbn10",
+  "asin",
   "work_id"
 ];
 
@@ -36,6 +38,8 @@ export const FIELD_LABEL_MAP = {
   original_title: "原作名:",
   edition_count: "版本數:",
   isbn: "ISBN:",
+  isbn10: "ISBN-10:",
+  asin: "ASIN:",
   work_id: "ID:"
 };
 

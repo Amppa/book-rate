@@ -76,13 +76,11 @@ class TestGoodreadsSource(unittest.TestCase):
         self.assertEqual(works[0].ratings["Goodreads"].rate, 4.31)
         self.assertEqual(works[0].ratings["Goodreads"].rating_count, 1397637)
 
-    @patch('requests.Session.get')
-    def test_fetch_book_details(self, mock_get):
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.url = "https://www.goodreads.com/work/editions/62221762"
-        mock_resp.text = """
+    @patch('book_rate.sources.goodreads.GoodreadsSource._fetch_html')
+    def test_fetch_book_details(self, mock_fetch_html):
+        mock_html = """
         <html><body>
+          <a href="/work/editions/62221762">Editions</a>
           <h1><a href="/book/show/40121378-atomic-habits">Atomic Habits</a> &gt; Editions</h1>
           <h2>by <a href="/author/show/James_Clear">James Clear</a></h2>
           <div class="showingPages">showing 1-30 of 256</div>
@@ -97,7 +95,7 @@ class TestGoodreadsSource(unittest.TestCase):
           </div>
         </body></html>
         """
-        mock_get.return_value = mock_resp
+        mock_fetch_html.return_value = (mock_html, True)
 
         source = GoodreadsSource()
         details = source.fetch_book_details("40121378")
@@ -105,9 +103,72 @@ class TestGoodreadsSource(unittest.TestCase):
         self.assertEqual(details["title"], "Atomic Habits")
         self.assertEqual(details["author"], "James Clear")
         self.assertEqual(details["isbn"], "9780735211292")
+        self.assertEqual(details["isbn10"], "0735211299")
+        self.assertEqual(details["isbn13"], "9780735211292")
+        self.assertEqual(details["publisher"], "Avery")
+        self.assertEqual(details["publish_date"], "October 16, 2018")
         self.assertEqual(details["pub_year"], "2018")
         self.assertEqual(details["work_id"], "62221762")
         self.assertEqual(details["editions_count"], 256)
+
+    @patch('book_rate.sources.goodreads.GoodreadsSource._fetch_html')
+    def test_fetch_book_details_tuesdays_with_morrie(self, mock_fetch_html):
+        mock_html = """
+        <html><body>
+          <a href="/work/editions/40428882">Editions</a>
+          <div class="showingPages">Showing 1-2 of 2</div>
+          <div class="elementList clearFix">
+            <div class="editionData">
+              <div class="dataRow">
+                <a class="bookTitle" href="/book/show/21064231-tuesdays-with-morrie-the-five-people-you-meet-in-heaven">Tuesdays with Morrie &amp; the Five People You Meet in Heaven (Paperback)</a>
+              </div>
+              <div class="dataRow">
+                Published January 1st 2007
+                  by Sphere
+              </div>
+              <div class="dataRow">
+                Reprint, Paperback, 0 pages
+              </div>
+              <div class="moreDetails hideDetails">
+                <div class="dataRow">
+                  <div class="dataTitle">Author(s):</div>
+                  <div class="dataValue"><a class="authorName" href="..."><span>Mitch Albom</span></a></div>
+                </div>
+                <div class="dataRow">
+                  <div class="dataTitle">ISBN:</div>
+                  <div class="dataValue">9780356247656 <span class="greyText">(ISBN10: 0356247651)</span></div>
+                </div>
+                <div class="dataRow">
+                  <div class="dataTitle">ASIN:</div>
+                  <div class="dataValue">0356247651</div>
+                </div>
+                <div class="dataRow">
+                  <div class="dataTitle">Edition language:</div>
+                  <div class="dataValue">English</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </body></html>
+        """
+        mock_fetch_html.return_value = (mock_html, True)
+
+        source = GoodreadsSource()
+        details = source.fetch_book_details("https://www.goodreads.com/book/show/21064231-tuesdays-with-morrie-the-five-people-you-meet-in-heaven?ref=rae_0")
+
+        self.assertEqual(details["title"], "Tuesdays with Morrie & the Five People You Meet in Heaven")
+        self.assertEqual(details["author"], "Mitch Albom")
+        self.assertEqual(details["format"], "Paperback")
+        self.assertEqual(details["publish_date"], "January 1, 2007")
+        self.assertEqual(details["publisher"], "Sphere")
+        self.assertEqual(details["pub_year"], "2007")
+        self.assertEqual(details["isbn"], "9780356247656")
+        self.assertEqual(details["isbn10"], "0356247651")
+        self.assertEqual(details["isbn13"], "9780356247656")
+        self.assertEqual(details["asin"], "0356247651")
+        self.assertEqual(details["language"], "English")
+        self.assertEqual(details["work_id"], "40428882")
+        self.assertEqual(details["editions_count"], 2)
 
     @patch('book_rate.sources.goodreads.GoodreadsSource._fetch_html')
     def test_fetch_editions(self, mock_fetch_html):

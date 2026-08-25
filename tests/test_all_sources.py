@@ -1501,6 +1501,101 @@ class TestBookInfoMetadataExtraction(unittest.TestCase):
         self.assertEqual(rating.rate, 4.6)
         self.assertEqual(rating.rating_count, 15400)
 
+    @patch("book_rate.sources.goodreads.GoodreadsSource._fetch_html")
+    def test_goodreads_book_info_enrichment(self, mock_fetch_html):
+        from book_rate.sources.goodreads import GoodreadsSource
+        mock_html = """
+        <html><body>
+          <a href="/work/editions/40428882">Editions</a>
+          <div class="showingPages">Showing 1-2 of 2</div>
+          <div class="elementList clearFix">
+            <div class="editionData">
+              <div class="dataRow">
+                <a class="bookTitle" href="/book/show/21064231-tuesdays-with-morrie-the-five-people-you-meet-in-heaven">Tuesdays with Morrie &amp; the Five People You Meet in Heaven (Paperback)</a>
+              </div>
+              <div class="dataRow">
+                Published January 1st 2007
+                  by Sphere
+              </div>
+              <div class="dataRow">
+                Reprint, Paperback, 0 pages
+              </div>
+              <div class="moreDetails hideDetails">
+                <div class="dataRow">
+                  <div class="dataTitle">Author(s):</div>
+                  <div class="dataValue"><a class="authorName" href="..."><span>Mitch Albom</span></a></div>
+                </div>
+                <div class="dataRow">
+                  <div class="dataTitle">ISBN:</div>
+                  <div class="dataValue">9780356247656 <span class="greyText">(ISBN10: 0356247651)</span></div>
+                </div>
+                <div class="dataRow">
+                  <div class="dataTitle">ASIN:</div>
+                  <div class="dataValue">0356247651</div>
+                </div>
+                <div class="dataRow">
+                  <div class="dataTitle">Edition language:</div>
+                  <div class="dataValue">English</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </body></html>
+        """
+        mock_fetch_html.return_value = (mock_html, True)
+
+        source = GoodreadsSource()
+        rating = SourceRating(
+            source_name="Goodreads",
+            rate=4.54,
+            rating_count=1506,
+            url="https://www.goodreads.com/book/show/21064231-tuesdays-with-morrie-the-five-people-you-meet-in-heaven?ref=rae_0"
+        )
+        enriched = source._enrich_with_book_page(rating)
+        self.assertEqual(enriched.isbn, "9780356247656")
+        self.assertEqual(enriched.publish_date, "January 1, 2007")
+        self.assertEqual(enriched.publisher, "Sphere")
+        self.assertEqual(enriched.language, "English")
+        self.assertEqual(enriched.edition_count, 2)
+        self.assertEqual(enriched.metadata.get("format"), "Paperback")
+        self.assertEqual(enriched.metadata.get("asin"), "0356247651")
+        self.assertEqual(enriched.metadata.get("isbn10"), "0356247651")
+
+        book_info = enriched.to_book_info()
+        self.assertIsNotNone(book_info)
+        self.assertEqual(book_info["publisher"], "Sphere")
+        self.assertEqual(book_info["publish_date"], "January 1, 2007")
+        self.assertEqual(book_info["isbn"], "9780356247656")
+        self.assertEqual(book_info["asin"], "0356247651")
+        self.assertEqual(book_info["format"], "Paperback")
+        self.assertEqual(book_info["language"], "English")
+
+    def test_amazon_search_block_gujarati_language(self):
+        source = AmazonSource()
+        block = """
+        <div data-component-type="s-search-result" class="s-result-item">
+          <h2><span class="a-size-medium">Tuesdays with Morrie (Gujarati Edition)</span></h2>
+          <div class="a-row a-color-secondary">
+            <span>by Mitch Albom</span> | <span>April 4, 2017</span>
+          </div>
+          <a class="a-text-bold" href="/dp/B071XVWXFH">Kindle Edition</a>
+          <a href="/dp/B071XVWXFH">Link</a>
+          <span class="a-icon-alt">3.6 out of 5 stars</span>
+          <span class="a-size-base s-underline-text">100</span>
+        </div>
+        """
+        work = source._parse_search_block(block, "Tuesdays with Morrie")
+        self.assertIsNotNone(work)
+        self.assertEqual(work.work_id, "am:B071XVWXFH")
+        self.assertEqual(work.isbn, "B071XVWXFH")
+        rating = work.ratings["Amazon"]
+        self.assertEqual(rating.language, "Gujarati")
+        self.assertEqual(rating.publish_date, "April 4, 2017")
+        self.assertEqual(rating.rate, 3.6)
+        self.assertEqual(rating.rating_count, 100)
+        self.assertEqual(rating.metadata.get("format"), "Kindle Edition")
+        self.assertEqual(rating.metadata.get("asin"), "B071XVWXFH")
+
 
 if __name__ == "__main__":
     unittest.main()
