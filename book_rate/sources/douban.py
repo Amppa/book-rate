@@ -18,7 +18,7 @@ def _build_subject_url(sub_id: str) -> str:
 
 def _extract_douban_info_field(html_str: str, label_pattern: str) -> Optional[str]:
     """Extract a metadata field value from Douban #info block by label."""
-    m = re.search(r'<span class="pl">\s*' + label_pattern + r'\s*</span>:?\s*(.*?)(?=<span class="pl">|<br\s*/?>|</div>|$)', html_str, re.DOTALL | re.IGNORECASE)
+    m = re.search(r'(?:<span class="pl">\s*)?' + label_pattern + r'\s*[:：]?\s*(?:</span>)?\s*[:：]?\s*(.*?)(?=<span class="pl">|<br\s*/?>|</div>|$)', html_str, re.DOTALL | re.IGNORECASE)
     if m:
         raw_val = m.group(1)
         clean_val = re.sub(r'<[^>]+>', ' ', raw_val)

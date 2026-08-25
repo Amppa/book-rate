@@ -73,11 +73,9 @@ graph TD
 
 ### Title Provider vs. Rate Provider
 * **Title Provider (or Title Source)**:
-  * Used in **Step 1** to locate and map search queries to candidate books (`Work` objects).
-  * Main title providers: Open Library (`open_library`) and Google Books (`google_books`).
-  * Fallbacks: Priority list `TITLE_SOURCES = ["google_play", "goodreads", "storygraph", "amazon", "amazon_jp", "douban", "douban_api", "readmoo", "books_tw"]`.
+  * Used in **Step 1 (Multi-edition search)** to locate candidate books (`Work` objects) for the active tab (e.g. `open_library`, `goodreads`, `douban`, `storygraph`).
 * **Rate Provider (or Rating Source/Engine)**:
-  * Used in **Step 3** to fetch score ratings and review counts for a specific work.
+  * Used in **Step 3 (Quick search & Compare)** to fetch score ratings and review counts for a specific work.
   * Supported platforms: 10 UI platforms & 11 adapters implementing the `BaseSource` class.
 
 ---

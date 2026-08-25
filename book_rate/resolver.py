@@ -32,43 +32,25 @@ class WorkResolver:
         google_key: Optional[str] = None
     ) -> List[Work]:
         """
-        Search candidate works across active_title_sources in strict priority order.
-        No hidden fallbacks to inactive platforms.
+        Search candidate works across requested active_title_sources.
         """
         clean_q = q.strip()
-        if not clean_q:
+        if not clean_q or not active_title_sources:
             return []
 
-        if active_title_sources is None:
-            active_title_sources = []
-
         works: List[Work] = []
-
-        if "open_library" in active_title_sources:
-            ol_source = self.get_source("open_library")
-            if ol_source:
-                works = ol_source.search_works(clean_q, limit=10, page=page, include_details=False)
-
-        if "google_books" in active_title_sources:
-            gb_source = self.get_source("google_books", google_key=google_key)
-            if gb_source:
-                if "open_library" not in active_title_sources:
-                    gb_works = gb_source.search_works(clean_q, limit=10, page=page)
-                elif page == 1:
-                    gb_works = gb_source.search_works(clean_q, limit=10, page=1)
-                else:
-                    gb_works = []
-                works.extend(gb_works)
-
-        if not works and "open_library" not in active_title_sources and "google_books" not in active_title_sources:
-            for s_key in self.registry.get_title_source_keys():
-                if s_key in active_title_sources:
-                    source_inst = self.get_source(s_key)
-                    if source_inst:
-                        extra_works = source_inst.search_works(clean_q, limit=10, page=page)
-                        if extra_works:
-                            works.extend(extra_works)
-                            break
+        for s_key in active_title_sources:
+            source_inst = self.get_source(s_key, google_key=google_key if s_key == "google_books" else None)
+            if source_inst:
+                try:
+                    if s_key == "open_library":
+                        res = source_inst.search_works(clean_q, limit=10, page=page, include_details=False)
+                    else:
+                        res = source_inst.search_works(clean_q, limit=10, page=page)
+                    if res:
+                        works.extend(res)
+                except Exception as e:
+                    logger.warning(f"Failed to search works on '{s_key}': {e}")
 
         return works
 

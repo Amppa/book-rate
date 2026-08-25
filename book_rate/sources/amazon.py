@@ -247,6 +247,7 @@ class AmazonSource(BaseSource):
             re.search(r'aria-label="[\d\.\s星つ分個の評価件]+ ([\d,]+)"', block) or
             re.search(r'<span class="a-size-base s-underline-text"[^>]*>([\d,]+)</span>', block)
         )
+        count_val = int(count_match.group(1).replace(",", "")) if count_match else None
         # Language extraction
         language = None
         lang_m = re.search(r'(?:言語|语言|Language)\s*[:：]?\s*([^\s\|<，,\(\)（）]+)', block)

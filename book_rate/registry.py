@@ -21,8 +21,6 @@ class SourceRegistry:
     for all available rating and title source adapters.
     """
 
-    TITLE_SOURCES = ["google_play", "goodreads", "storygraph", "amazon", "amazon_jp", "douban", "douban_api", "readmoo", "books_tw"]
-
     # Single source of truth table:
     # source_key -> (prefix_code, display_name, adapter_class)
     SOURCES: Dict[str, Tuple[str, str, Type[BaseSource]]] = {
@@ -57,11 +55,6 @@ class SourceRegistry:
     def list_source_keys(cls) -> List[str]:
         """Return a list of all registered source keys."""
         return list(cls.SOURCES.keys())
-
-    @classmethod
-    def get_title_source_keys(cls) -> List[str]:
-        """Return the list of default title source keys used for fallback search."""
-        return list(cls.TITLE_SOURCES)
 
     @classmethod
     def match_id_prefix(cls, work_id: Optional[str]) -> Tuple[Optional[str], Optional[str]]:

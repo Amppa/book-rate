@@ -19,7 +19,6 @@ logger = logging.getLogger(__name__)
 class BookAggregator:
     """Aggregates book works, editions, and ratings across multiple sources."""
 
-    TITLE_SOURCES = SourceRegistry.TITLE_SOURCES
     DEFAULT_EDITION_LIMIT = 2000
 
     def __init__(self, google_api_key: Optional[str] = None):
