@@ -40,7 +40,7 @@ export function renderSourceToggles(container) {
   deselectAll.type = "button";
   deselectAll.className = "info-text-link";
   deselectAll.dataset.toggleAction = "none";
-  deselectAll.textContent = "[取消全選]";
+  deselectAll.textContent = "[全不選]";
 
   actions.appendChild(selectAll);
   actions.appendChild(deselectAll);
