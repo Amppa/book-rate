@@ -94,6 +94,11 @@ graph TD
 * `author_list` (list of strings): Author names to combine with title queries.
 * `isbn_list` (list of strings): List of all unique ISBN-10 or ISBN-13 strings collected from editions.
 
+### Single-Book Detail Metadata (`to_book_info`)
+In Step 3, each provider enriches the matched book with detailed metadata rendered in a collapsible `<details>` panel:
+* Standard fields: `author`, `translator`, `publisher`, `publish_date`, `series`, `language`, `original_title`, `edition_count`, `isbn`, `asin`, `work_id`.
+* Truncation: Values exceeding 50 characters are automatically truncated (`...`) with a hover tooltip.
+
 ---
 
 ## 5. Search Strategies
@@ -141,6 +146,8 @@ In Step 3, rate providers fetch ratings using one of 6 single-factor search stra
     - **`tests/test_server.py`**: FastAPI routes & SSE streaming.
     - **`tests/test_concurrency.py`**: Concurrency and curl isolation.
     - **`tests/test_cooldown_and_headers.py`**: Domain rate limiting and cooldowns.
+    - **`tests/test_text_parser.py`**: Clean text, author cleaning, and schema parsers.
+    - **`tests/test_metadata_contract.py`**: Metadata contract models, merging, and first available fetchers.
 * **Live Network Tests**:
   - **`tests/live_test_network.py`**: Real HTTP request integration tests. Run via `pytest -m live`.
 
@@ -165,6 +172,8 @@ In Step 3, rate providers fetch ratings using one of 6 single-factor search stra
 * **[frontend/js/wizard.js](../frontend/js/wizard.js)**: Renders step sections and wizard step progression.
 * **[frontend/js/candidates.js](../frontend/js/candidates.js)**: Handles rendering search results and metadata card editing fields for Step 2.
 * **[frontend/js/ratings.js](../frontend/js/ratings.js)**: Renders comparison table rows, dropdowns, and rating details.
+* **[frontend/js/rating-renderer.js](../frontend/js/rating-renderer.js)**: Centralizes rating score display resolution, status badges, and cell rendering.
+* **[frontend/js/result-details.js](../frontend/js/result-details.js)**: Renders collapsible metadata panel (`<details>`), ASIN, field labels, and global toggle button.
 * **[frontend/js/constants.js](../frontend/js/constants.js)**: Configurations for search strategies, defaults, and API engine codes.
 * **[frontend/js/cache.js](../frontend/js/cache.js)**: Manages localStorage caching for rating records and source connectivity status.
 * **[frontend/js/api.js](../frontend/js/api.js)**: Client HTTP/SSE network handler functions.
