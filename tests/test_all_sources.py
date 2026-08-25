@@ -32,6 +32,14 @@ class TestSourceRegistry(unittest.TestCase):
         invalid = SourceRegistry.create_source("unknown_source")
         self.assertIsNone(invalid)
 
+    def test_get_prefix_by_source_name(self):
+        self.assertEqual(SourceRegistry.get_prefix_by_source_name("Google Play"), "gp:")
+        self.assertEqual(SourceRegistry.get_prefix_by_source_name("google_play"), "gp:")
+        self.assertEqual(SourceRegistry.get_prefix_by_source_name("豆瓣"), "db:")
+        self.assertEqual(SourceRegistry.get_prefix_by_source_name("Open Library"), "ol:")
+        self.assertEqual(SourceRegistry.get_prefix_by_source_name("博客來"), "bk:")
+        self.assertIsNone(SourceRegistry.get_prefix_by_source_name("NonExistentSource"))
+
 
 class TestAllSourcesUnit(unittest.TestCase):
     """Unit tests for all 9 source adapters with mock HTML/API responses."""
@@ -152,7 +160,7 @@ class TestAllSourcesUnit(unittest.TestCase):
         source = GooglePlaySource()
         works = source.search_works("Harry Potter", limit=1)
         self.assertEqual(len(works), 1)
-        self.assertEqual(works[0].work_id, "play:q0nABgAAQBAJ")
+        self.assertEqual(works[0].work_id, "gp:q0nABgAAQBAJ")
         self.assertEqual(works[0].title, "\"Harry Potter and the Sorcerer's Stone™\" -- Selected Themes from the Motion Picture (Solo, Duet, Trio): For B-Flat Clarinet")
         self.assertEqual(works[0].author, "John Williams")
         self.assertIn("Google Play", works[0].ratings)
@@ -803,7 +811,7 @@ class TestGooglePlayScraper(unittest.TestCase):
         self.assertEqual(len(works), 1)
         self.assertEqual(works[0].title, "瘟疫與文明 人類疾病大歷史")
         self.assertEqual(works[0].author, "Unknown")
-        self.assertEqual(works[0].work_id, "play:wOzaEAAAQBAJ")
+        self.assertEqual(works[0].work_id, "gp:wOzaEAAAQBAJ")
 
     @patch("book_rate.sources.google_play.GooglePlaySource._fetch_html")
     @patch("book_rate.sources.google_play.GooglePlaySource._parse_play_details")
@@ -820,7 +828,7 @@ class TestGooglePlayScraper(unittest.TestCase):
         self.assertEqual(len(works), 1)
         self.assertEqual(works[0].title, "Thinking Fast and Slow")
         self.assertEqual(works[0].author, "Daniel Kahneman")
-        self.assertEqual(works[0].work_id, "play:oV1tXT3HigoC")
+        self.assertEqual(works[0].work_id, "gp:oV1tXT3HigoC")
         self.assertEqual(works[0].ratings["Google Play"].status, "CURL_MATCH")
         self.assertEqual(works[0].ratings["Google Play"].rate, 4.6)
 
@@ -1397,6 +1405,91 @@ class TestBookInfoMetadataExtraction(unittest.TestCase):
         self.assertEqual(page["publish_date"], "2026/05/15")
         self.assertEqual(page["language"], "繁體中文")
         self.assertEqual(page["isbn"], "9786269931040")
+
+    def test_douban_subject_2194123_metadata_parsing(self):
+        from book_rate.sources.douban import _parse_subject_html
+        sample_douban_html = """
+        <div id="wrapper">
+          <h1><span property="v:itemreviewed">相约星期二</span></h1>
+          <div id="interest_sectl">
+            <strong class="ll rating_num " property="v:average"> 8.5 </strong>
+            <span property="v:votes">177309</span>
+          </div>
+          <div id="info" class="">
+            <span>
+              <span class="pl"> 作者</span>:
+              <a class="" href="/author/1018318/">[美] 米奇·阿尔博姆</a>
+            </span><br>
+            <span class="pl"> 译者</span>:
+            <a class="" href="/search/%E5%90%B4%E6%B4%AA">吴洪</a>
+            <br>
+            <span class="pl">出版社:</span> 上海译文出版社<br>
+            <span class="pl">原作名:</span> Tuesdays with Morrie<br>
+            <span class="pl">出版年:</span> 2007-7<br>
+            <span class="pl">页数:</span> 196<br>
+            <span class="pl">定价:</span> 49.00元<br>
+            <span class="pl">装帧:</span> 平装<br>
+            <span class="pl">ISBN:</span> 9787532742707<br>
+          </div>
+        </div>
+        """
+        parsed = _parse_subject_html(sample_douban_html, "https://book.douban.com/subject/2194123/")
+        self.assertEqual(parsed["title"], "相约星期二")
+        self.assertEqual(parsed["author"], "[美] 米奇·阿尔博姆")
+        self.assertEqual(parsed["translator"], "吴洪")
+        self.assertEqual(parsed["publisher"], "上海译文出版社")
+        self.assertEqual(parsed["pub_year"], "2007-7")
+        self.assertEqual(parsed["isbn"], "9787532742707")
+        self.assertEqual(parsed["original_title"], "Tuesdays with Morrie")
+        self.assertEqual(parsed["rate"], 8.5)
+        self.assertEqual(parsed["votes"], 177309)
+
+    @patch("book_rate.sources.books_tw.BooksTwSource._fetch_books_html")
+    def test_books_tw_f010004844_subtitle_parsing(self, mock_fetch):
+        sample_html = """
+        <div class="type02_p01_1">
+          <h1>Tuesdays with Morrie</h1>
+          <h2>最後十四堂星期二的課</h2>
+          <ul class="type02_m058">
+            <li>作者：<a href="/search/author">Mitch Albom</a></li>
+            <li>出版社：<a href="/search/pub">Anchor</a></li>
+            <li>出版日期：<time>2002/10/08</time></li>
+            <li>語言：英文</li>
+            <li>ISBN：9780767905923</li>
+          </ul>
+        </div>
+        """
+        mock_fetch.return_value = (sample_html, False)
+        source = BooksTwSource()
+        page, _ = source._fetch_book_page("F010004844")
+        self.assertEqual(page["title"], "Tuesdays with Morrie（最後十四堂星期二的課）")
+        self.assertEqual(page["original_title"], "最後十四堂星期二的課")
+        self.assertEqual(page["author"], "Mitch Albom")
+        self.assertEqual(page["publisher"], "Anchor")
+        self.assertEqual(page["isbn"], "9780767905923")
+        self.assertEqual(page["language"], "英文")
+
+    def test_amazon_jp_asin_and_language_parsing(self):
+        source = AmazonJPSource()
+        block = """
+        <div data-component-type="s-search-result" class="s-result-item">
+          <h2><span class="a-size-medium">Tuesdays with Morrie (English Edition)</span></h2>
+          <div class="a-row a-color-secondary">
+            <span>by Mitch Albom</span> | <span>2007/6/29</span>
+          </div>
+          <a href="/dp/B001PMTRX8">Link</a>
+          <span class="a-icon-alt">5つ星のうち4.6</span>
+          <span class="a-size-base s-underline-text">15,400</span>
+        </div>
+        """
+        work = source._parse_search_block(block, "Tuesdays with Morrie")
+        self.assertIsNotNone(work)
+        self.assertEqual(work.work_id, "amjp:B001PMTRX8")
+        self.assertEqual(work.isbn, "B001PMTRX8")
+        rating = work.ratings["Amazon JP"]
+        self.assertEqual(rating.language, "英语")
+        self.assertEqual(rating.rate, 4.6)
+        self.assertEqual(rating.rating_count, 15400)
 
 
 if __name__ == "__main__":

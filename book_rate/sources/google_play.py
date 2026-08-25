@@ -194,7 +194,7 @@ class GooglePlaySource(BaseSource):
                     parsed_title = clean_query
 
             w = Work(
-                work_id=f"play:{vid}",
+                work_id=f"gp:{vid}",
                 title=parsed_title,
                 author=parsed_author,
                 isbn=meta.get("isbn")
@@ -217,14 +217,14 @@ class GooglePlaySource(BaseSource):
                 publish_date=meta.get("publish_date"),
                 isbn=meta.get("isbn"),
                 language=meta.get("language"),
-                work_id=f"play:{vid}"
+                work_id=f"gp:{vid}"
             )
             works.append(w)
         return works
 
     def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> SourceRating:
         """Fetch rating from Google Play Books store using full SearchStrategy evaluation."""
-        if work.work_id and (work.work_id.startswith("gb:") or work.work_id.startswith("play:")):
+        if work.work_id and (work.work_id.startswith("gb:") or work.work_id.startswith("gp:")):
             volume_id = work.work_id.split(":", 1)[1]
             detail_res = self._parse_play_details(volume_id)
             rate, count, rating_used_curl, detail_title, detail_author = detail_res[:5]
@@ -246,7 +246,7 @@ class GooglePlaySource(BaseSource):
                 publish_date=meta.get("publish_date"),
                 isbn=meta.get("isbn"),
                 language=meta.get("language"),
-                work_id=f"play:{volume_id}"
+                work_id=f"gp:{volume_id}"
             )
 
         rating = self._fetch_ratings(work, strategy=strategy)

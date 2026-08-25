@@ -527,20 +527,8 @@ class BaseSource:
                 r.status = SourceStatus.MATCH.value
                 return r
 
-            prefix_map = {
-                "Open Library": "ol:",
-                "Goodreads": "gr:",
-                "Google Books": "gb:",
-                "Google Play": "play:",
-                "豆瓣": "db:",
-                "豆瓣 API": "dbapi:",
-                "Amazon JP": "amjp:",
-                "Amazon": "am:",
-                "StoryGraph": "sg:",
-                "Readmoo": "rm:",
-                "博客來": "bk:",
-            }
-            p_prefix = prefix_map.get(self.name, "")
+            from book_rate.registry import SourceRegistry
+            p_prefix = SourceRegistry.get_prefix_by_source_name(self.name)
             is_ol_match = (self.name == "Open Library" and ("OL" in (work.work_id or "").upper() or (work.work_id or "").startswith("/works/")))
             if p_prefix and (work.work_id.startswith(p_prefix) or is_ol_match):
                 try:

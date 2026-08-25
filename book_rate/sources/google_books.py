@@ -236,11 +236,12 @@ class GoogleBooksSource(BaseSource):
             original_title=orig_title
         )
 
+        gb_url = f"https://books.google.com/books?id={volume_id}" if volume_id else vol_info.get("infoLink")
         work.ratings[self.name] = SourceRating(
             source_name=self.name,
             rate=float(avg_rating) if avg_rating is not None else None,
             rating_count=int(ratings_count) if ratings_count is not None else 0,
-            url=vol_info.get("infoLink"),
+            url=gb_url,
             title=title,
             author=author_str if author_str != "Unknown Author" else None,
             publisher=vol_info.get("publisher"),

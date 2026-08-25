@@ -61,7 +61,7 @@ class SourceRegistry:
         "amjp:": "amazon_jp",
         "rm:": "readmoo",
         "gb:": "google_books",
-        "play:": "google_play",
+        "gp:": "google_play",
         "bk:": "books_tw",
     }
 
@@ -85,6 +85,16 @@ class SourceRegistry:
             if work_id.startswith(pfx):
                 return pfx, key
         return None, None
+
+    @classmethod
+    def get_prefix_by_source_name(cls, source_name: str) -> Optional[str]:
+        """Return the ID prefix (e.g. 'gp:', 'ol:', 'db:') for a source name or key."""
+        if not source_name:
+            return None
+        for pfx, key in cls.ID_PREFIXES.items():
+            if key == source_name or cls.get_display_name(key) == source_name:
+                return pfx
+        return None
 
     @classmethod
     def get_display_name(cls, key):

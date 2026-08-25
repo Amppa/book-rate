@@ -83,6 +83,10 @@ class BooksTwSource(BaseSource):
         if title_m:
             res["title"] = clean_text(title_m.group(1))
 
+        # Subtitle / Alternative title extraction
+        sub_m = re.search(r'<h2[^>]*>(.*?)</h2>', html_str, re.DOTALL) or re.search(r'class="sub_title"[^>]*>(.*?)<', html_str, re.DOTALL)
+        sub_val = clean_text(sub_m.group(1)) if sub_m else None
+
         # Author extraction
         author_m = re.search(r'作者[：:]\s*<a[^>]*>(.*?)</a>', html_str, re.DOTALL)
         if author_m:
@@ -123,6 +127,11 @@ class BooksTwSource(BaseSource):
             val = clean_text(orig_m.group(1), max_len=150)
             if val:
                 res["original_title"] = val
+        elif sub_val:
+            res["original_title"] = sub_val
+
+        if sub_val and res.get("title") and sub_val not in res["title"]:
+            res["title"] = f"{res['title']}（{sub_val}）"
 
         # Rating score extraction (e.g. <div class="average">\n 5 \n</div> or 4.8)
         score_m = re.search(r'<div class="average">\s*([\d.]+)\s*</div>', html_str, re.DOTALL)

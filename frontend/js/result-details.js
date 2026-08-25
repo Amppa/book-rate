@@ -3,6 +3,8 @@
  * Renders collapsible metadata panel (<details>) without emojis and with strict field ordering.
  */
 
+import { getWorkExternalUrl } from './utils.js';
+
 export const DETAIL_FIELD_DEFINITIONS = [
   { key: "author", label: "作者:" },
   { key: "translator", label: "譯者:" },
@@ -66,7 +68,24 @@ export function buildBookDetailsElement(bookInfo) {
 
     const val = document.createElement("span");
     val.className = "source-detail-value";
-    val.textContent = String(bookInfo[f.key]).trim();
+    const textVal = String(bookInfo[f.key]).trim();
+
+    if (f.key === "work_id") {
+      const url = bookInfo.url || getWorkExternalUrl(textVal);
+      if (url) {
+        const link = document.createElement("a");
+        link.href = url;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.className = "source-detail-link";
+        link.textContent = textVal;
+        val.appendChild(link);
+      } else {
+        val.textContent = textVal;
+      }
+    } else {
+      val.textContent = textVal;
+    }
 
     row.appendChild(label);
     row.appendChild(val);

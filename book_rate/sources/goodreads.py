@@ -142,9 +142,22 @@ class GoodreadsSource(BaseSource):
         return True
 
     def fetch_book_details(self, book_url_or_id: str) -> dict:
-        """Fetch book detail HTML page from Goodreads and extract ISBN, pub_year, and editions_count."""
+        """Fetch book detail HTML page from Goodreads and extract ISBN/ASIN, pub_year, publish_date, language, original_title, and editions_count."""
         url = book_url_or_id if book_url_or_id.startswith("http") else self.BOOK_SHOW_URL.format(book_id=book_url_or_id)
-        res = {"isbn": None, "pub_year": None, "editions_count": None, "work_id": None, "title": None, "author": None, "crawler_status": "Normal", "url": url}
+        res = {
+            "isbn": None,
+            "pub_year": None,
+            "publish_date": None,
+            "publisher": None,
+            "language": None,
+            "original_title": None,
+            "editions_count": None,
+            "work_id": None,
+            "title": None,
+            "author": None,
+            "crawler_status": "Normal",
+            "url": url
+        }
 
         book_id_m = re.search(r'/book/show/(\d+)', url) or re.search(r'/book/editions/(\d+)', url)
         book_id = book_id_m.group(1) if book_id_m else None
@@ -155,6 +168,7 @@ class GoodreadsSource(BaseSource):
                 ed_resp = self._get(ed_url, timeout=self.timeout)
                 if ed_resp.status_code == 200:
                     res["crawler_status"] = "Normal"
+                    page_html = ed_resp.text
                     
                     # 1. Extract work_id from final redirected URL
                     if ed_resp.url and isinstance(ed_resp.url, str):
@@ -163,45 +177,65 @@ class GoodreadsSource(BaseSource):
                             res["work_id"] = work_id_m.group(1)
 
                     # 2. Extract editions count from page HTML
-                    count_m = re.search(r'showing\s+\d+.*?of\s+(\d+[,.\d]*)', ed_resp.text, re.IGNORECASE)
+                    count_m = re.search(r'showing\s+\d+.*?of\s+(\d+[,.\d]*)', page_html, re.IGNORECASE)
                     if count_m:
                         res["editions_count"] = int(count_m.group(1).replace(",", ""))
 
                     # 3. Extract title and author if missing
-                    if not res["title"]:
-                        title_m = re.search(r'<h1>\s*<a[^>]*>([^<]+)</a>\s*&gt;\s*Editions\s*</h1>', ed_resp.text, re.IGNORECASE | re.DOTALL)
-                        if title_m:
-                            res["title"] = html.unescape(title_m.group(1).strip())
-                    if not res["author"]:
-                        author_m = re.search(r'<h2>\s*by\s*<a[^>]*>([^<]+)</a>', ed_resp.text, re.IGNORECASE | re.DOTALL)
-                        if author_m:
-                            res["author"] = html.unescape(author_m.group(1).strip())
+                    title_m = re.search(r'<h1>\s*<a[^>]*>([^<]+)</a>\s*&gt;\s*Editions\s*</h1>', page_html, re.IGNORECASE | re.DOTALL)
+                    if title_m:
+                        res["title"] = html.unescape(title_m.group(1).strip())
+                    author_m = re.search(r'<h2>\s*by\s*<a[^>]*>([^<]+)</a>', page_html, re.IGNORECASE | re.DOTALL)
+                    if author_m:
+                        res["author"] = html.unescape(author_m.group(1).strip())
 
-                    # 4. Extract ISBN and publish year from first edition block if still missing
-                    blocks = ed_resp.text.split('<div class="elementList clearFix">')
-                    if len(blocks) > 1:
-                        first_block = blocks[1]
-                        if not res["isbn"]:
-                            isbn_match = re.search(r'ISBN:\s*</div>\s*<div class="dataValue">\s*([0-9Xx]+)?(?:\s*<span class="greyText">\s*\(ISBN10:\s*([0-9Xx]+)\)\s*</span>)?', first_block, re.IGNORECASE | re.DOTALL)
-                            if isbn_match:
-                                isbn13_val = isbn_match.group(1)
-                                isbn10_val = isbn_match.group(2)
-                                res["isbn"] = clean_isbn((isbn13_val or isbn10_val or "").strip())
+                    # 4. Extract Original title
+                    orig_m = re.search(r'Original title:\s*</div>\s*<div class="dataValue">\s*([^<]+)', page_html, re.IGNORECASE) or \
+                             re.search(r'data-testid="originalTitle"[^>]*>(.*?)<', page_html) or \
+                             re.search(r'"originalTitle"\s*:\s*"([^"]+)"', page_html)
+                    if orig_m:
+                        res["original_title"] = html.unescape(orig_m.group(1).strip())
 
-                            if not res["isbn"]:
-                                asin_match = re.search(r'ASIN:\s*</div>\s*<div class="dataValue">\s*([a-zA-Z0-9]+)\s*</div>', first_block, re.IGNORECASE | re.DOTALL)
-                                if asin_match:
-                                    res["isbn"] = asin_match.group(1).strip()
+                    # 5. Extract Language
+                    lang_m = re.search(r'Edition language:\s*</div>\s*<div class="dataValue">\s*([^<]+)', page_html, re.IGNORECASE) or \
+                             re.search(r'data-testid="language"[^>]*>(.*?)<', page_html) or \
+                             re.search(r'"language"\s*:\s*\{[^}]*"name"\s*:\s*"([^"]+)"', page_html)
+                    if lang_m:
+                        res["language"] = html.unescape(lang_m.group(1).strip())
 
-                        if not res["pub_year"]:
-                            pub_div_match = re.search(r'<div class="dataRow">\s*Published\s+([^<]+?)\s*</div>', first_block, re.DOTALL | re.IGNORECASE)
-                            if pub_div_match:
-                                pub_text = pub_div_match.group(1).strip()
-                                if "by" in pub_text:
-                                    pub_text = pub_text.split("by", 1)[0].strip()
-                                year_match = re.search(r'\b\d{4}\b', pub_text)
-                                if year_match:
-                                    res["pub_year"] = year_match.group(0)
+                    # 6. Extract ISBN, ASIN, and Publish Date from edition blocks
+                    blocks = page_html.split('<div class="elementList clearFix">')
+                    target_block = blocks[1] if len(blocks) > 1 else page_html
+
+                    isbn_match = re.search(r'ISBN:\s*</div>\s*<div class="dataValue">\s*([0-9Xx]+)?(?:\s*<span class="greyText">\s*\(ISBN10:\s*([0-9Xx]+)\)\s*</span>)?', target_block, re.IGNORECASE | re.DOTALL)
+                    if isbn_match:
+                        isbn13_val = isbn_match.group(1)
+                        isbn10_val = isbn_match.group(2)
+                        res["isbn"] = clean_isbn((isbn13_val or isbn10_val or "").strip())
+
+                    if not res["isbn"]:
+                        asin_match = re.search(r'ASIN:\s*</div>\s*<div class="dataValue">\s*([a-zA-Z0-9]+)\s*</div>', target_block, re.IGNORECASE | re.DOTALL) or \
+                                     re.search(r'data-testid="asin"[^>]*>(.*?)<', page_html) or \
+                                     re.search(r'"asin"\s*:\s*"([a-zA-Z0-9]+)"', page_html)
+                        if asin_match:
+                            res["isbn"] = asin_match.group(1).strip()
+
+                    pub_div_match = re.search(r'data-testid="publication_info"[^>]*>(.*?)<', page_html) or \
+                                    re.search(r'<div class="dataRow">\s*Published\s+([^<]+?)\s*</div>', target_block, re.DOTALL | re.IGNORECASE)
+                    if pub_div_match:
+                        pub_text = pub_div_match.group(1).strip()
+                        if "by" in pub_text:
+                            parts = pub_text.split("by", 1)
+                            clean_pub = parts[0].strip().replace("Published", "").replace("First published", "").strip()
+                            res["publish_date"] = html.unescape(clean_pub)
+                            res["publisher"] = html.unescape(parts[1].strip())
+                        else:
+                            clean_pub = pub_text.replace("Published", "").replace("First published", "").strip()
+                            res["publish_date"] = html.unescape(clean_pub)
+
+                        year_match = re.search(r'\b\d{4}\b', pub_text)
+                        if year_match:
+                            res["pub_year"] = year_match.group(0)
                 else:
                     res["crawler_status"] = f"HTTP {ed_resp.status_code}"
             except Exception as ed_e:
@@ -209,6 +243,30 @@ class GoodreadsSource(BaseSource):
                 res["crawler_status"] = f"Error: {ed_e}"
 
         return res
+
+    def _enrich_with_book_page(self, rating: SourceRating) -> SourceRating:
+        """Enrich a candidate rating with detailed Goodreads book page metadata."""
+        if not rating or not rating.url:
+            return rating
+        try:
+            details = self.fetch_book_details(rating.url)
+            if details.get("isbn") and not rating.isbn:
+                rating.isbn = details["isbn"]
+            if details.get("publish_date") and not rating.publish_date:
+                rating.publish_date = details["publish_date"]
+            elif details.get("pub_year") and not rating.publish_date:
+                rating.publish_date = str(details["pub_year"])
+            if details.get("language") and not rating.language:
+                rating.language = details["language"]
+            if details.get("original_title") and not rating.original_title:
+                rating.original_title = details["original_title"]
+            if details.get("publisher") and not rating.publisher:
+                rating.publisher = details["publisher"]
+            if details.get("editions_count") is not None and not rating.edition_count:
+                rating.edition_count = details["editions_count"]
+        except Exception as e:
+            logger.debug(f"Goodreads enrichment failed for {rating.url}: {e}")
+        return rating
 
     def _search_works_autocomplete(self, clean_query: str, limit: int = 5) -> List[Work]:
         """Search Goodreads using auto_complete endpoint via _fetch_html."""

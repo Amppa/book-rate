@@ -35,9 +35,9 @@ def test_edition_resolver_resolve_source_and_id():
     assert formatted_id == "gr:12345"
 
     # Google Play volume ID
-    s_key, formatted_id, _ = resolver.resolve_source_and_id("play:oV1tXT3HigoC")
+    s_key, formatted_id, _ = resolver.resolve_source_and_id("gp:oV1tXT3HigoC")
     assert s_key == "google_play"
-    assert formatted_id == "play:oV1tXT3HigoC"
+    assert formatted_id == "gp:oV1tXT3HigoC"
 
 def test_work_resolver_google_key_propagation():
     resolver = WorkResolver()

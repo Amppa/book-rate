@@ -316,3 +316,16 @@ a.source-book-title:hover {
   font-weight: 400;
   word-break: break-word;
 }
+
+.source-detail-link {
+  color: var(--primary-color, #3b82f6);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  word-break: break-all;
+  transition: opacity 0.15s ease;
+}
+
+.source-detail-link:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}

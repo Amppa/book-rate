@@ -247,7 +247,20 @@ class AmazonSource(BaseSource):
             re.search(r'aria-label="[\d\.\s星つ分個の評価件]+ ([\d,]+)"', block) or
             re.search(r'<span class="a-size-base s-underline-text"[^>]*>([\d,]+)</span>', block)
         )
-        count_val = int(count_match.group(1).replace(",", "")) if count_match else None
+        # Language extraction
+        language = None
+        lang_m = re.search(r'(?:言語|语言|Language)\s*[:：]?\s*([^\s\|<，,\(\)（）]+)', block)
+        if lang_m:
+            language = clean_text(lang_m.group(1))
+        if not language:
+            if re.search(r'\(?(?:英語版|English Edition)\)?', block, re.IGNORECASE):
+                language = "英语" if self.region == "jp" else "English"
+            elif re.search(r'\(?(?:日本語版|Japanese Edition)\)?', block, re.IGNORECASE):
+                language = "日本語" if self.region == "jp" else "Japanese"
+            elif re.search(r'\(?(?:繁體中文版|Traditional Chinese Edition)\)?', block, re.IGNORECASE):
+                language = "繁體中文"
+            elif re.search(r'\(?(?:簡體中文版|Simplified Chinese Edition)\)?', block, re.IGNORECASE):
+                language = "简体中文"
 
         work_id = f"{self.WORK_ID_PREFIX}:{asin}" if asin else f"{self.WORK_ID_PREFIX}:{raw_title}"
         work = Work(
@@ -267,6 +280,7 @@ class AmazonSource(BaseSource):
                 translator=translator,
                 publish_date=pub_date,
                 isbn=asin or None,
+                language=language,
                 work_id=f"{self.WORK_ID_PREFIX}:{asin}" if asin else None
             )
 

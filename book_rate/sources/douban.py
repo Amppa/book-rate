@@ -16,6 +16,17 @@ def _build_subject_url(sub_id: str) -> str:
     return f"https://book.douban.com/subject/{sub_id}/"
 
 
+def _extract_douban_info_field(html_str: str, label_pattern: str) -> Optional[str]:
+    """Extract a metadata field value from Douban #info block by label."""
+    m = re.search(r'<span class="pl">\s*' + label_pattern + r'\s*</span>:?\s*(.*?)(?=<span class="pl">|<br\s*/?>|</div>|$)', html_str, re.DOTALL | re.IGNORECASE)
+    if m:
+        raw_val = m.group(1)
+        clean_val = re.sub(r'<[^>]+>', ' ', raw_val)
+        val = clean_text(clean_val)
+        return val if val else None
+    return None
+
+
 def _parse_subject_html(html_str: str, url: str) -> dict:
     """Parse Douban subject HTML page and extract rating, votes count, ISBN, pub_year, title, and editions_count."""
     res = {
@@ -37,12 +48,6 @@ def _parse_subject_html(html_str: str, url: str) -> dict:
     rate_match = re.search(r'property="v:average">\s*([\d\.]+)\s*</', html_str)
     votes_match = re.search(r'property="v:votes">\s*(\d+)\s*</', html_str)
     title_match = re.search(r'<span property="v:itemreviewed">(.*?)</span>', html_str)
-    isbn_match = re.search(r'ISBN:</span>\s*([\d-]+)', html_str)
-    pub_match = re.search(r'出版年:</span>\s*([^\n<]+)', html_str)
-    author_match = re.search(r'作者:?</span>\s*<a[^>]*>(.*?)</a>', html_str, re.DOTALL)
-    translator_match = re.search(r'译者:?</span>\s*<a[^>]*>(.*?)</a>', html_str, re.DOTALL)
-    publisher_match = re.search(r'出版社:?</span>\s*(?:<a[^>]*>)?([^<\n]+)', html_str)
-    orig_match = re.search(r'原作名:?</span>\s*([^\n<]+)', html_str)
 
     if rate_match:
         try:
@@ -63,23 +68,30 @@ def _parse_subject_html(html_str: str, url: str) -> dict:
     if title_match:
         res["title"] = clean_text(title_match.group(1))
 
-    if author_match:
-        res["author"] = clean_text(author_match.group(1))
+    # Extract info block fields
+    author_val = _extract_douban_info_field(html_str, r'(?:作者|著者|编者|编|著)')
+    if author_val:
+        res["author"] = author_val
 
-    if translator_match:
-        res["translator"] = clean_text(translator_match.group(1))
+    translator_val = _extract_douban_info_field(html_str, r'(?:译者|譯者)')
+    if translator_val:
+        res["translator"] = translator_val
 
-    if publisher_match:
-        res["publisher"] = clean_text(publisher_match.group(1))
+    publisher_val = _extract_douban_info_field(html_str, r'出版社')
+    if publisher_val:
+        res["publisher"] = publisher_val
 
-    if orig_match:
-        res["original_title"] = clean_text(orig_match.group(1))
+    orig_val = _extract_douban_info_field(html_str, r'(?:原作名|原名|英文名)')
+    if orig_val:
+        res["original_title"] = orig_val
 
-    if isbn_match:
-        res["isbn"] = clean_isbn(isbn_match.group(1))
+    pub_val = _extract_douban_info_field(html_str, r'(?:出版年|出版日期)')
+    if pub_val:
+        res["pub_year"] = pub_val
 
-    if pub_match:
-        res["pub_year"] = clean_text(pub_match.group(1))
+    isbn_val = _extract_douban_info_field(html_str, r'ISBN')
+    if isbn_val:
+        res["isbn"] = clean_isbn(isbn_val) or isbn_val
 
     editions_match = re.search(r'这本书的其他版本.*?全部(\d+)', html_str, re.DOTALL)
     if editions_match:
@@ -132,23 +144,50 @@ def _parse_search_item(item: dict, used_curl: bool, source_name: str = "Douban")
     else:
         rating_text = "暂无评分"
 
-    # 2. Parse abstract for author, publisher, and pub_year
+    # 2. Parse abstract for author, translator, publisher, and pub_year
     abstract_str = item.get("abstract", "")
     author_name = "Unknown Author"
+    translator_str = None
     publisher_str = None
     pub_year_str = ""
     pub_year = None
+
     if abstract_str:
-        parts = [p.strip() for p in abstract_str.split("/") if p.strip()]
+        raw_parts = [p.strip() for p in abstract_str.split("/") if p.strip()]
+        # Strip trailing price if present (e.g. 49.00元, $10, etc.)
+        parts = []
+        for p in raw_parts:
+            if re.search(r'[\d\.]+\s*(?:元|USD|NT\$|\$|円)', p):
+                continue
+            parts.append(p)
+
         if parts:
-            author_name = parts[0]
-            for p in parts[1:]:
-                year_match = re.search(r'\b(\d{4})\b', p)
-                if year_match and not pub_year_str:
-                    pub_year_str = year_match.group(1)
-                    pub_year = int(pub_year_str)
-                elif not publisher_str and not re.search(r'\d', p) and "元" not in p:
-                    publisher_str = p
+            # Find date part (e.g. 2007-7, 2007-07, 2007)
+            date_idx = None
+            for idx, p in enumerate(parts):
+                if re.search(r'^\d{4}(?:-\d{1,2})?(?:-\d{1,2})?$', p) or re.search(r'^\d{4}年(?:\d{1,2}月)?', p):
+                    date_idx = idx
+                    pub_year_str = p
+                    y_m = re.search(r'\b(\d{4})\b', p)
+                    if y_m:
+                        pub_year = int(y_m.group(1))
+                    break
+
+            if date_idx is not None:
+                # Part immediately before date is usually publisher
+                if date_idx > 0:
+                    publisher_str = parts[date_idx - 1]
+                # Part(s) before publisher are author / translator
+                author_parts = parts[:max(0, date_idx - 1)]
+                if len(author_parts) == 1:
+                    author_name = author_parts[0]
+                elif len(author_parts) >= 2:
+                    author_name = author_parts[0]
+                    translator_str = author_parts[1]
+            else:
+                author_name = parts[0]
+                if len(parts) >= 2:
+                    publisher_str = parts[1]
 
     is_match = (rate is not None or bool(null_reason))
     status_val = (SourceStatus.CURL_MATCH.value if used_curl else SourceStatus.MATCH.value) if is_match else SourceStatus.NO_MATCH.value
@@ -169,6 +208,7 @@ def _parse_search_item(item: dict, used_curl: bool, source_name: str = "Douban")
         title=title,
         status=status_val,
         author=author_name if author_name != "Unknown Author" else None,
+        translator=translator_str,
         publisher=publisher_str,
         publish_date=pub_year_str or None,
         work_id=f"db:{sub_id}"

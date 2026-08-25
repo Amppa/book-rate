@@ -85,6 +85,7 @@ class SourceRating:
             "edition_count": self.edition_count,
             "isbn": self.isbn,
             "work_id": self.work_id,
+            "url": self.url,
         }
         cleaned = {k: v for k, v in info.items() if v not in (None, "", "Unknown", "None", "unknown", "none")}
         return dict(cleaned) if cleaned else None

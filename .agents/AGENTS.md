@@ -61,7 +61,7 @@ graph TD
 ### Platform Identifiers & Prefixes
 * **Open Library**: `open_library` (`ol`)
 * **Google Books**: `google_books` (`gb`)
-* **Google Play**: `google_play` (`gp` / `play:`)
+* **Google Play**: `google_play` (`gp` / `gp:`)
 * **Goodreads**: `goodreads` (`gr` / `gr:`)
 * **StoryGraph**: `storygraph` (`sg` / `sg:`)
 * **Amazon US**: `amazon` (`am` / `am:`)
