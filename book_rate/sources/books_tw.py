@@ -133,6 +133,15 @@ class BooksTwSource(BaseSource):
         if sub_val and res.get("title") and sub_val not in res["title"]:
             res["title"] = f"{res['title']}（{sub_val}）"
 
+        # Pages & Binding extraction
+        pages_m = re.search(r'<li>頁數[：:]\s*([^<\n]+)', html_str) or re.search(r'頁數[：:]\s*([0-9]+)', html_str)
+        if pages_m:
+            res["pages"] = clean_text(pages_m.group(1))
+
+        binding_m = re.search(r'<li>裝訂[：:]\s*([^<\n]+)', html_str) or re.search(r'裝訂[：:]\s*([^，,<\n"]+)', html_str)
+        if binding_m:
+            res["binding"] = clean_text(binding_m.group(1))
+
         # Rating score extraction (e.g. <div class="average">\n 5 \n</div> or 4.8)
         score_m = re.search(r'<div class="average">\s*([\d.]+)\s*</div>', html_str, re.DOTALL)
         if score_m:
@@ -161,6 +170,12 @@ class BooksTwSource(BaseSource):
         url = page["url"]
         is_match = page["rate"] is not None or page["count"] is not None
         status = (SourceStatus.CURL_MATCH.value if used_curl else SourceStatus.MATCH.value) if is_match else SourceStatus.NO_MATCH.value
+        metadata = {}
+        if page.get("pages"):
+            metadata["pages"] = page["pages"]
+        if page.get("binding"):
+            metadata["binding"] = page["binding"]
+
         return SourceRating(
             source_name=self.name,
             rate=page["rate"],
@@ -177,7 +192,8 @@ class BooksTwSource(BaseSource):
             isbn=page.get("isbn"),
             language=page.get("language"),
             original_title=page.get("original_title"),
-            work_id=f"bk:{page['book_id']}" if page.get("book_id") else None
+            work_id=f"bk:{page['book_id']}" if page.get("book_id") else None,
+            metadata=metadata
         )
 
     def _select_best_rating(

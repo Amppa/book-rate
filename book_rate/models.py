@@ -57,8 +57,7 @@ class SourceRating:
     isbn: Optional[str] = None
     work_id: Optional[str] = None
     book_info: Optional[dict] = None
-
-
+    metadata: dict = field(default_factory=dict)
 
     def format_rate_count(self) -> str:
         """Format rate and count as string (e.g. '4.25 / 150 ratings' or 'N/A')."""
@@ -70,24 +69,31 @@ class SourceRating:
         return f"{rate_str} / {count_str}"
 
     def to_book_info(self) -> Optional[dict]:
-        """Serialize the 9 standard book metadata fields into a clean dictionary copy, preserving existing self.book_info if present."""
+        """Serialize standard fields and flexible metadata into a clean dictionary copy, filtering out empty values."""
         if self.book_info:
-            cleaned = {k: v for k, v in self.book_info.items() if v not in (None, "", "Unknown", "None", "unknown", "none")}
-            return dict(cleaned) if cleaned else None
+            info = dict(self.book_info)
+        else:
+            info = {
+                "author": self.author,
+                "translator": self.translator,
+                "publisher": self.publisher,
+                "publish_date": self.publish_date,
+                "language": self.language,
+                "original_title": self.original_title,
+                "edition_count": self.edition_count,
+                "isbn": self.isbn,
+                "work_id": self.work_id,
+                "url": self.url,
+            }
 
-        info = {
-            "author": self.author,
-            "translator": self.translator,
-            "publisher": self.publisher,
-            "publish_date": self.publish_date,
-            "language": self.language,
-            "original_title": self.original_title,
-            "edition_count": self.edition_count,
-            "isbn": self.isbn,
-            "work_id": self.work_id,
-            "url": self.url,
-        }
-        cleaned = {k: v for k, v in info.items() if v not in (None, "", "Unknown", "None", "unknown", "none")}
+        # Merge flexible metadata if present
+        if self.metadata:
+            for k, v in self.metadata.items():
+                if k not in info or info[k] in (None, "", "Unknown", "None", "unknown", "none"):
+                    info[k] = v
+
+        invalid_vals = (None, "", "Unknown", "None", "unknown", "none", "N/A", "n/a", "null", "undefined")
+        cleaned = {k: v for k, v in info.items() if v not in invalid_vals}
         return dict(cleaned) if cleaned else None
 
 

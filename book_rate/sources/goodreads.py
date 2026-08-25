@@ -236,6 +236,23 @@ class GoodreadsSource(BaseSource):
                         year_match = re.search(r'\b\d{4}\b', pub_text)
                         if year_match:
                             res["pub_year"] = year_match.group(0)
+
+                    # 7. Extract Format & Pages
+                    format_m = re.search(r'data-testid="pagesFormat"[^>]*>(.*?)<', page_html) or \
+                               re.search(r'Format:\s*</div>\s*<div class="dataValue">\s*([^<]+)', target_block, re.IGNORECASE) or \
+                               re.search(r'<span itemprop="numberOfPages"[^>]*>([^<]+)</span>', page_html)
+                    if format_m:
+                        raw_fmt = clean_text(html.unescape(format_m.group(1)))
+                        if raw_fmt:
+                            if "page" in raw_fmt.lower():
+                                parts = [p.strip() for p in raw_fmt.split(",") if p.strip()]
+                                for p in parts:
+                                    if "page" in p.lower():
+                                        res["pages"] = p
+                                    else:
+                                        res["format"] = p
+                            else:
+                                res["format"] = raw_fmt
                 else:
                     res["crawler_status"] = f"HTTP {ed_resp.status_code}"
             except Exception as ed_e:
@@ -264,6 +281,11 @@ class GoodreadsSource(BaseSource):
                 rating.publisher = details["publisher"]
             if details.get("editions_count") is not None and not rating.edition_count:
                 rating.edition_count = details["editions_count"]
+
+            # Merge flexible metadata (pages, format, etc.)
+            for k, v in details.items():
+                if v and k not in ("crawler_status", "url", "title", "author", "translator", "publisher", "original_title", "pub_year", "publish_date", "isbn", "editions_count", "language", "work_id"):
+                    rating.metadata[k] = v
         except Exception as e:
             logger.debug(f"Goodreads enrichment failed for {rating.url}: {e}")
         return rating

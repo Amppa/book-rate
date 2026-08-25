@@ -76,5 +76,41 @@ class TestRatingRequestPayload(unittest.TestCase):
         self.assertEqual(empty_payload.isbn_list, [])
 
 
+from book_rate.models import RatingRequestPayload, SourceRating
+
+
+class TestSourceRatingMetadata(unittest.TestCase):
+    def test_to_book_info_with_flexible_metadata(self):
+        rating = SourceRating(
+            source_name="豆瓣",
+            rate=8.5,
+            rating_count=177309,
+            title="相约星期二",
+            author="米奇·阿尔博姆",
+            translator="吴洪",
+            publisher="上海译文出版社",
+            publish_date="2007-7",
+            isbn="9787532742707",
+            work_id="db:2194123",
+            metadata={
+                "pages": "196",
+                "binding": "平装",
+                "price": "49.00元",
+                "empty_field": "",
+                "unknown_field": "Unknown",
+                "none_field": None
+            }
+        )
+        info = rating.to_book_info()
+        self.assertIsNotNone(info)
+        self.assertEqual(info["author"], "米奇·阿尔博姆")
+        self.assertEqual(info["pages"], "196")
+        self.assertEqual(info["binding"], "平装")
+        self.assertEqual(info["price"], "49.00元")
+        self.assertNotIn("empty_field", info)
+        self.assertNotIn("unknown_field", info)
+        self.assertNotIn("none_field", info)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -93,6 +93,22 @@ def _parse_subject_html(html_str: str, url: str) -> dict:
     if isbn_val:
         res["isbn"] = clean_isbn(isbn_val) or isbn_val
 
+    pages_val = _extract_douban_info_field(html_str, r'(?:页数|頁數)')
+    if pages_val:
+        res["pages"] = pages_val
+
+    binding_val = _extract_douban_info_field(html_str, r'(?:装帧|裝幀|裝訂)')
+    if binding_val:
+        res["binding"] = binding_val
+
+    price_val = _extract_douban_info_field(html_str, r'(?:定价|定價)')
+    if price_val:
+        res["price"] = price_val
+
+    series_val = _extract_douban_info_field(html_str, r'(?:丛书|叢書)')
+    if series_val:
+        res["series"] = series_val
+
     editions_match = re.search(r'这本书的其他版本.*?全部(\d+)', html_str, re.DOTALL)
     if editions_match:
         res["editions_count"] = int(editions_match.group(1))
@@ -280,6 +296,12 @@ class DoubanSource(BaseSource):
             rating.isbn = details["isbn"]
         if details.get("editions_count") is not None:
             rating.edition_count = details["editions_count"]
+
+        # Merge flexible metadata (pages, binding, price, series, etc.)
+        for k, v in details.items():
+            if v and k not in ("rate", "votes", "title", "author", "translator", "publisher", "original_title", "pub_year", "isbn", "editions_count", "url"):
+                rating.metadata[k] = v
+
         return rating
 
     def _lookup_by_isbn(self, isbn: str) -> Optional[SourceRating]:

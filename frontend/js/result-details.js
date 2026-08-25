@@ -1,23 +1,52 @@
 /**
  * Result Details Component for Step 3 Comparison Table
- * Renders collapsible metadata panel (<details>) without emojis and with strict field ordering.
+ * Renders collapsible metadata panel (<details>) dynamically for all valid metadata keys.
  */
 
 import { getWorkExternalUrl } from './utils.js';
 
-export const DETAIL_FIELD_DEFINITIONS = [
-  { key: "author", label: "作者:" },
-  { key: "translator", label: "譯者:" },
-  { key: "publisher", label: "出版社:" },
-  { key: "publish_date", label: "出版日期:" },
-  { key: "language", label: "語言:" },
-  { key: "original_title", label: "原作名:" },
-  { key: "edition_count", label: "版本數:" },
-  { key: "isbn", label: "ISBN:" },
-  { key: "work_id", label: "ID:" }
+export const KNOWN_FIELD_ORDER = [
+  "author",
+  "translator",
+  "publisher",
+  "publish_date",
+  "pages",
+  "binding",
+  "format",
+  "price",
+  "series",
+  "language",
+  "original_title",
+  "edition_count",
+  "isbn",
+  "work_id"
 ];
 
+export const FIELD_LABEL_MAP = {
+  author: "作者:",
+  translator: "譯者:",
+  publisher: "出版社:",
+  publish_date: "出版日期:",
+  pages: "頁數:",
+  binding: "裝幀:",
+  format: "裝訂/格式:",
+  price: "定價:",
+  series: "叢書:",
+  language: "語言:",
+  original_title: "原作名:",
+  edition_count: "版本數:",
+  isbn: "ISBN:",
+  work_id: "ID:"
+};
+
+// Export DETAIL_FIELD_DEFINITIONS for backward compatibility with existing tests
+export const DETAIL_FIELD_DEFINITIONS = KNOWN_FIELD_ORDER.map((key) => ({
+  key,
+  label: FIELD_LABEL_MAP[key] || `${key}:`
+}));
+
 const INVALID_METADATA_VALUES = new Set(["", "none", "unknown", "null", "undefined", "n/a"]);
+const INTERNAL_SKIP_KEYS = new Set(["url", "results", "crawler_status"]);
 
 /**
  * Checks whether a metadata field value is valid and displayable.
@@ -33,14 +62,32 @@ export function isValidDetailValue(val) {
 
 /**
  * Builds a collapsible book details DOM element.
- * @param {Object|null} bookInfo - Standard 9-field metadata dictionary
+ * Renders all valid metadata fields (known order first, then custom dynamic fields).
+ * @param {Object|null} bookInfo - Flexible metadata dictionary
  * @returns {HTMLDetailsElement|null}
  */
 export function buildBookDetailsElement(bookInfo) {
   if (!bookInfo || typeof bookInfo !== "object") return null;
 
-  const validEntries = DETAIL_FIELD_DEFINITIONS.filter((f) => isValidDetailValue(bookInfo[f.key]));
-  if (validEntries.length === 0) return null;
+  // 1. Gather all valid keys in preferred display order
+  const validKeys = [];
+  const seenKeys = new Set();
+
+  for (const k of KNOWN_FIELD_ORDER) {
+    if (k in bookInfo && isValidDetailValue(bookInfo[k])) {
+      validKeys.push(k);
+      seenKeys.add(k);
+    }
+  }
+
+  for (const k of Object.keys(bookInfo)) {
+    if (!seenKeys.has(k) && !INTERNAL_SKIP_KEYS.has(k) && isValidDetailValue(bookInfo[k])) {
+      validKeys.push(k);
+      seenKeys.add(k);
+    }
+  }
+
+  if (validKeys.length === 0) return null;
 
   const details = document.createElement("details");
   details.className = "source-book-details";
@@ -58,19 +105,19 @@ export function buildBookDetailsElement(bookInfo) {
   const content = document.createElement("div");
   content.className = "source-details-content";
 
-  validEntries.forEach((f) => {
+  validKeys.forEach((key) => {
     const row = document.createElement("div");
     row.className = "source-detail-row";
 
     const label = document.createElement("span");
     label.className = "source-detail-label";
-    label.textContent = f.label;
+    label.textContent = FIELD_LABEL_MAP[key] || `${key.replace(/_/g, " ")}:`;
 
     const val = document.createElement("span");
     val.className = "source-detail-value";
-    const textVal = String(bookInfo[f.key]).trim();
+    const textVal = String(bookInfo[key]).trim();
 
-    if (f.key === "work_id") {
+    if (key === "work_id") {
       const url = bookInfo.url || getWorkExternalUrl(textVal);
       if (url) {
         const link = document.createElement("a");
