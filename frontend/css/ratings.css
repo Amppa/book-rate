@@ -318,7 +318,10 @@ a.source-book-title:hover {
 }
 
 .source-detail-link {
-  color: var(--primary-color, #3b82f6);
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  font-family: inherit;
   text-decoration: underline;
   text-underline-offset: 2px;
   word-break: break-all;
@@ -326,6 +329,35 @@ a.source-book-title:hover {
 }
 
 .source-detail-link:hover {
-  opacity: 0.8;
+  opacity: 0.75;
   text-decoration: underline;
+}
+
+/* Centered Expand/Collapse All Details Button below table */
+.table-footer-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: var(--space-3);
+  margin-bottom: var(--space-3);
+  width: 100%;
+}
+
+.details-toggle-btn {
+  cursor: pointer;
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  user-select: none;
+  display: none;
+  background: transparent;
+  border: none;
+  outline: none;
+  transition: color var(--transition-fast);
+}
+
+.details-toggle-btn:hover {
+  color: var(--primary);
 }

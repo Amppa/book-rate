@@ -16,9 +16,10 @@ import {
   goToStep
 } from './wizard.js';
 import { renderSourceCell } from './rating-renderer.js';
+import { initAllDetailsToggle, syncAllDetailsButton } from './result-details.js';
 
-// Re-export renderSourceCell for external module compatibility
-export { renderSourceCell };
+// Re-export renderSourceCell and syncAllDetailsButton for external module compatibility
+export { renderSourceCell, syncAllDetailsButton, syncAllDetailsButton as updateFloatingDetailsBtn };
 
 // DOM references injected at startup via initRatings()
 let _resultBody, _step3Status, _tableWrap, _detailsHeading;
@@ -63,6 +64,9 @@ export function initRatings({ resultBody, step3Status, tableWrap, detailsHeading
       splitLayout.classList.remove("s3-meta-collapsed");
     });
   }
+
+  // Initialize global [全部 details] toggle button
+  initAllDetailsToggle(document.querySelector("#btn-toggle-all-details"));
 
   // Listen to work selection event dispatched from wizard metadata panel
   window.addEventListener("bookrate:select-work", (e) => {
@@ -369,6 +373,6 @@ export function reQuerySingleSource(work, sourceKey) {
     (err) => {
       console.error("Single source re-query failed:", err);
     },
-    () => {}
+    () => { }
   );
 }

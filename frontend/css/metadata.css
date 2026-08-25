@@ -147,6 +147,15 @@ textarea.bm-input:focus {
 
 #btn-expand-s3-meta {
   display: none;
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border, #cbd5e1);
+  color: var(--text-primary, #1e293b);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+#btn-expand-s3-meta:hover {
+  background: #f8fafc;
+  border-color: var(--border-dark, #94a3b8);
 }
 
 .s3-meta-collapsed #btn-expand-s3-meta {

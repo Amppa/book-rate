@@ -52,6 +52,11 @@ export function goToStep(step) {
     if (metadataCard) {
       metadataCard.hidden = (state.searchMode === "quick_search");
     }
+  } else {
+    const btnToggleAll = document.querySelector("#btn-toggle-all-details");
+    if (btnToggleAll) {
+      btnToggleAll.style.display = "none";
+    }
   }
 }
 

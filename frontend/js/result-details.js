@@ -48,6 +48,69 @@ export const DETAIL_FIELD_DEFINITIONS = KNOWN_FIELD_ORDER.map((key) => ({
 const INVALID_METADATA_VALUES = new Set(["", "none", "unknown", "null", "undefined", "n/a"]);
 const INTERNAL_SKIP_KEYS = new Set(["url", "results", "crawler_status"]);
 
+export const DETAILS_EXPANDED_TEXT = "details [-]";
+export const DETAILS_COLLAPSED_TEXT = "details [+]";
+
+export const ALL_DETAILS_EXPANDED_TEXT = "全部 details [-]";
+export const ALL_DETAILS_COLLAPSED_TEXT = "全部 details [+]";
+
+let _allDetailsBtn = null;
+let _isBatchUpdating = false;
+
+/**
+ * Initializes and binds the global [全部 details] toggle button.
+ * @param {HTMLButtonElement|null} btnEl
+ */
+export function initAllDetailsToggle(btnEl) {
+  _allDetailsBtn = btnEl;
+  if (!_allDetailsBtn) return;
+
+  _allDetailsBtn.addEventListener("click", () => {
+    const allDetails = document.querySelectorAll(".source-book-details");
+    if (allDetails.length === 0) return;
+
+    const hasClosed = Array.from(allDetails).some((d) => !d.open);
+    const targetState = hasClosed;
+
+    _isBatchUpdating = true;
+    allDetails.forEach((d) => {
+      d.open = targetState;
+      const summary = d.querySelector(".source-details-summary");
+      if (summary) {
+        summary.textContent = targetState ? DETAILS_EXPANDED_TEXT : DETAILS_COLLAPSED_TEXT;
+      }
+    });
+    _isBatchUpdating = false;
+
+    syncAllDetailsButton();
+  });
+
+  window.addEventListener("bookrate:details-toggle", () => {
+    if (!_isBatchUpdating) {
+      syncAllDetailsButton();
+    }
+  });
+}
+
+/**
+ * Synchronizes visibility and [+] / [-] text of the [全部 details] button based on current DOM state.
+ */
+export function syncAllDetailsButton() {
+  if (!_allDetailsBtn) return;
+  const tableWrap = document.querySelector(".table-wrap");
+  const allDetails = document.querySelectorAll(".source-book-details");
+
+  if (allDetails.length === 0 || (tableWrap && tableWrap.hidden)) {
+    _allDetailsBtn.style.display = "none";
+    return;
+  }
+
+  _allDetailsBtn.style.display = "inline-flex";
+  const hasClosed = Array.from(allDetails).some((d) => !d.open);
+  _allDetailsBtn.textContent = hasClosed ? ALL_DETAILS_COLLAPSED_TEXT : ALL_DETAILS_EXPANDED_TEXT;
+  _allDetailsBtn.title = hasClosed ? "展開全部 Details" : "收合全部 Details";
+}
+
 /**
  * Checks whether a metadata field value is valid and displayable.
  * @param {*} val
@@ -94,10 +157,13 @@ export function buildBookDetailsElement(bookInfo) {
 
   const summary = document.createElement("summary");
   summary.className = "source-details-summary";
-  summary.textContent = "details  ▶";
+  summary.textContent = DETAILS_COLLAPSED_TEXT;
 
   details.addEventListener("toggle", () => {
-    summary.textContent = details.open ? "details  ▼" : "details  ▶";
+    summary.textContent = details.open ? DETAILS_EXPANDED_TEXT : DETAILS_COLLAPSED_TEXT;
+    if (!_isBatchUpdating) {
+      window.dispatchEvent(new CustomEvent("bookrate:details-toggle"));
+    }
   });
 
   details.appendChild(summary);

@@ -269,4 +269,6 @@ export function renderSourceCell(row, optionsOrPrefix, legacyData, legacyMaxRate
       countEl
     });
   }
+
+  window.dispatchEvent(new CustomEvent("bookrate:details-toggle"));
 }
