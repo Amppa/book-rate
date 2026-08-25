@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List, Optional, Type
+from typing import Dict, List, Optional, Tuple, Type
 
 from book_rate.sources.base import BaseSource
 from book_rate.sources.open_library import OpenLibrarySource
@@ -23,49 +23,30 @@ class SourceRegistry:
 
     TITLE_SOURCES = ["google_play", "goodreads", "storygraph", "amazon", "amazon_jp", "douban", "douban_api", "readmoo", "books_tw"]
 
-
-    # Mapping of engine key to source adapter class
-    _REGISTRY: Dict[str, Type[BaseSource]] = {
-        "open_library": OpenLibrarySource,
-        "google_books": GoogleBooksSource,
-        "google_play": GooglePlaySource,
-        "goodreads": GoodreadsSource,
-        "douban": DoubanSource,
-        "douban_api": DoubanApiSource,
-        "amazon": AmazonSource,
-        "amazon_jp": AmazonJPSource,
-        "storygraph": StoryGraphSource,
-        "readmoo": ReadmooSource,
-        "books_tw": BooksTwSource,
+    # Single source of truth table:
+    # source_key -> (prefix_code, display_name, adapter_class)
+    SOURCES: Dict[str, Tuple[str, str, Type[BaseSource]]] = {
+        "open_library": ("ol", "Open Library", OpenLibrarySource),
+        "goodreads":    ("gr", "Goodreads", GoodreadsSource),
+        "storygraph":   ("sg", "StoryGraph", StoryGraphSource),
+        "douban":       ("db", "豆瓣", DoubanSource),
+        "douban_api":   ("dbapi", "豆瓣 API", DoubanApiSource),
+        "amazon":       ("am", "Amazon", AmazonSource),
+        "amazon_jp":    ("amjp", "Amazon JP", AmazonJPSource),
+        "readmoo":      ("rm", "Readmoo", ReadmooSource),
+        "google_books": ("gb", "Google Books", GoogleBooksSource),
+        "google_play":  ("gp", "Google Play", GooglePlaySource),
+        "books_tw":     ("bk", "博客來", BooksTwSource),
     }
 
+    # Direct O(1) mappings generated from SOURCES
+    _KEY_TO_PREFIX: Dict[str, str] = {k: v[0] for k, v in SOURCES.items()}
+    _PREFIX_TO_KEY: Dict[str, str] = {v[0]: k for k, v in SOURCES.items()}
+    _NAME_TO_PREFIX: Dict[str, str] = {v[1]: v[0] for k, v in SOURCES.items()}
+    _NAME_TO_PREFIX.update(_KEY_TO_PREFIX)
 
-    @classmethod
-    def list_source_keys(cls) -> List[str]:
-        """Return a list of all registered source keys."""
-        return list(cls._REGISTRY.keys())
-
-    @classmethod
-    def get_title_source_keys(cls) -> List[str]:
-        """Return the list of default title source keys used for fallback search."""
-        return list(cls.TITLE_SOURCES)
-
-    # work_id prefix - source key lookup (single source of truth).
-    ID_PREFIXES = {
-        "ol:": "open_library",
-        "gr:": "goodreads",
-        "sg:": "storygraph",
-        "db:": "douban",
-        "dbapi:": "douban_api",
-        "am:": "amazon",
-        "amjp:": "amazon_jp",
-        "rm:": "readmoo",
-        "gb:": "google_books",
-        "gp:": "google_play",
-        "bk:": "books_tw",
-    }
-
-    _DISPLAY_NAME_CACHE = {}
+    _REGISTRY: Dict[str, Type[BaseSource]] = {k: v[2] for k, v in SOURCES.items()}
+    ID_PREFIXES: Dict[str, str] = {f"{v[0]}:": k for k, v in SOURCES.items()}
 
     # Construction hooks for adapters that take constructor arguments.
     _FACTORIES = {
@@ -73,36 +54,46 @@ class SourceRegistry:
     }
 
     @classmethod
-    def match_id_prefix(cls, work_id):
-        """Return (prefix, source_key) for the first known id prefix.
+    def list_source_keys(cls) -> List[str]:
+        """Return a list of all registered source keys."""
+        return list(cls.SOURCES.keys())
 
-        Returns (None, None) when work_id carries no known platform prefix
-        (e.g. Open Library ids like OL27479W or /works/OL27479W).
-        """
-        if not work_id:
+    @classmethod
+    def get_title_source_keys(cls) -> List[str]:
+        """Return the list of default title source keys used for fallback search."""
+        return list(cls.TITLE_SOURCES)
+
+    @classmethod
+    def match_id_prefix(cls, work_id: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
+        """Return (prefix, source_key) for the first known id prefix (e.g. 'gp:123' -> ('gp:', 'google_play'))."""
+        if not work_id or ":" not in work_id:
             return None, None
-        for pfx, key in cls.ID_PREFIXES.items():
-            if work_id.startswith(pfx):
-                return pfx, key
+        pfx, _, _ = work_id.partition(":")
+        key = cls._PREFIX_TO_KEY.get(pfx)
+        if key:
+            return f"{pfx}:", key
         return None, None
 
     @classmethod
-    def get_prefix_by_source_name(cls, source_name: str) -> Optional[str]:
-        """Return the ID prefix (e.g. 'gp:', 'ol:', 'db:') for a source name or key."""
-        if not source_name:
+    def get_prefix(cls, name_or_key: str, with_colon: bool = True) -> Optional[str]:
+        """Direct O(1) prefix lookup by source key or display name (e.g. 'Google Play' -> 'gp:')."""
+        if not name_or_key:
             return None
-        for pfx, key in cls.ID_PREFIXES.items():
-            if key == source_name or cls.get_display_name(key) == source_name:
-                return pfx
-        return None
+        pfx = cls._NAME_TO_PREFIX.get(name_or_key)
+        if not pfx:
+            return None
+        return f"{pfx}:" if with_colon else pfx
 
     @classmethod
-    def get_display_name(cls, key):
-        """Human-readable source name (cached; instantiates the adapter once)."""
-        if key not in cls._DISPLAY_NAME_CACHE:
-            src_cls = cls.get_source_class(key)
-            cls._DISPLAY_NAME_CACHE[key] = src_cls().name if src_cls else None
-        return cls._DISPLAY_NAME_CACHE[key]
+    def get_prefix_by_source_name(cls, source_name: str) -> Optional[str]:
+        """Backward-compatible alias for get_prefix."""
+        return cls.get_prefix(source_name, with_colon=True)
+
+    @classmethod
+    def get_display_name(cls, key: str) -> Optional[str]:
+        """Human-readable source name directly from SOURCES definition."""
+        entry = cls.SOURCES.get(key)
+        return entry[1] if entry else None
 
     @classmethod
     def default_engines_csv(cls):

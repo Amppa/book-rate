@@ -33,12 +33,22 @@ class TestSourceRegistry(unittest.TestCase):
         self.assertIsNone(invalid)
 
     def test_get_prefix_by_source_name(self):
-        self.assertEqual(SourceRegistry.get_prefix_by_source_name("Google Play"), "gp:")
-        self.assertEqual(SourceRegistry.get_prefix_by_source_name("google_play"), "gp:")
+        self.assertEqual(SourceRegistry.get_prefix("Google Play"), "gp:")
+        self.assertEqual(SourceRegistry.get_prefix("google_play", with_colon=False), "gp")
         self.assertEqual(SourceRegistry.get_prefix_by_source_name("豆瓣"), "db:")
+        self.assertEqual(SourceRegistry.get_prefix("豆瓣", with_colon=False), "db")
         self.assertEqual(SourceRegistry.get_prefix_by_source_name("Open Library"), "ol:")
         self.assertEqual(SourceRegistry.get_prefix_by_source_name("博客來"), "bk:")
         self.assertIsNone(SourceRegistry.get_prefix_by_source_name("NonExistentSource"))
+
+    def test_match_id_prefix(self):
+        pfx, skey = SourceRegistry.match_id_prefix("gp:12345")
+        self.assertEqual(pfx, "gp:")
+        self.assertEqual(skey, "google_play")
+
+        pfx_none, skey_none = SourceRegistry.match_id_prefix("OL12345W")
+        self.assertIsNone(pfx_none)
+        self.assertIsNone(skey_none)
 
 
 class TestAllSourcesUnit(unittest.TestCase):
