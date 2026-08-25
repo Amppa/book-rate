@@ -842,6 +842,67 @@ class TestGooglePlayScraper(unittest.TestCase):
         self.assertEqual(works[0].ratings["Google Play"].status, "CURL_MATCH")
         self.assertEqual(works[0].ratings["Google Play"].rate, 4.6)
 
+    def test_parse_google_play_html_metadata(self):
+        from book_rate.sources.google_play import _parse_google_play_html
+        sample_html = """
+        <html>
+          <head>
+            <meta property="og:title" content="Thinking, Fast and Slow - Google Play 圖書">
+          </head>
+          <body>
+            <h1 itemprop="name">Thinking, Fast and Slow</h1>
+            <div><a href="/store/books/author?id=Daniel_Kahneman">Daniel Kahneman</a></div>
+            <div class="bARER">
+              <span>2011年11月</span> · <span>Penguin UK</span>
+            </div>
+            <div class="rating">
+              <span class="rating-value">"ratingValue": "4.6"</span>
+              <span class="rating-count">"ratingCount": "12345"</span>
+            </div>
+            <div>
+              <div>出版商</div><div>Penguin UK</div>
+              <div>出版日期</div><div>2011年11月</div>
+              <div>ISBN</div><div>9780141918921</div>
+              <div>語言</div><div>英文</div>
+            </div>
+          </body>
+        </html>
+        """
+        parsed = _parse_google_play_html(sample_html, "oV1tXT3HigoC", "https://play.google.com/store/books/details?id=oV1tXT3HigoC")
+        self.assertEqual(parsed["title"], "Thinking, Fast and Slow")
+        self.assertEqual(parsed["author"], "Daniel Kahneman")
+        self.assertEqual(parsed["publisher"], "Penguin UK")
+        self.assertEqual(parsed["publish_date"], "2011年11月")
+        self.assertEqual(parsed["isbn"], "9780141918921")
+        self.assertEqual(parsed["language"], "英文")
+        self.assertEqual(parsed["rate"], 4.6)
+        self.assertEqual(parsed["rating_count"], 12345)
+
+    def test_parse_google_play_harry_potter_metadata(self):
+        from book_rate.sources.google_play import _parse_google_play_html
+        sample_html = """
+        <html>
+          <body>
+            <h1 itemprop="name">Harry Potter and the Sorcerer's Stone</h1>
+            <div class="Vbfug">
+              <a href="/store/info/name/John_Williams?id=11gkbjsvcj">John Williams</a>
+              <span> · </span>
+              <a href="/store/info/name/Victor_L%C3%B3pez?id=113x1sj66">Victor López</a>
+            </div>
+            <div class="bARER">
+              <span>2001年11月</span>
+              <span> · </span>
+              <a href="/store/info/name/Alfred_Music?id=11gkbjsvcj">Alfred Music</a>
+            </div>
+          </body>
+        </html>
+        """
+        parsed = _parse_google_play_html(sample_html, "q0nABgAAQBAJ", "https://play.google.com/store/books/details?id=q0nABgAAQBAJ")
+        self.assertEqual(parsed["title"], "Harry Potter and the Sorcerer's Stone")
+        self.assertEqual(parsed["author"], "John Williams, Victor López")
+        self.assertEqual(parsed["publish_date"], "2001年11月")
+        self.assertEqual(parsed["publisher"], "Alfred Music")
+
 
 class TestNonExistentBookCase(unittest.TestCase):
     def setUp(self):

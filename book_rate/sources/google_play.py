@@ -5,12 +5,34 @@ from typing import Optional, List
 
 from book_rate.models import Work, SourceRating, SourceStatus
 from book_rate.sources.base import BaseSource
+from book_rate.utils.isbn import clean_isbn
+from book_rate.utils.metadata import empty_book_metadata, merge_book_metadata
 from book_rate.utils.text_parser import clean_text, parse_json_ld_book
 
 logger = logging.getLogger(__name__)
 
+_DATE_PATTERN = (
+    r'([0-9]{4}年[0-9]{1,2}月(?:[0-9]{1,2}日)?|'
+    r'(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2},?\s+\d{4}|'
+    r'(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{4}|'
+    r'\d{1,2}\s+(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{4}|'
+    r'\d{4}[-/]\d{1,2}(?:[-/]\d{1,2})?)'
+)
 
-from book_rate.utils.metadata import empty_book_metadata, merge_book_metadata
+_DATE_RE = re.compile(_DATE_PATTERN, re.IGNORECASE)
+_PUB_SEPARATOR_RE = re.compile(
+    r'(?:</[^>]+>|\s)*(?:[·•・]|&middot;|&#183;)(?:<[^>]+>|\s)*(?:<a[^>]*>|<span[^>]*>)?([^<>\n\r]+)',
+    re.DOTALL
+)
+_AUTHOR_LINK_RE = re.compile(
+    r'<a[^>]*href="[^"]*(?:/store/info/name/|/store/books/author|author\?id=)[^"]*"[^>]*>(.*?)</a>',
+    re.DOTALL | re.IGNORECASE
+)
+_RATING_VAL_RE = re.compile(r'"ratingValue"\s*:\s*"([^"]+)"')
+_RATING_COUNT_RE = re.compile(r'"ratingCount"\s*:\s*"([^"]+)"')
+_OG_TITLE_RE = re.compile(r'<meta\s+(?:property|name)=["\']og:title["\']\s+content=["\'](.*?)["\']', re.IGNORECASE)
+_H1_NAME_RE = re.compile(r'<h1[^>]*itemprop="name"[^>]*>(.*?)</h1>', re.DOTALL)
+_H1_GENERIC_RE = re.compile(r'<h1[^>]*>(.*?)</h1>', re.DOTALL)
 
 
 def _parse_google_play_html(html_content: str, volume_id: str, url: str) -> dict:
@@ -19,33 +41,22 @@ def _parse_google_play_html(html_content: str, volume_id: str, url: str) -> dict
     if not html_content:
         return res
 
-    # 1. Try JSON-LD application/ld+json
+    # 1. JSON-LD metadata extraction
     json_ld = parse_json_ld_book(html_content)
     if json_ld:
-        if json_ld.get("title"):
-            res["title"] = json_ld["title"]
-        if json_ld.get("author"):
-            res["author"] = json_ld["author"]
-        if json_ld.get("translator"):
-            res["translator"] = json_ld["translator"]
-        if json_ld.get("publisher"):
-            res["publisher"] = json_ld["publisher"]
-        if json_ld.get("publish_date"):
-            res["publish_date"] = json_ld["publish_date"]
-        if json_ld.get("isbn"):
-            res["isbn"] = json_ld["isbn"]
-        if json_ld.get("language"):
-            res["language"] = json_ld["language"]
+        for field in ("title", "author", "translator", "publisher", "publish_date", "isbn", "language"):
+            if json_ld.get(field):
+                res[field] = json_ld[field]
         if json_ld.get("rate") is not None:
             res["rate"] = json_ld["rate"]
         if json_ld.get("count") is not None:
             res["rating_count"] = json_ld["count"]
 
-    # 2. Try regex parsing for rating
+    # 2. Rating fallback regex
     if res.get("rate") is None or res.get("rating_count") is None:
         try:
-            rv = re.search(r'"ratingValue"\s*:\s*"([^"]+)"', html_content)
-            rc = re.search(r'"ratingCount"\s*:\s*"([^"]+)"', html_content)
+            rv = _RATING_VAL_RE.search(html_content)
+            rc = _RATING_COUNT_RE.search(html_content)
             if rv and res.get("rate") is None:
                 res["rate"] = float(rv.group(1))
             if rc and res.get("rating_count") is None:
@@ -53,22 +64,96 @@ def _parse_google_play_html(html_content: str, volume_id: str, url: str) -> dict
         except Exception as e:
             logger.debug(f"Fallback regex parsing failed: {e}")
 
-    # 3. Fallbacks for title and author if not in JSON-LD
+    # 3. Title fallback
     if not res.get("title"):
-        m_og = re.search(r'<meta\s+(?:property|name)=["\']og:title["\']\s+content=["\'](.*?)["\']', html_content, re.IGNORECASE)
+        m_og = _OG_TITLE_RE.search(html_content)
         if m_og:
             og_t = clean_text(m_og.group(1)) or ""
             m_book = re.search(r'《(.*?)》', og_t)
             if m_book:
                 res["title"] = m_book.group(1)
             else:
-                cleaned_t = re.sub(r'\s+-\s+Google\s+Play.*$', '', og_t, flags=re.IGNORECASE)
-                res["title"] = cleaned_t
+                res["title"] = re.sub(r'\s+-\s+Google\s+Play.*$', '', og_t, flags=re.IGNORECASE)
 
-    if not res.get("title"):
-        m_h1 = re.search(r'<h1[^>]*itemprop="name"[^>]*>(.*?)</h1>', html_content, re.DOTALL)
-        if m_h1:
+    h1_end_pos = 0
+    m_h1 = _H1_NAME_RE.search(html_content) or _H1_GENERIC_RE.search(html_content)
+    if m_h1:
+        h1_end_pos = m_h1.end()
+        if not res.get("title"):
             res["title"] = clean_text(m_h1.group(1))
+
+    # 4. Header subtitle row (e.g., "2001年11月 · Alfred Music" or "Nov 2011 · Penguin UK")
+    header_chunk = html_content[h1_end_pos:h1_end_pos + 1500] if h1_end_pos > 0 else html_content[:2000]
+
+    date_m = _DATE_RE.search(header_chunk)
+    source_chunk = header_chunk if date_m else html_content
+    if not date_m:
+        date_m = _DATE_RE.search(html_content)
+
+    date_matched_pos = -1
+    if date_m:
+        date_val = clean_text(date_m.group(1))
+        if date_val and not res.get("publish_date"):
+            res["publish_date"] = date_val
+            date_matched_pos = date_m.end()
+
+        # Look for publisher right after date in adjacent DOM slice
+        post_date_chunk = source_chunk[date_m.end():date_m.end() + 300]
+        pub_match = _PUB_SEPARATOR_RE.search(post_date_chunk)
+        if pub_match and not res.get("publisher"):
+            clean_p = clean_text(pub_match.group(1))
+            if clean_p and len(clean_p) < 100:
+                res["publisher"] = clean_p
+
+    # 5. Authors extraction (prefer header area before date)
+    if not res.get("author"):
+        author_search_area = header_chunk[:date_matched_pos] if date_matched_pos > 0 else header_chunk
+        author_matches = _AUTHOR_LINK_RE.findall(author_search_area)
+        if not author_matches and author_search_area != html_content:
+            author_matches = _AUTHOR_LINK_RE.findall(html_content)
+        if author_matches:
+            authors = [clean_text(a) for a in author_matches if clean_text(a)]
+            if res.get("publisher"):
+                authors = [a for a in authors if a.lower() != res["publisher"].lower()]
+            if authors:
+                res["author"] = ", ".join(authors)
+
+    # 6. Book info section / details key-value fallbacks
+    if not res.get("publisher"):
+        pub_m = re.search(r'(?:出版商|發行商|Publisher)\s*</div>\s*<div[^>]*>(.*?)</div>', html_content, re.IGNORECASE) or \
+                re.search(r'(?:出版商|發行商|Publisher)\s*[:：]?\s*(?:</span>|</div>)?\s*<span[^>]*>(.*?)</span>', html_content, re.IGNORECASE) or \
+                re.search(r'itemprop="publisher"[^>]*>(.*?)<', html_content, re.IGNORECASE)
+        if pub_m:
+            p_val = clean_text(pub_m.group(1))
+            if p_val:
+                res["publisher"] = p_val
+
+    if not res.get("publish_date"):
+        date_m = re.search(r'(?:出版日期|發行日期|發布日期|Published on|Published|Release date)\s*</div>\s*<div[^>]*>(.*?)</div>', html_content, re.IGNORECASE) or \
+                 re.search(r'(?:出版日期|發行日期|發布日期|Published on|Published|Release date)\s*[:：]?\s*(?:</span>|</div>)?\s*<span[^>]*>(.*?)</span>', html_content, re.IGNORECASE) or \
+                 re.search(r'itemprop="datePublished"[^>]*content="([^"]+)"', html_content, re.IGNORECASE)
+        if date_m:
+            d_val = clean_text(date_m.group(1))
+            if d_val:
+                res["publish_date"] = d_val
+
+    if not res.get("isbn"):
+        isbn_m = re.search(r'ISBN(?:-13)?\s*[:：]?\s*(?:</span>|</div>)?\s*<[^>]*>\s*([0-9Xx-]+)', html_content, re.IGNORECASE) or \
+                 re.search(r'ISBN(?:-13)?\s*[:：]?\s*([0-9Xx-]+)', html_content, re.IGNORECASE) or \
+                 re.search(r'itemprop="isbn"[^>]*content="([^"]+)"', html_content, re.IGNORECASE)
+        if isbn_m:
+            clean_i = clean_isbn(isbn_m.group(1))
+            if clean_i:
+                res["isbn"] = clean_i
+
+    if not res.get("language"):
+        lang_m = re.search(r'(?:語言|Language)\s*</div>\s*<div[^>]*>(.*?)</div>', html_content, re.IGNORECASE) or \
+                 re.search(r'(?:語言|Language)\s*[:：]?\s*(?:</span>|</div>)?\s*<span[^>]*>(.*?)</span>', html_content, re.IGNORECASE) or \
+                 re.search(r'itemprop="inLanguage"[^>]*content="([^"]+)"', html_content, re.IGNORECASE)
+        if lang_m:
+            l_val = clean_text(lang_m.group(1))
+            if l_val:
+                res["language"] = l_val
 
     res["url"] = url
     res["work_id"] = f"gp:{volume_id}"
