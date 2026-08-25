@@ -4,7 +4,7 @@
  */
 
 import { STRATEGY_LABEL_MAP } from './constants.js';
-import { displayRate, displayCount } from './utils.js';
+import { displayRate, displayCount, getWorkExternalUrl } from './utils.js';
 import { buildBookDetailsElement } from './result-details.js';
 
 /**
@@ -152,7 +152,8 @@ export function renderRatingResult(container, result, context = {}) {
 
   // 1. Build title if applicable
   if (titleLabel && !display.emptyTitle && context.showTitle !== false) {
-    const titleEl = buildTitleElement(titleLabel, result.url);
+    const titleUrl = (result.book_info && result.book_info.url) || result.url || (result.book_info && getWorkExternalUrl(result.book_info.work_id)) || getWorkExternalUrl(result.work_id);
+    const titleEl = buildTitleElement(titleLabel, titleUrl);
     if (titleEl) {
       if (context.titleBefore && context.titleBefore.parentNode === container) {
         container.insertBefore(titleEl, context.titleBefore);

@@ -405,6 +405,8 @@ class GoodreadsSource(BaseSource):
             return rating
         try:
             details = self.fetch_book_details(rating.url)
+            if details.get("url"):
+                rating.url = details["url"]
             if details.get("publish_date") and not rating.publish_date:
                 rating.publish_date = details["publish_date"]
             if details.get("publisher") and not rating.publisher:

@@ -101,9 +101,6 @@ export function getWorkExternalUrl(key) {
     } else if (rawId.startsWith("book/")) {
       return `https://www.goodreads.com/book/show/${rawId.slice(5)}`;
     }
-    if (/^\d+$/.test(rawId)) {
-      return `https://www.goodreads.com/work/editions/${rawId}`;
-    }
     return `https://www.goodreads.com/book/show/${rawId}`;
   }
   if (key.startsWith("db:")) return `https://book.douban.com/subject/${key.slice(3)}/`;
