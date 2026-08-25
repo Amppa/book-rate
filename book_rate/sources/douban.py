@@ -17,9 +17,24 @@ def _build_subject_url(sub_id: str) -> str:
     return f"https://book.douban.com/subject/{sub_id}/"
 
 
-def _extract_douban_info_field(html_str: str, label_pattern: str) -> Optional[str]:
+def _extract_douban_info_block(html_str: str) -> str:
+    """Extract the specific <div id="info"> inner content from Douban subject HTML."""
+    info_m = re.search(r'<div\s+id="info"[^>]*>(.*?)(?:</div>\s*<div\s+id="interest_sectl"|<div\s+id="interest_sectl"|<div\s+class="related_info"|</div>\s*<div\s+class=|$)', html_str, re.DOTALL | re.IGNORECASE)
+    if info_m:
+        return info_m.group(1)
+    # If no <div id="info"> container is present, strip <head> and review sections to avoid keyword pollution
+    no_head = re.sub(r'<head.*?</head>', '', html_str, flags=re.DOTALL | re.IGNORECASE)
+    no_reviews = re.sub(r'<div[^>]*class="[^"]*review[^"]*"[^>]*>.*?</div>', '', no_head, flags=re.DOTALL | re.IGNORECASE)
+    return no_reviews
+
+
+def _extract_douban_info_field(info_block: str, label_pattern: str) -> Optional[str]:
     """Extract a metadata field value from Douban #info block by label."""
-    m = re.search(r'(?:<span class="pl">\s*)?' + label_pattern + r'\s*[:：]?\s*(?:</span>)?\s*[:：]?\s*(.*?)(?=<span class="pl">|<br\s*/?>|</div>|$)', html_str, re.DOTALL | re.IGNORECASE)
+    pattern = re.compile(
+        r'(?:<span\s+class="pl"[^>]*>\s*)?' + label_pattern + r'\s*[:：]?\s*(?:</span>)?\s*[:：]?\s*(.*?)(?=<span\s+class="pl"|<br\s*/?>|</div>|$)',
+        re.DOTALL | re.IGNORECASE
+    )
+    m = pattern.search(info_block)
     if m:
         raw_val = m.group(1)
         clean_val = re.sub(r'<[^>]+>', ' ', raw_val)
@@ -40,6 +55,27 @@ def _parse_subject_html(html_str: str, url: str) -> dict:
         return base
 
     parsed = {}
+
+    # 1. Try JSON-LD if present for baseline name, author, isbn
+    json_ld_m = re.search(r'<script[^>]*type="application/ld\+json"[^>]*>(.*?)</script>', html_str, re.DOTALL)
+    if json_ld_m:
+        try:
+            ld_data = json.loads(json_ld_m.group(1))
+            if isinstance(ld_data, dict):
+                if ld_data.get("name"):
+                    parsed["title"] = clean_text(ld_data["name"])
+                authors = ld_data.get("author", [])
+                if isinstance(authors, list):
+                    auth_names = [clean_text(a.get("name")) for a in authors if isinstance(a, dict) and a.get("name")]
+                    if auth_names:
+                        parsed["author"] = ", ".join(auth_names)
+                elif isinstance(authors, dict) and authors.get("name"):
+                    parsed["author"] = clean_text(authors["name"])
+                if ld_data.get("isbn"):
+                    parsed["isbn"] = clean_isbn(ld_data["isbn"]) or ld_data["isbn"]
+        except Exception:
+            pass
+
     rate_match = re.search(r'property="v:average">\s*([\d\.]+)\s*</', html_str)
     votes_match = re.search(r'property="v:votes">\s*(\d+)\s*</', html_str)
     title_match = re.search(r'<span property="v:itemreviewed">(.*?)</span>', html_str)
@@ -63,44 +99,46 @@ def _parse_subject_html(html_str: str, url: str) -> dict:
     if title_match:
         parsed["title"] = clean_text(title_match.group(1))
 
-    # Extract info block fields
-    author_val = _extract_douban_info_field(html_str, r'(?:作者|著者|编者|编|著)')
+    # Extract strictly from <div id="info"> block
+    info_block = _extract_douban_info_block(html_str)
+
+    author_val = _extract_douban_info_field(info_block, r'(?:作者|著者|编者|编|著)')
     if author_val:
         parsed["author"] = author_val
 
-    translator_val = _extract_douban_info_field(html_str, r'(?:译者|譯者)')
+    translator_val = _extract_douban_info_field(info_block, r'(?:译者|譯者)')
     if translator_val:
         parsed["translator"] = translator_val
 
-    publisher_val = _extract_douban_info_field(html_str, r'出版社')
+    publisher_val = _extract_douban_info_field(info_block, r'出版社')
     if publisher_val:
         parsed["publisher"] = publisher_val
 
-    orig_val = _extract_douban_info_field(html_str, r'(?:原作名|原名|英文名)')
+    orig_val = _extract_douban_info_field(info_block, r'(?:原作名|原名|英文名)')
     if orig_val:
         parsed["original_title"] = orig_val
 
-    pub_val = _extract_douban_info_field(html_str, r'(?:出版年|出版日期)')
+    pub_val = _extract_douban_info_field(info_block, r'(?:出版年|出版日期)')
     if pub_val:
         parsed["publish_date"] = pub_val
 
-    isbn_val = _extract_douban_info_field(html_str, r'ISBN')
+    isbn_val = _extract_douban_info_field(info_block, r'ISBN')
     if isbn_val:
         parsed["isbn"] = clean_isbn(isbn_val) or isbn_val
 
-    pages_val = _extract_douban_info_field(html_str, r'(?:页数|頁數)')
+    pages_val = _extract_douban_info_field(info_block, r'(?:页数|頁數)')
     if pages_val:
         parsed["pages"] = pages_val
 
-    binding_val = _extract_douban_info_field(html_str, r'(?:装帧|裝幀|裝訂)')
+    binding_val = _extract_douban_info_field(info_block, r'(?:装帧|裝幀|裝訂)')
     if binding_val:
         parsed["binding"] = binding_val
 
-    price_val = _extract_douban_info_field(html_str, r'(?:定价|定價)')
+    price_val = _extract_douban_info_field(info_block, r'(?:定价|定價)')
     if price_val:
         parsed["price"] = price_val
 
-    series_val = _extract_douban_info_field(html_str, r'(?:丛书|叢書)')
+    series_val = _extract_douban_info_field(info_block, r'(?:丛书|叢書)')
     if series_val:
         parsed["series"] = series_val
 

@@ -1515,6 +1515,63 @@ class TestBookInfoMetadataExtraction(unittest.TestCase):
         self.assertEqual(parsed["rate"], 8.5)
         self.assertEqual(parsed["votes"], 177309)
 
+    def test_douban_subject_6754574_no_meta_keywords_pollution(self):
+        from book_rate.sources.douban import _parse_subject_html
+        sample_html = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta name="keywords" content="Thinking, Fast and Slow,Daniel Kahneman,Farrar, Straus and Giroux,简介,作者,书评,论坛,推荐,二手">
+          <script type="application/ld+json">
+          {
+            "@context":"http://schema.org",
+            "@type":"Book",
+            "name" : "Thinking, Fast and Slow",
+            "author": [
+              {
+                "@type": "Person",
+                "name": "Daniel Kahneman"
+              }
+            ],
+            "url" : "https://book.douban.com/subject/6754574/",
+            "isbn" : "9780374275631"
+          }
+          </script>
+        </head>
+        <body>
+          <h1><span property="v:itemreviewed">Thinking, Fast and Slow</span></h1>
+          <div id="interest_sectl">
+            <span class="rating_num" property="v:average">8.9</span>
+            <span property="v:votes">2480</span>
+          </div>
+          <div id="info" class="">
+            <span>
+              <span class="pl"> 作者</span>:
+              <a class="" href="/search/Daniel%20Kahneman">Daniel Kahneman</a>
+            </span><br/>
+            <span class="pl">出版社:</span> Farrar, Straus and Giroux<br/>
+            <span class="pl">出版年:</span> 2011-10-1<br/>
+            <span class="pl">页数:</span> 512<br/>
+            <span class="pl">定价:</span> USD 30.00<br/>
+            <span class="pl">装帧:</span> Hardcover<br/>
+            <span class="pl">ISBN:</span> 9780374275631<br/>
+          </div>
+          <div class="reviews">
+            <p>译者是谁？胡晓姣好像是教外语的...</p>
+          </div>
+        </body>
+        </html>
+        """
+        parsed = _parse_subject_html(sample_html, "https://book.douban.com/subject/6754574/")
+        self.assertEqual(parsed["title"], "Thinking, Fast and Slow")
+        self.assertEqual(parsed["author"], "Daniel Kahneman")
+        self.assertIsNone(parsed.get("translator"))
+        self.assertEqual(parsed["publisher"], "Farrar, Straus and Giroux")
+        self.assertEqual(parsed["publish_date"], "2011-10-1")
+        self.assertEqual(parsed["isbn"], "9780374275631")
+        self.assertNotIn("var _head_start", str(parsed["author"]))
+        self.assertNotIn("胡晓姣", str(parsed.get("translator")))
+
     @patch("book_rate.sources.books_tw.BooksTwSource._fetch_books_html")
     def test_books_tw_f010004844_subtitle_parsing(self, mock_fetch):
         sample_html = """
