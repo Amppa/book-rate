@@ -17,6 +17,31 @@ from book_rate.utils.metadata import (
 _ITEM_LINK_RE = re.compile(r'/item/([A-Z0-9]+)/')
 
 
+_INVALID_SUBTITLE_KEYWORDS = {
+    "相關網站", "內容簡介", "詳細資料", "目錄", "序", "作者介紹",
+    "內容連載", "本書特色", "購物說明", "會員專區", "熱門關鍵字",
+    "商品介紹", "會員服務", "讀者書評", "看更多介紹", "相關商品",
+    "購買本書", "得獎與推薦記錄", "導讀/推薦文", "得獎紀錄", "推薦序",
+    "版權宣告", "隱私權政策", "客服中心", "網站導覽", "活動說明",
+    "優惠說明", "注意事項"
+}
+
+
+def _is_valid_books_tw_subtitle(val: Optional[str]) -> bool:
+    """Validate that extracted subtitle is genuine and not an accessibility/navigation heading."""
+    if not val:
+        return False
+    val = val.strip()
+    if ":::" in val or "相關網站" in val:
+        return False
+    if val in _INVALID_SUBTITLE_KEYWORDS:
+        return False
+    # Must contain at least one alphanumeric or CJK character
+    if not re.search(r'[\w\u4e00-\u9fff]', val):
+        return False
+    return True
+
+
 def _parse_books_tw_product_html(html_str: str, item_id: str, url: str) -> dict:
     """Pure parsing function for Books.com.tw product detail HTML."""
     res = {}
@@ -55,9 +80,22 @@ def _parse_books_tw_product_html(html_str: str, item_id: str, url: str) -> dict:
         if dom_title:
             res["title"] = dom_title
 
-    # Subtitle / Alternative title extraction
-    sub_m = re.search(r'<h2[^>]*>(.*?)</h2>', html_str, re.DOTALL) or re.search(r'class="sub_title"[^>]*>(.*?)<', html_str, re.DOTALL)
-    sub_val = clean_text(sub_m.group(1)) if sub_m else None
+    # Subtitle / Alternative title extraction (only directly adjacent to <h1>)
+    sub_val = None
+    if title_m:
+        post_h1 = html_str[title_m.end():title_m.end() + 600]
+        sub_m = re.search(r'^\s*(?:<[^>]+>\s*)*<h2[^>]*>(.*?)</h2>', post_h1, re.DOTALL) or \
+                re.search(r'class="sub_title"[^>]*>(.*?)<', post_h1, re.DOTALL)
+        if sub_m:
+            candidate_sub = clean_text(sub_m.group(1))
+            if _is_valid_books_tw_subtitle(candidate_sub):
+                sub_val = candidate_sub
+    else:
+        sub_m = re.search(r'class="sub_title"[^>]*>(.*?)<', html_str, re.DOTALL)
+        if sub_m:
+            candidate_sub = clean_text(sub_m.group(1))
+            if _is_valid_books_tw_subtitle(candidate_sub):
+                sub_val = candidate_sub
 
     # Author extraction
     author_m = re.search(r'作者[：:]\s*<a[^>]*>(.*?)</a>', html_str, re.DOTALL)

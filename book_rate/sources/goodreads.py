@@ -153,13 +153,8 @@ def _parse_goodreads_book_html(page_html: str, book_id: str, url: str) -> dict:
               re.search(r'<a class="bookTitle"[^>]*>([^<]+)</a>', page_html)
     if title_m:
         raw_title = html.unescape(title_m.group(1).strip())
-        fmt_title_m = re.search(r'\((Paperback|Hardcover|Kindle Edition|Mass Market Paperback|ebook|audiobook|Board book|Leather Bound|Audio CD)\)', raw_title, re.IGNORECASE)
-        if fmt_title_m:
-            res["format"] = fmt_title_m.group(1)
-            clean_t = re.sub(r'\s*\((Paperback|Hardcover|Kindle Edition|Mass Market Paperback|ebook|audiobook|Board book|Leather Bound|Audio CD)\)', '', raw_title, flags=re.IGNORECASE).strip()
-            res["title"] = clean_t
-        else:
-            res["title"] = raw_title
+        clean_t = re.sub(r'\s*\((Paperback|Hardcover|Kindle Edition|Mass Market Paperback|ebook|audiobook|Board book|Leather Bound|Audio CD)\)', '', raw_title, flags=re.IGNORECASE).strip()
+        res["title"] = clean_t if clean_t else raw_title
 
     author_m = re.search(r'<h2>\s*by\s*<a[^>]*>([^<]+)</a>', page_html, re.IGNORECASE | re.DOTALL) or \
                re.search(r'<a class="authorName"[^>]*><span[^>]*>([^<]+)</span></a>', page_html) or \
@@ -229,37 +224,6 @@ def _parse_goodreads_book_html(page_html: str, book_id: str, url: str) -> dict:
             clean_pub = re.sub(r'\b(\d+)(?:st|nd|rd|th)\b', r'\1', clean_pub)
             clean_pub = re.sub(r'([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})', r'\1 \2, \3', clean_pub)
             res["publish_date"] = html.unescape(clean_pub)
-
-    # 7. Extract Format & Pages
-    format_m = re.search(r'data-testid="pagesFormat"[^>]*>(.*?)<', page_html) or \
-               re.search(r'"bookFormat"\s*:\s*"([^"]+)"', page_html) or \
-               re.search(r'Format:\s*</div>\s*<div class="dataValue">\s*([^<]+)', target_block, re.IGNORECASE) or \
-               re.search(r'<span itemprop="numberOfPages"[^>]*>([^<]+)</span>', page_html)
-    if format_m:
-        raw_fmt = clean_text(html.unescape(format_m.group(1)))
-        if raw_fmt:
-            if "page" in raw_fmt.lower():
-                parts = [p.strip() for p in raw_fmt.split(",") if p.strip()]
-                for p in parts:
-                    if "page" in p.lower():
-                        if not p.startswith("0"):
-                            res["pages"] = p
-                    else:
-                        res["format"] = p
-            else:
-                res["format"] = raw_fmt
-
-    if not res.get("format"):
-        row_fmt_m = re.search(r'<div class="dataRow">\s*([^<]*(?:Paperback|Hardcover|Kindle Edition|Mass Market Paperback|ebook|audiobook|Board book|Leather Bound|Audio CD)[^<]*)\s*</div>', target_block, re.IGNORECASE)
-        if row_fmt_m:
-            row_text = row_fmt_m.group(1).strip()
-            parts = [p.strip() for p in row_text.split(",") if p.strip()]
-            for p in parts:
-                if "page" in p.lower():
-                    if not p.startswith("0"):
-                        res["pages"] = p
-                elif any(k in p.lower() for k in ("paperback", "hardcover", "kindle", "ebook", "audio", "mass market", "board book")):
-                    res["format"] = p
 
     res["url"] = url
     if not res.get("work_id") and book_id:

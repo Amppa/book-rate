@@ -362,15 +362,7 @@ class AmazonSource(BaseSource):
                 if lang_bracket_m:
                     language = lang_bracket_m.group(1).strip()
 
-        format_val = None
-        format_match = re.search(r'<a[^>]*class="[^"]*a-text-bold[^"]*"[^>]*>(Paperback|Hardcover|Kindle Edition|Audible Audiobook|Mass Market Paperback|Board book|Audio CD|MP3 CD)</a>', block, re.IGNORECASE) or \
-                       re.search(r'(Paperback|Hardcover|Kindle Edition|Audible Audiobook|Mass Market Paperback|Board book|単行本|文庫|新書|Kindle版)', block, re.IGNORECASE)
-        if format_match:
-            format_val = format_match.group(1).strip()
-
         meta_dict = {}
-        if format_val:
-            meta_dict["format"] = format_val
         if asin:
             meta_dict["asin"] = asin
 

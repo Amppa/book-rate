@@ -158,7 +158,6 @@ class TestGoodreadsSource(unittest.TestCase):
 
         self.assertEqual(details["title"], "Tuesdays with Morrie & the Five People You Meet in Heaven")
         self.assertEqual(details["author"], "Mitch Albom")
-        self.assertEqual(details["format"], "Paperback")
         self.assertEqual(details["publish_date"], "January 1, 2007")
         self.assertEqual(details["publisher"], "Sphere")
         self.assertEqual(details["pub_year"], "2007")

@@ -1479,6 +1479,35 @@ class TestBookInfoMetadataExtraction(unittest.TestCase):
         self.assertEqual(page["isbn"], "9780767905923")
         self.assertEqual(page["language"], "英文")
 
+    @patch("book_rate.sources.books_tw.BooksTwSource._fetch_books_html")
+    def test_books_tw_ignores_navigation_h2_headers(self, mock_fetch):
+        sample_html = """
+        <header>
+          <div class="nav_group">
+            <h2>:::相關網站</h2>
+            <h2>內容簡介</h2>
+          </div>
+        </header>
+        <div class="type02_p01_1">
+          <h1>快思慢想</h1>
+          <ul class="type02_m058">
+            <li>作者：<a href="/search/author">康納曼</a></li>
+            <li>出版社：<a href="/search/pub">天下文化</a></li>
+            <li>出版日期：<time>2012/10/31</time></li>
+            <li>語言：繁體中文</li>
+            <li>ISBN：9789863200598</li>
+            <li>原文書名：Thinking, Fast and Slow</li>
+          </ul>
+        </div>
+        """
+        mock_fetch.return_value = (sample_html, False)
+        source = BooksTwSource()
+        page, _ = source._fetch_book_page("0010563462")
+        self.assertEqual(page["title"], "快思慢想")
+        self.assertEqual(page["original_title"], "Thinking, Fast and Slow")
+        self.assertNotIn("相關網站", page["title"])
+        self.assertNotIn("相關網站", str(page.get("original_title")))
+
     def test_amazon_jp_asin_and_language_parsing(self):
         source = AmazonJPSource()
         block = """
@@ -1557,7 +1586,6 @@ class TestBookInfoMetadataExtraction(unittest.TestCase):
         self.assertEqual(enriched.publisher, "Sphere")
         self.assertEqual(enriched.language, "English")
         self.assertEqual(enriched.edition_count, 2)
-        self.assertEqual(enriched.metadata.get("format"), "Paperback")
         self.assertEqual(enriched.metadata.get("asin"), "0356247651")
         self.assertEqual(enriched.metadata.get("isbn10"), "0356247651")
 
@@ -1567,7 +1595,6 @@ class TestBookInfoMetadataExtraction(unittest.TestCase):
         self.assertEqual(book_info["publish_date"], "January 1, 2007")
         self.assertEqual(book_info["isbn"], "9780356247656")
         self.assertEqual(book_info["asin"], "0356247651")
-        self.assertEqual(book_info["format"], "Paperback")
         self.assertEqual(book_info["language"], "English")
 
     def test_amazon_search_block_gujarati_language(self):
@@ -1593,7 +1620,6 @@ class TestBookInfoMetadataExtraction(unittest.TestCase):
         self.assertEqual(rating.publish_date, "April 4, 2017")
         self.assertEqual(rating.rate, 3.6)
         self.assertEqual(rating.rating_count, 100)
-        self.assertEqual(rating.metadata.get("format"), "Kindle Edition")
         self.assertEqual(rating.metadata.get("asin"), "B071XVWXFH")
 
 

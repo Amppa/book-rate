@@ -10,17 +10,11 @@ export const KNOWN_FIELD_ORDER = [
   "translator",
   "publisher",
   "publish_date",
-  "pages",
-  "binding",
-  "format",
-  "price",
   "series",
   "language",
   "original_title",
   "edition_count",
   "isbn",
-  "isbn10",
-  "asin",
   "work_id"
 ];
 
@@ -29,17 +23,11 @@ export const FIELD_LABEL_MAP = {
   translator: "譯者:",
   publisher: "出版社:",
   publish_date: "出版日期:",
-  pages: "頁數:",
-  binding: "裝幀:",
-  format: "裝訂/格式:",
-  price: "定價:",
   series: "叢書:",
   language: "語言:",
   original_title: "原作名:",
   edition_count: "版本數:",
   isbn: "ISBN:",
-  isbn10: "ISBN-10:",
-  asin: "ASIN:",
   work_id: "ID:"
 };
 
@@ -50,7 +38,22 @@ export const DETAIL_FIELD_DEFINITIONS = KNOWN_FIELD_ORDER.map((key) => ({
 }));
 
 const INVALID_METADATA_VALUES = new Set(["", "none", "unknown", "null", "undefined", "n/a"]);
-const INTERNAL_SKIP_KEYS = new Set(["url", "results", "crawler_status"]);
+const INTERNAL_SKIP_KEYS = new Set([
+  "url",
+  "results",
+  "crawler_status",
+  "format",
+  "binding",
+  "pages",
+  "price",
+  "asin",
+  "isbn10",
+  "isbn13",
+  "editions_count",
+  "pub_year",
+  "count",
+  "votes"
+]);
 
 export const DETAILS_EXPANDED_TEXT = "details [-]";
 export const DETAILS_COLLAPSED_TEXT = "details [+]";
