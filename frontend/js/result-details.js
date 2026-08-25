@@ -15,6 +15,7 @@ export const KNOWN_FIELD_ORDER = [
   "original_title",
   "edition_count",
   "isbn",
+  "asin",
   "work_id"
 ];
 
@@ -28,6 +29,7 @@ export const FIELD_LABEL_MAP = {
   original_title: "原作名:",
   edition_count: "版本數:",
   isbn: "ISBN:",
+  asin: "ASIN:",
   work_id: "ID:"
 };
 
@@ -46,11 +48,18 @@ const INTERNAL_SKIP_KEYS = new Set([
   "binding",
   "pages",
   "price",
-  "asin",
   "isbn10",
   "isbn13",
   "editions_count",
   "pub_year",
+  "rate",
+  "rating",
+  "rating_count",
+  "ratings_count",
+  "average",
+  "avg_rating",
+  "score",
+  "scores",
   "count",
   "votes"
 ]);

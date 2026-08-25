@@ -8,6 +8,8 @@ from typing import List, Optional
 from book_rate.models import Work, Edition, SourceRating, SourceStatus
 from book_rate.sources.base import BaseSource
 from book_rate.utils.isbn import clean_isbn
+from book_rate.utils.metadata import empty_book_metadata, merge_book_metadata
+from book_rate.utils.text_parser import clean_text
 
 logger = logging.getLogger(__name__)
 
@@ -127,8 +129,6 @@ def _parse_goodreads_search_html(html_str: str, used_curl: bool, limit: int = 5)
     return works
 
 
-from book_rate.utils.metadata import empty_book_metadata, merge_book_metadata
-
 
 def _parse_goodreads_book_html(page_html: str, book_id: str, url: str) -> dict:
     """Pure parsing function for Goodreads book/editions page HTML."""
@@ -136,94 +136,212 @@ def _parse_goodreads_book_html(page_html: str, book_id: str, url: str) -> dict:
     if not page_html:
         return res
 
-    # 1. Extract work_id from final redirected URL or HTML
-    work_id_m = re.search(r'/work/editions/(\d+)', page_html)
+    # 1. Try Next.js __NEXT_DATA__ JSON blob if present
+    next_data_m = re.search(r'<script\s+id="__NEXT_DATA__"\s+type="application/json">(.*?)</script>', page_html, re.DOTALL)
+    if next_data_m:
+        try:
+            next_json = json.loads(next_data_m.group(1))
+            apollo_state = next_json.get("props", {}).get("pageProps", {}).get("apolloState", {})
+            for k, v in apollo_state.items():
+                if isinstance(v, dict):
+                    typename = v.get("__typename")
+                    if typename == "Book":
+                        if v.get("title") and not res.get("title"):
+                            res["title"] = v["title"]
+                        details = v.get("details", {})
+                        if isinstance(details, dict):
+                            if details.get("publisher") and not res.get("publisher"):
+                                res["publisher"] = clean_text(details["publisher"])
+                            if details.get("publicationTime") and not res.get("publish_date"):
+                                pt = details["publicationTime"]
+                                if isinstance(pt, (int, float)) or (isinstance(pt, str) and pt.isdigit() and len(pt) >= 10):
+                                    try:
+                                        ts = float(pt) / 1000.0 if float(pt) > 1e11 else float(pt)
+                                        from datetime import timezone
+                                        dt = datetime.fromtimestamp(ts, tz=timezone.utc)
+                                        res["publish_date"] = dt.strftime("%B %d, %Y").replace(" 0", " ")
+                                    except Exception:
+                                        res["publish_date"] = str(pt)
+                                else:
+                                    res["publish_date"] = clean_text(str(pt))
+                            if details.get("asin") and not res.get("asin"):
+                                res["asin"] = clean_text(details["asin"])
+                            if details.get("isbn13") and not res.get("isbn"):
+                                res["isbn"] = clean_isbn(str(details["isbn13"]))
+                                res["isbn13"] = res["isbn"]
+                            elif details.get("isbn") and not res.get("isbn"):
+                                res["isbn"] = clean_isbn(str(details["isbn"]))
+                            if details.get("originalTitle") and not res.get("original_title"):
+                                res["original_title"] = clean_text(details["originalTitle"])
+                            lang = details.get("language")
+                            if isinstance(lang, dict) and lang.get("name") and not res.get("language"):
+                                res["language"] = clean_text(lang["name"])
+                    elif typename in ("Work", "Book"):
+                        stats = v.get("stats", {})
+                        if isinstance(stats, dict):
+                            if stats.get("averageRating") is not None and not res.get("rate"):
+                                try:
+                                    res["rate"] = float(stats["averageRating"])
+                                except (ValueError, TypeError):
+                                    pass
+                            if stats.get("ratingsCount") is not None and not res.get("rating_count"):
+                                try:
+                                    res["rating_count"] = int(stats["ratingsCount"])
+                                except (ValueError, TypeError):
+                                    pass
+        except Exception as e:
+            logger.debug(f"Failed to parse Goodreads __NEXT_DATA__: {e}")
+
+    # 2. Extract work_id from final redirected URL or HTML
+    work_id_m = re.search(r'/work/editions/(\d+)', page_html) or re.search(r'kca://work/amzn1\.gr\.work\.v1\.([a-zA-Z0-9]+)', page_html)
     if work_id_m:
         res["work_id"] = work_id_m.group(1)
 
-    # 2. Extract editions count from page HTML
+    # 3. Extract editions count from page HTML
     count_m = re.search(r'showing\s+\d+.*?of\s+(\d+[,.\d]*)', page_html, re.IGNORECASE) or \
               re.search(r'of\s+(\d+[,.\d]*)\s*editions', page_html, re.IGNORECASE)
     if count_m:
         res["edition_count"] = int(count_m.group(1).replace(",", ""))
 
-    # 3. Extract title and author
-    title_m = re.search(r'<h1>\s*<a[^>]*>([^<]+)</a>\s*&gt;\s*Editions\s*</h1>', page_html, re.IGNORECASE | re.DOTALL) or \
-              re.search(r'data-testid="bookTitle"[^>]*>([^<]+)<', page_html) or \
-              re.search(r'<a class="bookTitle"[^>]*>([^<]+)</a>', page_html)
-    if title_m:
-        raw_title = html.unescape(title_m.group(1).strip())
-        clean_t = re.sub(r'\s*\((Paperback|Hardcover|Kindle Edition|Mass Market Paperback|ebook|audiobook|Board book|Leather Bound|Audio CD)\)', '', raw_title, flags=re.IGNORECASE).strip()
-        res["title"] = clean_t if clean_t else raw_title
+    # 4. Extract title and author
+    if not res.get("title"):
+        title_m = re.search(r'<h1>\s*<a[^>]*>([^<]+)</a>\s*&gt;\s*Editions\s*</h1>', page_html, re.IGNORECASE | re.DOTALL) or \
+                  re.search(r'data-testid="bookTitle"[^>]*>(.*?)<', page_html) or \
+                  re.search(r'<a class="bookTitle"[^>]*>([^<]+)</a>', page_html)
+        if title_m:
+            raw_title = clean_text(html.unescape(title_m.group(1).strip()))
+            clean_t = re.sub(r'\s*\((Paperback|Hardcover|Kindle Edition|Mass Market Paperback|ebook|audiobook|Board book|Leather Bound|Audio CD)\)', '', raw_title, flags=re.IGNORECASE).strip()
+            res["title"] = clean_t if clean_t else raw_title
 
-    author_m = re.search(r'<h2>\s*by\s*<a[^>]*>([^<]+)</a>', page_html, re.IGNORECASE | re.DOTALL) or \
-               re.search(r'<a class="authorName"[^>]*><span[^>]*>([^<]+)</span></a>', page_html) or \
-               re.search(r'class="ContributorLink__name"[^>]*>([^<]+)<', page_html)
-    if author_m:
-        res["author"] = html.unescape(author_m.group(1).strip())
+    if not res.get("author"):
+        author_m = re.search(r'<h2>\s*by\s*<a[^>]*>([^<]+)</a>', page_html, re.IGNORECASE | re.DOTALL) or \
+                   re.search(r'<a class="authorName"[^>]*><span[^>]*>([^<]+)</span></a>', page_html) or \
+                   re.search(r'class="ContributorLink__name"[^>]*>([^<]+)<', page_html) or \
+                   re.search(r'data-testid="name"[^>]*>([^<]+)<', page_html)
+        if author_m:
+            res["author"] = clean_text(html.unescape(author_m.group(1).strip()))
 
-    # 4. Extract Original title
-    orig_m = re.search(r'Original title:\s*</div>\s*<div class="dataValue">\s*([^<]+)', page_html, re.IGNORECASE) or \
-             re.search(r'data-testid="originalTitle"[^>]*>(.*?)<', page_html) or \
-             re.search(r'"originalTitle"\s*:\s*"([^"]+)"', page_html)
-    if orig_m:
-        res["original_title"] = html.unescape(orig_m.group(1).strip())
+    # 5. Extract Original title
+    if not res.get("original_title"):
+        orig_m = re.search(r'Original title:\s*</div>\s*<div class="dataValue">\s*([^<]+)', page_html, re.IGNORECASE) or \
+                 re.search(r'data-testid="originalTitle"[^>]*>(.*?)<', page_html) or \
+                 re.search(r'"originalTitle"\s*:\s*"([^"]+)"', page_html) or \
+                 re.search(r'Original title[：:]?\s*</(?:span|dt|div)>\s*<(?:dd|div|span)[^>]*>(?:<[^>]+>\s*)*([^<>\n\r]+)', page_html, re.IGNORECASE)
+        if orig_m:
+            res["original_title"] = clean_text(html.unescape(orig_m.group(1).strip()))
 
-    # 5. Extract Language
-    lang_m = re.search(r'Edition language:\s*</div>\s*<div class="dataValue">\s*([^<]+)', page_html, re.IGNORECASE) or \
-             re.search(r'data-testid="language"[^>]*>(.*?)<', page_html) or \
-             re.search(r'"language"\s*:\s*\{[^}]*"name"\s*:\s*"([^"]+)"', page_html) or \
-             re.search(r'"inLanguage"\s*:\s*"([^"]+)"', page_html)
-    if lang_m:
-        res["language"] = html.unescape(lang_m.group(1).strip())
+    # 6. Extract Series
+    if not res.get("series"):
+        series_m = re.search(r'data-testid="series"[^>]*>(?:<[^>]+>\s*)*([^<>\n\r]+)', page_html, re.IGNORECASE) or \
+                   re.search(r'Series[：:]?\s*</(?:span|dt|div)>\s*<(?:dd|div|span)[^>]*>(?:<[^>]+>\s*)*([^<>\n\r]+)', page_html, re.IGNORECASE)
+        if series_m:
+            res["series"] = clean_text(html.unescape(series_m.group(1).strip()))
 
-    # 6. Extract ISBN, ASIN, and Publish Date from edition blocks
+    if res.get("series") and ("Rate this book" in res["series"] or "Want to read" in res["series"]):
+        del res["series"]
+
+    # 7. Extract Language
+    if not res.get("language"):
+        lang_m = re.search(r'Edition language:\s*</div>\s*<div class="dataValue">\s*([^<]+)', page_html, re.IGNORECASE) or \
+                 re.search(r'data-testid="language"[^>]*>(.*?)<', page_html) or \
+                 re.search(r'"language"\s*:\s*\{[^}]*"name"\s*:\s*"([^"]+)"', page_html) or \
+                 re.search(r'"inLanguage"\s*:\s*"([^"]+)"', page_html) or \
+                 re.search(r'Edition Language[：:]?\s*</(?:span|dt|div)>\s*<(?:dd|div|span)[^>]*>(?:<[^>]+>\s*)*([^<>\n\r]+)', page_html, re.IGNORECASE)
+        if lang_m:
+            res["language"] = clean_text(html.unescape(lang_m.group(1).strip()))
+
+    # 8. Extract ISBN and ASIN from blocks and modern DescListItem
     blocks = page_html.split('<div class="elementList clearFix">')
     target_block = blocks[1] if len(blocks) > 1 else page_html
 
-    isbn_match = re.search(r'ISBN:\s*</div>\s*<div class="dataValue">\s*([0-9Xx]+)?(?:\s*<span class="greyText">\s*\(ISBN10:\s*([0-9Xx]+)\)\s*</span>)?', target_block, re.IGNORECASE | re.DOTALL)
-    if isbn_match:
-        isbn13_val = isbn_match.group(1)
-        isbn10_val = isbn_match.group(2)
-        if isbn13_val:
-            res["isbn13"] = clean_isbn(isbn13_val.strip())
-        if isbn10_val:
-            res["isbn10"] = clean_isbn(isbn10_val.strip())
-        res["isbn"] = clean_isbn((isbn13_val or isbn10_val or "").strip())
+    if not res.get("isbn"):
+        isbn_match = re.search(r'ISBN:\s*</div>\s*<div class="dataValue">\s*([0-9Xx]+)?(?:\s*<span class="greyText">\s*\(ISBN10:\s*([0-9Xx]+)\)\s*</span>)?', target_block, re.IGNORECASE | re.DOTALL)
+        if isbn_match:
+            isbn13_val = isbn_match.group(1)
+            isbn10_val = isbn_match.group(2)
+            if isbn13_val:
+                res["isbn13"] = clean_isbn(isbn13_val.strip())
+            if isbn10_val:
+                res["isbn10"] = clean_isbn(isbn10_val.strip())
+            res["isbn"] = clean_isbn((isbn13_val or isbn10_val or "").strip())
 
     if not res.get("isbn"):
-        json_ld_isbn_m = re.search(r'"isbn"\s*:\s*"([0-9Xx]+)"', page_html)
+        json_ld_isbn_m = re.search(r'"isbn"\s*:\s*"([0-9Xx]+)"', page_html) or \
+                         re.search(r'ISBN[：:]?\s*</(?:span|dt|div)>\s*<(?:dd|div|span)[^>]*>(?:<[^>]+>\s*)*([0-9Xx-]+)', page_html, re.IGNORECASE)
         if json_ld_isbn_m:
-            res["isbn"] = clean_isbn(json_ld_isbn_m.group(1))
-            if len(res["isbn"]) == 13:
-                res["isbn13"] = res["isbn"]
-            elif len(res["isbn"]) == 10:
-                res["isbn10"] = res["isbn"]
+            clean_i = clean_isbn(json_ld_isbn_m.group(1))
+            if clean_i:
+                res["isbn"] = clean_i
+                if len(clean_i) == 13:
+                    res["isbn13"] = clean_i
+                elif len(clean_i) == 10:
+                    res["isbn10"] = clean_i
 
-    asin_match = re.search(r'ASIN:\s*</div>\s*<div class="dataValue">\s*([a-zA-Z0-9]+)\s*</div>', target_block, re.IGNORECASE | re.DOTALL) or \
-                 re.search(r'data-testid="asin"[^>]*>(.*?)<', page_html) or \
-                 re.search(r'"asin"\s*:\s*"([a-zA-Z0-9]+)"', page_html)
-    if asin_match:
-        res["asin"] = asin_match.group(1).strip()
-        if not res.get("isbn"):
-            res["isbn"] = res["asin"]
+    # 9. Extract ASIN
+    if not res.get("asin"):
+        asin_match = re.search(r'ASIN:\s*</div>\s*<div class="dataValue">\s*([a-zA-Z0-9]+)\s*</div>', target_block, re.IGNORECASE | re.DOTALL) or \
+                     re.search(r'data-testid="asin"[^>]*>(.*?)<', page_html) or \
+                     re.search(r'"asin"\s*:\s*"([a-zA-Z0-9]+)"', page_html) or \
+                     re.search(r'ASIN[：:]?\s*</(?:span|dt|div)>\s*<(?:dd|div|span)[^>]*>(?:<[^>]+>\s*)*([a-zA-Z0-9]{10})', page_html, re.IGNORECASE)
+        if asin_match:
+            res["asin"] = asin_match.group(1).strip()
+            if not res.get("isbn"):
+                res["isbn"] = res["asin"]
 
-    pub_div_match = re.search(r'data-testid="publication_info"[^>]*>(.*?)<', page_html) or \
-                    re.search(r'<div class="dataRow">\s*Published\s+([^<]+?)\s*</div>', target_block, re.DOTALL | re.IGNORECASE)
-    if pub_div_match:
-        pub_text = pub_div_match.group(1).strip()
-        if "by" in pub_text:
-            parts = pub_text.split("by", 1)
-            clean_pub = parts[0].strip().replace("Published", "").replace("First published", "").strip()
-            clean_pub = re.sub(r'\b(\d+)(?:st|nd|rd|th)\b', r'\1', clean_pub)
-            clean_pub = re.sub(r'([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})', r'\1 \2, \3', clean_pub)
-            res["publish_date"] = html.unescape(clean_pub)
-            res["publisher"] = html.unescape(parts[1].strip())
-        else:
-            clean_pub = pub_text.replace("Published", "").replace("First published", "").strip()
-            clean_pub = re.sub(r'\b(\d+)(?:st|nd|rd|th)\b', r'\1', clean_pub)
-            clean_pub = re.sub(r'([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})', r'\1 \2, \3', clean_pub)
-            res["publish_date"] = html.unescape(clean_pub)
+    # 10. Extract Publication Info (Date & Publisher)
+    if not res.get("publish_date") or not res.get("publisher"):
+        pub_div_match = re.search(r'data-testid="publication(?:Info|_info)"[^>]*>(.*?)<', page_html, re.IGNORECASE) or \
+                        re.search(r'(?:Published|First published)[：:]?\s*</(?:span|dt|div)>\s*<(?:dd|div|p)[^>]*>(.*?)<', page_html, re.IGNORECASE) or \
+                        re.search(r'<div class="dataRow">\s*Published\s+([^<]+?)\s*</div>', target_block, re.DOTALL | re.IGNORECASE) or \
+                        re.search(r'<div class="FeaturedDetails">(?:<[^>]+>\s*)*(Published[^<]+)</', page_html, re.IGNORECASE)
+        if pub_div_match:
+            pub_text = clean_text(html.unescape(pub_div_match.group(1)))
+            if "by" in pub_text:
+                parts = pub_text.split("by", 1)
+                clean_pub = parts[0].strip().replace("Published", "").replace("First published", "").strip()
+                clean_pub = re.sub(r'\b(\d+)(?:st|nd|rd|th)\b', r'\1', clean_pub)
+                clean_pub = re.sub(r'([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})', r'\1 \2, \3', clean_pub)
+                if clean_pub and not res.get("publish_date"):
+                    res["publish_date"] = clean_pub
+                clean_publisher = parts[1].strip()
+                if clean_publisher and not res.get("publisher"):
+                    res["publisher"] = clean_publisher
+            else:
+                clean_pub = pub_text.replace("Published", "").replace("First published", "").strip()
+                clean_pub = re.sub(r'\b(\d+)(?:st|nd|rd|th)\b', r'\1', clean_pub)
+                clean_pub = re.sub(r'([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})', r'\1 \2, \3', clean_pub)
+                if clean_pub and not res.get("publish_date"):
+                    res["publish_date"] = clean_pub
+
+    # Fallback for firstPublished date if publish_date is still missing
+    if not res.get("publish_date"):
+        first_pub_m = re.search(r'data-testid="firstPublished"[^>]*>(.*?)<', page_html)
+        if first_pub_m:
+            raw_fp = clean_text(html.unescape(first_pub_m.group(1)))
+            clean_fp = raw_fp.replace("First published", "").replace("Published", "").strip()
+            clean_fp = re.sub(r'\b(\d+)(?:st|nd|rd|th)\b', r'\1', clean_fp)
+            clean_fp = re.sub(r'([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})', r'\1 \2, \3', clean_fp)
+            if clean_fp:
+                res["publish_date"] = clean_fp
+
+    # 11. Extract Rate and Ratings Count fallback from DOM
+    if not res.get("rate"):
+        r_m = re.search(r'class="RatingStatistics__rating"[^>]*>([0-9.]+)<', page_html) or \
+              re.search(r'itemprop="ratingValue"[^>]*content="([0-9.]+)"', page_html)
+        if r_m:
+            try:
+                res["rate"] = float(r_m.group(1))
+            except (ValueError, TypeError):
+                pass
+
+    if not res.get("rating_count"):
+        rc_m = re.search(r'data-testid="ratingsCount"[^>]*>([0-9,]+)\s*(?:ratings|reviews|次評分)<', page_html, re.IGNORECASE) or \
+               re.search(r'itemprop="ratingCount"[^>]*content="([0-9]+)"', page_html)
+        if rc_m:
+            try:
+                res["rating_count"] = int(rc_m.group(1).replace(",", ""))
+            except (ValueError, TypeError):
+                pass
 
     res["url"] = url
     if not res.get("work_id") and book_id:
@@ -247,21 +365,24 @@ class GoodreadsSource(BaseSource):
 
     def fetch_book_details(self, book_url_or_id: str) -> dict:
         """Fetch book detail HTML page from Goodreads and extract metadata."""
-        url = book_url_or_id if book_url_or_id.startswith("http") else self.BOOK_SHOW_URL.format(book_id=book_url_or_id)
-        book_id_m = re.search(r'/book/show/(\d+)', url) or re.search(r'/book/editions/(\d+)', url) or re.search(r'/work/editions/(\d+)', url) or re.search(r'^(?:gr:)?(\d+)$', str(book_url_or_id).strip())
+        book_id_m = re.search(r'/book/show/(\d+)', str(book_url_or_id)) or re.search(r'/book/editions/(\d+)', str(book_url_or_id)) or re.search(r'/work/editions/(\d+)', str(book_url_or_id)) or re.search(r'^(?:gr:)?(\d+)$', str(book_url_or_id).strip())
         book_id = book_id_m.group(1) if book_id_m else None
+        url = book_url_or_id if str(book_url_or_id).startswith("http") else (self.BOOK_SHOW_URL.format(book_id=book_id) if book_id else self.BOOK_SHOW_URL.format(book_id=book_url_or_id))
 
         base = empty_book_metadata(url=url, work_id=f"gr:{book_id}" if book_id else None)
         base["crawler_status"] = "Normal"
 
         if book_id:
             try:
-                ed_url = f"https://www.goodreads.com/book/editions/{book_id}"
-                fetch_res = self._fetch_html(ed_url, headers={"Referer": "https://www.goodreads.com/"})
-                page_html, used_curl = fetch_res if isinstance(fetch_res, tuple) else (str(fetch_res), False)
-                if not page_html or ("bookTitle" not in page_html and "data-testid" not in page_html and "schema.org" not in page_html):
-                    fetch_res = self._fetch_html(url, headers={"Referer": "https://www.goodreads.com/"})
-                    page_html, used_curl = fetch_res if isinstance(fetch_res, tuple) else (str(fetch_res), False)
+                from book_rate.sources.base import FetchCandidate
+                candidates = [
+                    FetchCandidate(url=url, referer="https://www.goodreads.com/"),
+                    FetchCandidate(url=f"https://www.goodreads.com/book/editions/{book_id}", referer="https://www.goodreads.com/"),
+                ]
+                page_html, used_curl, success_url = self._fetch_first_available(
+                    candidates,
+                    is_invalid=lambda h: not h or ("awswaf" in h.lower()) or ("interstitialchallenge" in h.lower()) or ("gokuprops" in h.lower())
+                )
 
                 if page_html:
                     parsed = _parse_goodreads_book_html(page_html, book_id, url)
@@ -303,7 +424,7 @@ class GoodreadsSource(BaseSource):
 
             # Merge flexible metadata (pages, format, etc.)
             for k, v in details.items():
-                if v and k not in ("crawler_status", "url", "title", "author", "translator", "publisher", "original_title", "pub_year", "publish_date", "isbn", "editions_count", "language", "work_id"):
+                if v and k not in ("crawler_status", "url", "title", "author", "translator", "publisher", "original_title", "pub_year", "publish_date", "isbn", "editions_count", "language", "work_id", "rate", "rating_count", "rating", "votes", "count"):
                     rating.metadata[k] = v
         except Exception as e:
             logger.debug(f"Goodreads enrichment failed for {rating.url}: {e}")
@@ -419,6 +540,43 @@ class GoodreadsSource(BaseSource):
         clean_query = query.strip()
         if not clean_query:
             return []
+
+        # Direct ID or URL lookup
+        book_id_m = re.search(r'^(?:gr:)?(\d+)$', clean_query) or re.search(r'/book/show/(\d+)', clean_query)
+        if book_id_m:
+            book_id = book_id_m.group(1)
+            details = self.fetch_book_details(clean_query)
+            if details and details.get("title"):
+                rate = details.get("rate")
+                count = details.get("rating_count")
+                work_id = f"gr:{details.get('work_id') or book_id}"
+                work = Work(
+                    work_id=work_id,
+                    title=details["title"],
+                    author=details.get("author") or "Unknown Author",
+                    isbn=details.get("isbn")
+                )
+                status_val = SourceStatus.MATCH.value if (rate or count) else (SourceStatus.UNRATED.value if details.get("url") else SourceStatus.NO_MATCH.value)
+                work.ratings[self.name] = SourceRating(
+                    source_name=self.name,
+                    rate=rate,
+                    rating_count=count,
+                    url=details.get("url") or f"https://www.goodreads.com/book/show/{book_id}",
+                    title=details["title"],
+                    status=status_val,
+                    author=details.get("author"),
+                    publish_date=details.get("publish_date"),
+                    publisher=details.get("publisher"),
+                    language=details.get("language"),
+                    original_title=details.get("original_title"),
+                    isbn=details.get("isbn"),
+                    work_id=work_id
+                )
+                if details.get("asin"):
+                    work.ratings[self.name].metadata["asin"] = details["asin"]
+                if details.get("series"):
+                    work.ratings[self.name].metadata["series"] = details["series"]
+                return [work]
 
         # 1. Primary: auto_complete endpoint via _fetch_html
         works = self._search_works_autocomplete(clean_query, limit=limit)

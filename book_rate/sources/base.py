@@ -642,6 +642,8 @@ class BaseSource:
         # Fallback candidate selection
         best_rating = self._select_best_rating(candidate_works, target_title=target_title)
         if best_rating and (best_rating.rate is not None or best_rating.rating_count is not None or best_rating.url):
+            if hasattr(self, "_enrich_with_book_page"):
+                best_rating = self._enrich_with_book_page(best_rating)
             best_rating.strategy = strat
             best_rating.query = query_used
             is_match = (best_rating.rate is not None or best_rating.rating_count is not None)

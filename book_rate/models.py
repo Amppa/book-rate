@@ -87,9 +87,10 @@ class SourceRating:
             }
 
         # Merge flexible metadata if present
+        skip_keys = ("rate", "rating", "rating_count", "ratings_count", "rating_text", "status", "strategy", "query", "votes", "count", "score", "scores", "crawler_status", "average", "avg_rating")
         if self.metadata:
             for k, v in self.metadata.items():
-                if k not in info or info[k] in (None, "", "Unknown", "None", "unknown", "none"):
+                if k not in skip_keys and (k not in info or info[k] in (None, "", "Unknown", "None", "unknown", "none")):
                     info[k] = v
 
         invalid_vals = (None, "", "Unknown", "None", "unknown", "none", "N/A", "n/a", "null", "undefined")

@@ -1683,6 +1683,52 @@ class TestBookInfoMetadataExtraction(unittest.TestCase):
         self.assertEqual(rating.rating_count, 100)
         self.assertEqual(rating.metadata.get("asin"), "B071XVWXFH")
 
+    def test_goodreads_modern_book_page_lord_of_the_rings_metadata(self):
+        from book_rate.sources.goodreads import _parse_goodreads_book_html
+        sample_html = """
+        <html>
+          <body>
+            <h1 data-testid="bookTitle">The Lord of the Rings</h1>
+            <div class="ContributorLinksList">
+              <span class="ContributorLink__name" data-testid="name">J.R.R. Tolkien</span>
+            </div>
+            <div class="FeaturedDetails">
+              <p data-testid="publicationInfo">Published March 8, 1981 by BBC Radio</p>
+              <p data-testid="firstPublished">First published July 29, 1954</p>
+            </div>
+            <div class="BookDetails">
+              <div class="DescListItem">
+                <span class="DescListItem__title">Original title</span>
+                <div class="DescListItem__value">The Lord of the Rings: The Fellowship of the Ring</div>
+              </div>
+              <div class="DescListItem">
+                <span class="DescListItem__title">Series</span>
+                <div class="DescListItem__value">Middle Earth (#2)</div>
+              </div>
+              <div class="DescListItem">
+                <span class="DescListItem__title">ASIN</span>
+                <div class="DescListItem__value"><span>B0DLSTZBRS</span></div>
+              </div>
+              <div class="DescListItem">
+                <span class="DescListItem__title">Edition Language</span>
+                <div class="DescListItem__value">English</div>
+              </div>
+            </div>
+            <a href="/work/editions/3204327">Other Editions</a>
+          </body>
+        </html>
+        """
+        parsed = _parse_goodreads_book_html(sample_html, "60354025", "https://www.goodreads.com/book/show/60354025-the-lord-of-the-rings")
+        self.assertEqual(parsed["title"], "The Lord of the Rings")
+        self.assertEqual(parsed["author"], "J.R.R. Tolkien")
+        self.assertEqual(parsed["publish_date"], "March 8, 1981")
+        self.assertEqual(parsed["publisher"], "BBC Radio")
+        self.assertEqual(parsed["asin"], "B0DLSTZBRS")
+        self.assertEqual(parsed["original_title"], "The Lord of the Rings: The Fellowship of the Ring")
+        self.assertEqual(parsed["series"], "Middle Earth (#2)")
+        self.assertEqual(parsed["language"], "English")
+        self.assertEqual(parsed["work_id"], "3204327")
+
 
 if __name__ == "__main__":
     unittest.main()
