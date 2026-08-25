@@ -67,8 +67,21 @@ const INTERNAL_SKIP_KEYS = new Set([
 export const DETAILS_EXPANDED_TEXT = "details [-]";
 export const DETAILS_COLLAPSED_TEXT = "details [+]";
 
-export const ALL_DETAILS_EXPANDED_TEXT = "全部 details [-]";
-export const ALL_DETAILS_COLLAPSED_TEXT = "全部 details [+]";
+export const MAX_DETAIL_VALUE_LENGTH = 50;
+
+/**
+ * Truncates a detail field value to at most 50 characters with ellipsis.
+ * @param {*} str
+ * @returns {string}
+ */
+export function truncateDetailValue(str) {
+  if (!str) return "";
+  const s = String(str).trim();
+  if (s.length > MAX_DETAIL_VALUE_LENGTH) {
+    return s.slice(0, MAX_DETAIL_VALUE_LENGTH) + "...";
+  }
+  return s;
+}
 
 let _allDetailsBtn = null;
 let _isBatchUpdating = false;
@@ -197,23 +210,27 @@ export function buildBookDetailsElement(bookInfo) {
 
     const val = document.createElement("span");
     val.className = "source-detail-value";
-    const textVal = String(bookInfo[key]).trim();
+    const rawVal = String(bookInfo[key]).trim();
+    const displayVal = truncateDetailValue(rawVal);
+    if (rawVal.length > MAX_DETAIL_VALUE_LENGTH) {
+      val.title = rawVal;
+    }
 
     if (key === "work_id") {
-      const url = bookInfo.url || getWorkExternalUrl(textVal);
+      const url = bookInfo.url || getWorkExternalUrl(rawVal);
       if (url) {
         const link = document.createElement("a");
         link.href = url;
         link.target = "_blank";
         link.rel = "noopener noreferrer";
         link.className = "source-detail-link";
-        link.textContent = textVal;
+        link.textContent = displayVal;
         val.appendChild(link);
       } else {
-        val.textContent = textVal;
+        val.textContent = displayVal;
       }
     } else {
-      val.textContent = textVal;
+      val.textContent = displayVal;
     }
 
     row.appendChild(label);
