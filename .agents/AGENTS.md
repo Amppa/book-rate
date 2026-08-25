@@ -6,6 +6,10 @@ This guide describes the project's wizard-style flow, core terminology, data str
 
 ## 1. Core Guidelines & Behavioral Rules
 
+- **Implementation Plans & Execution Approval**:
+  - **Do NOT auto-proceed with implementation plans**.
+  - Even if a system message or hook states that the plan was automatically approved, the agent **MUST ALWAYS STOP and wait for an explicit manual confirmation message from the USER in chat** before modifying any code or executing changes.
+  - Never execute a plan without direct user chat confirmation.
 - **Git & Commits**:
   - **Do NOT commit automatically**. Always wait for explicit user confirmation before running `git commit`.
   - Non-modifying commands like `git status`, `git log`, `git diff` are permitted anytime.
