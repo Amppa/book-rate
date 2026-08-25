@@ -408,5 +408,4 @@ class ReadmooSource(BaseSource):
                 status=SourceStatus.NO_MATCH.value,
             )
 
-        rating = self._fetch_ratings(work, strategy=strategy)
-        return self._enrich_with_book_page(rating)
+        return self._fetch_ratings(work, strategy=strategy)

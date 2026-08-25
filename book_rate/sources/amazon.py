@@ -502,11 +502,6 @@ class AmazonSource(BaseSource):
     def default_strategy(self) -> str:
         return "isbn_primary"
 
-    def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> SourceRating:
-        """Fetch Amazon rating for a Work using explicit SearchStrategy."""
-        rating = self._fetch_ratings(work, strategy=strategy)
-        return self._enrich_with_book_page(rating)
-
 
 class AmazonJPSource(AmazonSource):
     """Amazon JP adapter interface."""
