@@ -3,7 +3,7 @@
    ========================================================================== */
 .settings-details {
   position: absolute;
-  top: 150px;
+  top: 72px;
   right: 0;
   width: auto;
   margin: 0;
@@ -18,6 +18,9 @@
 .settings-details[open] {
   width: 340px;
   padding: var(--space-5);
+  background: var(--surface-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
 }
 

@@ -1,6 +1,28 @@
 /* ==========================================================================
    Typography & Primitives
    ========================================================================== */
+.brand-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-1) 0 var(--space-3);
+  flex-wrap: wrap;
+}
+
+.brand-title {
+  margin: 0;
+  font-size: var(--fs-display);
+  line-height: 1.08;
+  letter-spacing: -.05em;
+}
+
+.brand-meta {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+
 .eyebrow {
   color: var(--accent);
   font-size: var(--fs-xs);
@@ -8,19 +30,19 @@
   letter-spacing: .14em;
 }
 
+.subtitle {
+  font-size: calc(var(--fs-display) * 0.55);
+  font-weight: 400;
+  color: var(--text-muted);
+  letter-spacing: normal;
+  line-height: 1.08;
+}
+
 h1 {
   margin: var(--space-1) 0 var(--space-3);
   font-size: var(--fs-display);
   line-height: 1.08;
   letter-spacing: -.05em;
-}
-
-h1 .subtitle {
-  font-size: 0.55em;
-  font-weight: 400;
-  color: var(--text-muted);
-  letter-spacing: normal;
-  margin-left: var(--space-2);
 }
 
 h2 {
