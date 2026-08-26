@@ -44,7 +44,7 @@
 
 .settings-details[open] {
   width: 340px;
-  padding: var(--space-5);
+  padding: var(--space-4) var(--space-5) var(--space-5);
   background: var(--surface-card);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-lg);
@@ -52,24 +52,21 @@
 }
 
 .settings-details[open] summary {
-  display: block;
+  padding: 0.65rem 1rem;
+  margin: calc(-1 * var(--space-1)) 0 0 calc(-1 * var(--space-2));
   background: transparent;
-  border: 0;
-  padding: 0;
-  margin: 0;
-  margin-bottom: var(--space-4);
+  border: 1px solid transparent;
   box-shadow: none;
-  font-size: inherit;
+  font: inherit;
   font-weight: 700;
   color: var(--primary);
   cursor: pointer;
 }
 
 .settings-details[open] summary:hover {
-  background: transparent;
-  border: 0;
+  background: var(--secondary);
+  border-color: var(--border-light);
   box-shadow: none;
-  filter: brightness(90%);
 }
 
 .settings-content {
