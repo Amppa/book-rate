@@ -102,8 +102,7 @@ summary {
 }
 
 /* Button & Summary Primitives */
-button,
-.settings-details summary {
+button {
   border-radius: var(--radius-md);
   padding: .85rem 1.15rem;
   font: inherit;
@@ -118,8 +117,7 @@ button {
   color: var(--text-contrast);
 }
 
-.btn-secondary,
-.settings-details summary {
+.btn-secondary {
   background: var(--secondary);
   color: var(--primary);
   border: 1px solid var(--border);
@@ -162,13 +160,11 @@ label {
    Interactive & Disabled States
    ========================================================================== */
 button:not(:disabled):hover,
-.settings-details summary:hover,
 a:hover {
   filter: brightness(92%);
 }
 
 .btn-secondary:hover,
-.settings-details summary:hover,
 a:hover,
 button.btn-link:hover {
   color: var(--primary);

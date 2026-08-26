@@ -15,6 +15,33 @@
   font-size: var(--fs-md);
 }
 
+.settings-details summary {
+  list-style: none;
+  user-select: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.65rem 1rem;
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-weight: 700;
+  color: var(--primary);
+  background: var(--surface-card);
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition-fast);
+}
+
+.settings-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings-details summary:hover {
+  border-color: var(--border);
+  box-shadow: var(--shadow-ss);
+}
+
 .settings-details[open] {
   width: 340px;
   padding: var(--space-5);
@@ -25,11 +52,28 @@
 }
 
 .settings-details[open] summary {
-  margin-bottom: var(--space-3);
+  display: block;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  margin-bottom: var(--space-4);
+  box-shadow: none;
+  font-size: inherit;
+  font-weight: 700;
+  color: var(--primary);
+  cursor: pointer;
+}
+
+.settings-details[open] summary:hover {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  filter: brightness(90%);
 }
 
 .settings-content {
-  margin-top: var(--space-4);
+  margin-top: var(--space-3);
   padding-top: var(--space-3);
   border-top: 1px dashed var(--border-light);
   display: flex;
