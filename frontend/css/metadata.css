@@ -24,7 +24,7 @@
   width: 300px;
   flex-shrink: 0;
   position: sticky;
-  top: 20px;
+  top: var(--space-5);
   align-self: flex-start;
 }
 
@@ -73,7 +73,6 @@
 }
 
 .btn-confirm-next:hover {
-  background: var(--primary);
   filter: brightness(92%);
   transform: translateY(-1px);
 }
@@ -147,15 +146,15 @@ textarea.bm-input:focus {
 
 #btn-expand-s3-meta {
   display: none;
-  background: var(--card-bg, #ffffff);
-  border: 1px solid var(--border, #cbd5e1);
-  color: var(--text-primary, #1e293b);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
 }
 
 #btn-expand-s3-meta:hover {
-  background: #f8fafc;
-  border-color: var(--border-dark, #94a3b8);
+  background: var(--secondary);
+  border-color: var(--primary);
 }
 
 .s3-meta-collapsed #btn-expand-s3-meta {

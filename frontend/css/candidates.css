@@ -2,12 +2,6 @@
    Candidate List & Editions Components (Step 2)
    ========================================================================== */
 /* Step 2 Sections */
-.step2-block-title {
-  font-size: var(--fs-lg);
-  margin: 0 0 0.6rem 0;
-  font-weight: 700;
-}
-
 .other-title-sources-buttons {
   display: flex;
   flex-wrap: wrap;
@@ -46,10 +40,6 @@
   background: var(--primary);
   color: var(--text-contrast);
   border-color: var(--primary);
-}
-
-#section-title-source-tabs+.step2-block {
-  margin-top: 0;
 }
 
 /* Candidate List & Container */

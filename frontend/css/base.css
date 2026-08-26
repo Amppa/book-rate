@@ -195,12 +195,6 @@ button:disabled:hover {
 }
 
 /* Button Size Utilities */
-.btn-xs {
-  padding: 2px var(--space-2);
-  font-size: 0.75rem;
-  border-radius: var(--radius-sm);
-}
-
 .btn-sm {
   padding: 4px var(--space-3);
   font-size: 0.8rem;
@@ -215,7 +209,7 @@ button:disabled:hover {
   font-size: 1.15rem;
   padding: 4px 8px;
   border-radius: var(--radius-sm);
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition: var(--transition-fast);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -227,17 +221,5 @@ button:disabled:hover {
 .btn-icon-only:hover {
   background: var(--secondary);
   color: var(--primary);
-}
-
-/* Animations */
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 

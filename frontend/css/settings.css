@@ -46,20 +46,7 @@
   color: var(--text-primary);
 }
 
-.setting-item .btn-full {
-  width: 100%;
-  padding: 0.65rem;
-  font-size: var(--fs-md);
-  text-align: center;
-}
 
-.checkbox-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: 0.2rem 0;
-  align-items: flex-start;
-}
 
 
 .api-key-input-row {
