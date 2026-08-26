@@ -12,8 +12,6 @@ export const STORAGE_KEYS = {
   SOURCE_STATUS: "bookrate:source-status"
 };
 
-export const HISTORY_KEY = STORAGE_KEYS.HISTORY;
-export const CACHE_PREFIX = STORAGE_KEYS.CACHE_PREFIX;
 export const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 export const SOURCES = [

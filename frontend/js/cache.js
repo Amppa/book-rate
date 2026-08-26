@@ -1,12 +1,12 @@
-import { STORAGE_KEYS, CACHE_PREFIX, ONE_DAY_MS } from './constants.js';
+import { STORAGE_KEYS, ONE_DAY_MS } from './constants.js';
 
 export function getCachedData(key) {
   try {
-    const cached = localStorage.getItem(CACHE_PREFIX + key);
+    const cached = localStorage.getItem(STORAGE_KEYS.CACHE_PREFIX + key);
     if (!cached) return null;
     const { data, timestamp } = JSON.parse(cached);
     if (Date.now() - timestamp > 7 * ONE_DAY_MS) {
-      localStorage.removeItem(CACHE_PREFIX + key);
+      localStorage.removeItem(STORAGE_KEYS.CACHE_PREFIX + key);
       return null;
     }
     return data;
@@ -18,7 +18,7 @@ export function getCachedData(key) {
 export function setCachedData(key, data) {
   try {
     const record = { data, timestamp: Date.now() };
-    localStorage.setItem(CACHE_PREFIX + key, JSON.stringify(record));
+    localStorage.setItem(STORAGE_KEYS.CACHE_PREFIX + key, JSON.stringify(record));
   } catch (e) {
     console.warn("Failed to write to localStorage cache:", e);
   }
@@ -57,7 +57,7 @@ export function cleanExpiredCache() {
     if (!key) continue;
 
     try {
-      if (key.startsWith(CACHE_PREFIX)) {
+      if (key.startsWith(STORAGE_KEYS.CACHE_PREFIX)) {
         const cached = localStorage.getItem(key);
         if (cached) {
           const { timestamp } = JSON.parse(cached);
@@ -92,7 +92,7 @@ export function clearAllStep2Cache() {
     const keysToRemove = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && key.startsWith(CACHE_PREFIX)) {
+      if (key && key.startsWith(STORAGE_KEYS.CACHE_PREFIX)) {
         keysToRemove.push(key);
       }
     }
@@ -119,7 +119,7 @@ export function clearAllStep3Cache() {
 
 export function clearEditionsCache() {
   try {
-    const prefix = CACHE_PREFIX + "editions:";
+    const prefix = STORAGE_KEYS.CACHE_PREFIX + "editions:";
     const keysToRemove = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);

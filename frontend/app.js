@@ -474,17 +474,26 @@ if (apiKeyInput) {
 if (saveApiKeyBtn) {
   saveApiKeyBtn.addEventListener("click", () => {
     const val = apiKeyInput ? apiKeyInput.value.trim() : "";
+    const currentSavedKey = localStorage.getItem(GOOGLE_KEY_STORAGE_KEY) || "";
+
     if (val) {
       localStorage.setItem(GOOGLE_KEY_STORAGE_KEY, val);
-      if (apiKeyInput) apiKeyInput.placeholder = "已儲存 API 金鑰 (已遮蔽)";
-      alert("Google Books API Key 儲存成功！");
-    } else {
-      localStorage.removeItem(GOOGLE_KEY_STORAGE_KEY);
       if (apiKeyInput) {
         apiKeyInput.value = "";
-        apiKeyInput.placeholder = "輸入 API 金鑰 (例如 AIzaSy...)";
+        apiKeyInput.placeholder = "已儲存 API 金鑰 (已遮蔽)";
       }
-      alert("Google Books API Key 已清除！");
+      alert("Google Books API Key 儲存成功！");
+    } else if (currentSavedKey) {
+      if (confirm("確定要清除已儲存的 Google Books API Key 嗎？")) {
+        localStorage.removeItem(GOOGLE_KEY_STORAGE_KEY);
+        if (apiKeyInput) {
+          apiKeyInput.value = "";
+          apiKeyInput.placeholder = "輸入 API 金鑰 (例如 AIzaSy...)";
+        }
+        alert("Google Books API Key 已清除！");
+      }
+    } else {
+      alert("請輸入有效的 API 金鑰！");
     }
   });
 }

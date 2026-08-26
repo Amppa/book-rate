@@ -1,8 +1,8 @@
-import { HISTORY_KEY } from './constants.js';
+import { STORAGE_KEYS } from './constants.js';
 
 export function getHistory() {
   try {
-    return JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.HISTORY)) || [];
   } catch {
     return [];
   }
@@ -10,7 +10,7 @@ export function getHistory() {
 
 export function saveHistory(query) {
   const history = [query, ...getHistory().filter((item) => item !== query)].slice(0, 5);
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(history));
 }
 
 /**
