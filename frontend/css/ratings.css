@@ -326,7 +326,7 @@ a.source-book-title:hover {
   text-decoration: underline;
   text-underline-offset: 2px;
   word-break: break-all;
-  transition: opacity 0.15s ease;
+  transition: opacity var(--transition-fast);
 }
 
 .source-detail-link:hover {

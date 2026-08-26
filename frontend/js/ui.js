@@ -167,9 +167,9 @@ export function openModal(el) {
 /**
  * Hides a modal element after the CSS close animation completes.
  * @param {HTMLElement|null} el
- * @param {number} [delay=300] - milliseconds matching the CSS transition duration
+ * @param {number} [delay=200] - milliseconds matching the CSS transition duration
  */
-export function closeModal(el, delay = 300) {
+export function closeModal(el, delay = 200) {
   if (!el) return;
   el.classList.remove("open");
   setTimeout(() => {

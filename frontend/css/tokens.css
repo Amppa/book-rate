@@ -101,7 +101,6 @@
 
   /* Transition */
   --transition-fast: all 0.2s ease;
-  --transition-normal: all 0.3s ease;
 }
 
 * {

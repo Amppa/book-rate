@@ -10,7 +10,7 @@
 }
 
 .step3-split-layout {
-  transition: gap var(--transition-normal);
+  transition: gap var(--transition-fast);
 }
 
 .step2-left-panel,
@@ -29,7 +29,7 @@
 }
 
 .step3-left-panel {
-  transition: width var(--transition-normal), opacity var(--transition-fast);
+  transition: width var(--transition-fast), opacity var(--transition-fast);
   overflow: hidden;
 }
 
