@@ -121,9 +121,9 @@
 }
 
 .mode-tab-btn.active {
-  background: var(--primary);
-  color: var(--text-contrast);
-  box-shadow: var(--shadow-sm);
+  background: var(--surface-card);
+  color: var(--primary);
+  box-shadow: 0 1px 4px rgba(69, 58, 36, 0.12);
 }
 
 .setting-desc {

@@ -127,13 +127,14 @@
   padding: 2px 4px;
   margin: -2px -4px 0 -4px;
   border-radius: var(--radius-sm);
-  transition: color 0.15s ease, background-color 0.15s ease;
+  transition: color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
   word-break: break-word;
 }
 
 .preset-bubble-title:hover {
-  color: var(--primary);
+  /* color: var(--primary); */
   background: var(--primary-alpha-10);
+  transform: scale(1.02);
 }
 
 .preset-bubble-isbn {
@@ -153,8 +154,8 @@
 }
 
 .preset-bubble-isbn:hover {
-  background: var(--primary);
-  color: var(--text-contrast);
+  background: var(--primary-alpha-10);
+  color: var(--primary);
   transform: scale(1.02);
 }
 
