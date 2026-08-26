@@ -474,7 +474,6 @@ if (clearStep3CacheBtn) {
 // Google Books API key
 const apiKeyInput = document.querySelector("#google-api-key");
 const saveApiKeyBtn = document.querySelector("#save-api-key-btn");
-const clearApiKeyBtn = document.querySelector("#clear-api-key-btn");
 const GOOGLE_KEY_STORAGE_KEY = STORAGE_KEYS.GOOGLE_API_KEY;
 
 const savedKey = localStorage.getItem(GOOGLE_KEY_STORAGE_KEY) || "";
@@ -490,18 +489,13 @@ if (saveApiKeyBtn) {
       if (apiKeyInput) apiKeyInput.placeholder = "已儲存 API 金鑰 (已遮蔽)";
       alert("Google Books API Key 儲存成功！");
     } else {
-      alert("請輸入有效的金鑰！");
+      localStorage.removeItem(GOOGLE_KEY_STORAGE_KEY);
+      if (apiKeyInput) {
+        apiKeyInput.value = "";
+        apiKeyInput.placeholder = "輸入 API 金鑰 (例如 AIzaSy...)";
+      }
+      alert("Google Books API Key 已清除！");
     }
-  });
-}
-if (clearApiKeyBtn) {
-  clearApiKeyBtn.addEventListener("click", () => {
-    localStorage.removeItem(GOOGLE_KEY_STORAGE_KEY);
-    if (apiKeyInput) {
-      apiKeyInput.value = "";
-      apiKeyInput.placeholder = "輸入 API 金鑰 (例如 AIzaSy...)";
-    }
-    alert("Google Books API Key 已清除！");
   });
 }
 

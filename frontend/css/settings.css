@@ -21,7 +21,7 @@
   background: var(--surface-card);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-lg);
 }
 
 .settings-details[open] summary {
@@ -54,14 +54,22 @@
 
 .api-key-input-row {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
   gap: var(--space-2);
 }
 
 .api-key-input-row input {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   padding: 0.65rem 0.8rem;
   font-size: var(--fs-md);
+}
+
+.api-key-input-row button {
+  padding: 0.65rem 1rem;
+  font-size: var(--fs-sm);
+  white-space: nowrap;
 }
 
 /* Shared button group inside setting items */
@@ -191,23 +199,27 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background-color: var(--border); /* Gray default */
+  background-color: var(--border);
+  /* Gray default */
   display: inline-block;
   transition: background-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .source-status-light.status-checking {
-  background-color: var(--star-color); /* Yellow checking */
+  background-color: var(--star-color);
+  /* Yellow checking */
   box-shadow: 0 0 6px var(--star-color);
 }
 
 .source-status-light.status-ok {
-  background-color: var(--status-ok); /* Green ok */
+  background-color: var(--status-ok);
+  /* Green ok */
   box-shadow: 0 0 6px var(--status-ok);
 }
 
 .source-status-light.status-failed {
-  background-color: var(--error); /* Red failed */
+  background-color: var(--error);
+  /* Red failed */
   box-shadow: 0 0 6px var(--error);
   cursor: help;
 }
