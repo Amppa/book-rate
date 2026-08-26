@@ -7,5 +7,4 @@ export const state = {
   currentTitleSource: "open_library",
   currentSelectedWork: null,
   searchMode: "quick_search",
-  sourceStates: {}, // Keep track of each source tab's search state for the current query/page
 };

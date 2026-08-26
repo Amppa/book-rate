@@ -1,7 +1,51 @@
+import { getCachedData, setCachedData } from './cache.js';
+import { STORAGE_KEYS } from './constants.js';
+
 /**
- * BookRate API Client Module
- * Provides unified interfaces for REST endpoints and POST SSE streams.
+ * In-flight request deduplication map
+ * key: cacheKey -> Promise<{ data: Array, fromCache: boolean }>
  */
+const pendingRequests = new Map();
+
+/**
+ * Transparent fetch interface for title search candidates.
+ * Automatically resolves from localStorage cache if hit,
+ * reuses in-flight requests if in-progress, or fetches from backend.
+ */
+export async function fetchWorksWithCache({ query, page = 1, source, bypassCache = false }) {
+  const cacheKey = `search:${query}:page:${page}:engines:${source}`;
+
+  // 1. Cache hit check
+  if (!bypassCache) {
+    const cachedWorks = getCachedData(cacheKey);
+    if (cachedWorks) {
+      return { data: cachedWorks, fromCache: true };
+    }
+  }
+
+  // 2. In-flight request deduplication check
+  if (pendingRequests.has(cacheKey)) {
+    return pendingRequests.get(cacheKey);
+  }
+
+  // 3. Fetch from API
+  const requestPromise = (async () => {
+    const apiKey = localStorage.getItem(STORAGE_KEYS.GOOGLE_API_KEY) || "";
+    const works = await fetchSearchWorks(query, page, [source], apiKey);
+    if (works) {
+      setCachedData(cacheKey, works);
+    }
+    return { data: works, fromCache: false };
+  })();
+
+  pendingRequests.set(cacheKey, requestPromise);
+
+  try {
+    return await requestPromise;
+  } finally {
+    pendingRequests.delete(cacheKey);
+  }
+}
 
 export async function fetchSearchWorks(query, page = 1, engines = [], googleKey = "") {
   const params = new URLSearchParams({

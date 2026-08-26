@@ -1,10 +1,11 @@
-import { MAX_CANDIDATES, SOURCES, SOURCE_PREFIX, PREFIX_TO_SOURCE, STORAGE_KEYS } from './js/constants.js';
+import { SOURCES, SOURCE_PREFIX, PREFIX_TO_SOURCE, STORAGE_KEYS } from './js/constants.js';
 import {
-  getCachedData, setCachedData, cleanExpiredCache,
+  cleanExpiredCache,
   clearAllStep2Cache, clearAllStep3Cache, clearEditionsCache, clearWorkRatingsCache,
   getSourceStatusCache, setSourceStatusCache
 } from './js/cache.js';
-import { fetchJson, getOrCreateTask, getSourceSearchUrl } from './js/utils.js';
+import { getSourceSearchUrl } from './js/utils.js';
+import { fetchWorksWithCache } from './js/api.js';
 import {
   renderSourceToggles, renderStrategySelects, updateTableVisibility,
   renderTableHeaders, renderTitleSourceTabs, initTableVisibilityStyles
@@ -205,9 +206,8 @@ function renderSearchError(titleSource, query, page, errorMsg) {
   candidateList.append(errorEl);
 }
 
-async function searchWorks(query, page, titleSource = "open_library") {
+async function searchWorks(query, page, titleSource = "open_library", bypassCache = false) {
   if (state.currentQuery !== query || state.currentPage !== page) {
-    state.sourceStates = {};
     detailsHeading.hidden = true;
     tableWrap.hidden = true;
     resultBody.replaceChildren();
@@ -227,50 +227,17 @@ async function searchWorks(query, page, titleSource = "open_library") {
     renderHistory((q) => { searchInput.value = q; });
   }
 
-  const cacheKey = `search:${query}:page:${page}:engines:${titleSource}`;
+  renderSearchLoading(titleSource, query);
 
-  // 1. Prioritize LocalStorage check for instantaneous, synchronous loading
-  const cachedWorks = getCachedData(cacheKey);
-  if (cachedWorks) {
-    state.sourceStates[titleSource] = {
-      status: 'success',
-      data: cachedWorks,
-      error: null,
-      promise: Promise.resolve(cachedWorks)
-    };
-    renderSearchResults(titleSource, query, page, cachedWorks);
-    return;
-  }
-
-  // 2. Retrieve or create async background search state
-  const sourceState = getOrCreateTask(state.sourceStates, titleSource, () => {
-    return (async () => {
-      let url = `/api/search?q=${encodeURIComponent(query)}&page=${page}&engines=${encodeURIComponent(titleSource)}`;
-      const apiKey = localStorage.getItem(STORAGE_KEYS.GOOGLE_API_KEY) || "";
-      if (apiKey) url += `&google_key=${encodeURIComponent(apiKey)}`;
-      const works = await fetchJson(url);
-      if (works) setCachedData(cacheKey, works);
-      return works;
-    })();
-  });
-
-  sourceState.promise.then((works) => {
+  try {
+    const result = await fetchWorksWithCache({ query, page, source: titleSource, bypassCache });
     if (state.currentTitleSource === titleSource && state.currentQuery === query && state.currentPage === page) {
-      renderSearchResults(titleSource, query, page, works);
+      renderSearchResults(titleSource, query, page, result.data);
     }
-  }).catch((err) => {
+  } catch (err) {
     if (state.currentTitleSource === titleSource && state.currentQuery === query && state.currentPage === page) {
-      renderSearchError(titleSource, query, page, sourceState.error);
+      renderSearchError(titleSource, query, page, err.message || "搜尋發生錯誤");
     }
-  });
-
-  // 3. Render immediate UI view based on currently locked memory state
-  if (sourceState.status === 'loading') {
-    renderSearchLoading(titleSource, query);
-  } else if (sourceState.status === 'success') {
-    renderSearchResults(titleSource, query, page, sourceState.data);
-  } else if (sourceState.status === 'error') {
-    renderSearchError(titleSource, query, page, sourceState.error);
   }
 }
 
@@ -297,12 +264,37 @@ searchForm.addEventListener("submit", (event) => {
   }
 });
 
-// Source tabs
+// Source tabs & Preload All button
 const tabsContainer = document.querySelector("#title-source-tabs-container");
 if (tabsContainer) {
-  tabsContainer.addEventListener("click", (e) => {
+  tabsContainer.addEventListener("click", async (e) => {
+    const preloadBtn = e.target.closest("#btn-preload-sources");
+    if (preloadBtn) {
+      const q = searchInput.value.trim() || state.currentQuery;
+      if (!q || preloadBtn.disabled) return;
+
+      preloadBtn.disabled = true;
+      try {
+        const promises = SOURCES.map((s) =>
+          fetchWorksWithCache({ query: q, page: 1, source: s.id })
+        );
+        await Promise.all(promises);
+
+        // If current active source has updated cached data, render it
+        const currentResult = await fetchWorksWithCache({ query: q, page: 1, source: state.currentTitleSource });
+        if (currentResult && state.currentQuery === q && state.currentPage === 1) {
+          renderSearchResults(state.currentTitleSource, q, 1, currentResult.data);
+        }
+      } catch (err) {
+        console.warn("Preload encountered errors:", err);
+      } finally {
+        preloadBtn.disabled = false;
+      }
+      return;
+    }
+
     const btn = e.target.closest(".title-source-tab-btn");
-    if (btn) {
+    if (btn && !btn.id) {
       const sourceId = btn.dataset.sourceId;
       const q = searchInput.value.trim() || state.currentQuery;
       if (q && sourceId) searchWorks(q, 1, sourceId);
@@ -321,7 +313,6 @@ nextPageBtn.addEventListener("click", () => {
 // Wizard navigation
 btnPrevTo1.addEventListener("click", () => {
   goToStep(1);
-
 });
 btnPrevTo2.addEventListener("click", () => {
   if (state.searchMode === "quick_search") {
@@ -341,14 +332,8 @@ const btnRefreshStep2 = document.querySelector("#btn-refresh-step-2");
 if (btnRefreshStep2) {
   btnRefreshStep2.addEventListener("click", () => {
     if (state.currentQuery) {
-      const sourceId = state.currentTitleSource;
-      const cacheKey = `${STORAGE_KEYS.CACHE_PREFIX}search:${state.currentQuery}:page:${state.currentPage}:engines:${sourceId}`;
-      localStorage.removeItem(cacheKey);
       clearEditionsCache();
-      if (state.sourceStates && state.sourceStates[sourceId]) {
-        delete state.sourceStates[sourceId];
-      }
-      searchWorks(state.currentQuery, state.currentPage, sourceId);
+      searchWorks(state.currentQuery, state.currentPage, state.currentTitleSource, true);
     }
   });
 }

@@ -124,6 +124,14 @@ export function renderTitleSourceTabs(container, currentTitleSource) {
     btn.textContent = source.label;
     container.appendChild(btn);
   });
+
+  const preloadBtn = document.createElement("button");
+  preloadBtn.type = "button";
+  preloadBtn.id = "btn-preload-sources";
+  preloadBtn.className = "title-source-tab-btn btn-preload-tab";
+  preloadBtn.title = "一次預載所有平台搜尋結果至快取";
+  preloadBtn.textContent = "一鍵預載";
+  container.appendChild(preloadBtn);
 }
 
 export function initTableVisibilityStyles() {
