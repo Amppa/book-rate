@@ -223,24 +223,3 @@
   box-shadow: 0 0 6px var(--error);
   cursor: help;
 }
-
-.source-status-refresh-btn {
-  background: transparent;
-  border: none;
-  font-size: var(--fs-lg);
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
-  transition: var(--transition-fast);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-}
-
-.source-status-refresh-btn:hover {
-  background: var(--secondary);
-  color: var(--primary);
-  transform: rotate(90deg);
-}
