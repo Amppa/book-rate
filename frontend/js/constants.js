@@ -1,5 +1,5 @@
 export const OPEN_LIBRARY_BASE_URL = "https://openlibrary.org";
-export const MAX_CANDIDATES = 10;
+export const CANDIDATES_PER_PAGE = 10;
 export const MAX_EDITIONS = 100;
 export const STORAGE_KEYS = {
   GOOGLE_API_KEY: "bookrate:google-api-key",

@@ -1,4 +1,4 @@
-import { SOURCES, SOURCE_PREFIX, PREFIX_TO_SOURCE, STORAGE_KEYS } from './js/constants.js';
+import { SOURCES, SOURCE_PREFIX, PREFIX_TO_SOURCE, STORAGE_KEYS, CANDIDATES_PER_PAGE } from './js/constants.js';
 import {
   cleanExpiredCache,
   clearAllStep2Cache, clearAllStep3Cache, clearEditionsCache, clearWorkRatingsCache,
@@ -138,11 +138,11 @@ function updateTitleSourceTabs(titleSource) {
 
 function updatePagination(itemsCount) {
   if (!state.currentQuery) { paginationControls.hidden = true; return; }
-  if (state.currentPage === 1 && itemsCount < MAX_CANDIDATES) { paginationControls.hidden = true; return; }
+  if (state.currentPage === 1 && itemsCount < CANDIDATES_PER_PAGE) { paginationControls.hidden = true; return; }
   paginationControls.hidden = false;
   pageIndicator.textContent = `第 ${state.currentPage} 頁`;
   prevPageBtn.disabled = state.currentPage === 1;
-  nextPageBtn.disabled = itemsCount < MAX_CANDIDATES;
+  nextPageBtn.disabled = itemsCount < CANDIDATES_PER_PAGE;
 }
 
 function renderSearchLoading(titleSource, query) {
