@@ -50,8 +50,9 @@
   --btn-disabled-text: #9aa89c;
 
   /* Border Colors */
-  --border: #bfc7b9;
-  --border-light: #e5ded0;
+  --border: rgba(191, 199, 185, 1);
+  --border-light: rgba(229, 222, 208, 1);
+  --border-dark: rgba(23, 79, 60, 0.25);
 
   /* Stars Color & Primary opacity colors */
   --star-color: #f59e0b;

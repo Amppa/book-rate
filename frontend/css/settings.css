@@ -106,8 +106,7 @@
   height: calc(100% - calc(var(--space-1) * 2));
   background: var(--surface-card);
   border-radius: calc(var(--radius-lg) - var(--space-1));
-  border: 1px solid var(--border-light);
-  /* border: 1px solid rgba(23, 79, 60, 0.12); */
+  border: 1px solid var(--border-dark);
   box-shadow: var(--shadow-ss);
   transition: transform var(--transition-fast);
   pointer-events: none;
