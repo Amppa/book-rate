@@ -282,6 +282,7 @@ export async function selectWork(work) {
     streamWorkDetailsPost(
       payload,
       (data) => {
+        if (state.currentSelectedWork?.key !== work.key) return;
         if (data.type === "init") {
           collectedDetails.ratings = data.ratings;
           collectedDetails.editions = data.editions;
@@ -301,10 +302,12 @@ export async function selectWork(work) {
         }
       },
       (err) => {
+        if (state.currentSelectedWork?.key !== work.key) return;
         console.error("POST Stream failed:", err);
         _step3Status.textContent = "";
       },
       () => {
+        if (state.currentSelectedWork?.key !== work.key) return;
         _step3Status.textContent = "";
       }
     );
@@ -359,6 +362,7 @@ export function reQuerySingleSource(work, sourceKey) {
   streamWorkDetailsPost(
     payload,
     (data) => {
+      if (state.currentSelectedWork?.key !== work.key) return;
       if (data.type === "source") {
         const strategy = strategies[sourceKey] || getSourceDefaultStrat(sourceKey);
         setRatingCache(work.key, sourceKey, strategy, data.data);
@@ -371,6 +375,7 @@ export function reQuerySingleSource(work, sourceKey) {
       }
     },
     (err) => {
+      if (state.currentSelectedWork?.key !== work.key) return;
       console.error("Single source re-query failed:", err);
     },
     () => { }
