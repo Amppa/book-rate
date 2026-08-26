@@ -100,7 +100,7 @@
   --space-7: 2rem;
 
   /* Transition */
-  --transition-fast: all 0.2s ease;
+  --transition-fast: 0.2s ease;
 }
 
 * {

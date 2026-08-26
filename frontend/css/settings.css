@@ -87,22 +87,47 @@
   white-space: nowrap;
 }
 
-/* Search Mode Selector (Segmented control) */
+/* Search Mode Selector (Segmented control with sliding glider) */
 .search-mode-selector {
+  position: relative;
   display: flex;
-  gap: 4px;
-  padding: 4px;
+  padding: var(--space-1);
   background: var(--secondary);
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-light);
   width: 100%;
 }
 
+.mode-glider {
+  position: absolute;
+  top: var(--space-1);
+  left: var(--space-1);
+  width: calc(50% - var(--space-1));
+  height: calc(100% - calc(var(--space-1) * 2));
+  background: var(--surface-card);
+  border-radius: calc(var(--radius-lg) - var(--space-1));
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition-fast);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.search-mode-selector[data-selected="edition_search"] .mode-glider {
+  transform: translateX(100%);
+}
+
+.search-mode-selector[data-selected="quick_search"] .mode-glider {
+  transform: translateX(0);
+}
+
 .mode-tab-btn {
+  position: relative;
+  z-index: 2;
   background: transparent;
   color: var(--text-muted);
   border: 0;
-  border-radius: calc(var(--radius-lg) - 4px);
+  border-radius: calc(var(--radius-lg) - var(--space-1));
   padding: var(--space-2) var(--space-4);
   font-size: var(--fs-md);
   font-weight: 700;
@@ -116,14 +141,14 @@
 }
 
 .mode-tab-btn:hover {
-  background: var(--primary-alpha-6);
   color: var(--primary);
 }
 
 .mode-tab-btn.active {
-  background: var(--surface-card);
   color: var(--primary);
-  box-shadow: 0 1px 4px rgba(69, 58, 36, 0.12);
+  background: transparent;
+  box-shadow: none;
+  border: 1px solid var(--primary);
 }
 
 .setting-desc {

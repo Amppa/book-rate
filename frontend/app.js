@@ -94,7 +94,11 @@ function initSearchMode() {
     state.searchMode = "quick_search"; // Default is quick_search
   }
 
-  // Update UI selector buttons active class
+  // Update UI selector buttons active class and container dataset
+  const selector = document.querySelector(".search-mode-selector");
+  if (selector) {
+    selector.dataset.selected = state.searchMode;
+  }
   const modeButtons = document.querySelectorAll(".mode-tab-btn");
   modeButtons.forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.mode === state.searchMode);
@@ -105,6 +109,7 @@ function initSearchMode() {
       if (mode) {
         state.searchMode = mode;
         localStorage.setItem(STORAGE_KEY, mode);
+        if (selector) selector.dataset.selected = mode;
         modeButtons.forEach((b) => b.classList.toggle("active", b.dataset.mode === mode));
       }
     });
