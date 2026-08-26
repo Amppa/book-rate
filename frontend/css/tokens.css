@@ -67,6 +67,7 @@
   --radius-xl: 20px;
 
   /* Shadows */
+  --shadow-ss: 0 2px 8px rgba(69, 58, 36, 0.15);
   --shadow-sm: 0 4px 12px rgba(69, 58, 36, 0.02);
   --shadow-md: 0 8px 24px rgba(69, 58, 36, 0.05);
   --shadow-lg: 0 10px 28px rgba(69, 58, 36, 0.10);

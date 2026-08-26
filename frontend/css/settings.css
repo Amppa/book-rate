@@ -107,7 +107,8 @@
   background: var(--surface-card);
   border-radius: calc(var(--radius-lg) - var(--space-1));
   border: 1px solid var(--border-light);
-  box-shadow: var(--shadow-sm);
+  /* border: 1px solid rgba(23, 79, 60, 0.12); */
+  box-shadow: var(--shadow-ss);
   transition: transform var(--transition-fast);
   pointer-events: none;
   z-index: 1;
@@ -145,10 +146,10 @@
 }
 
 .mode-tab-btn.active {
+  font-weight: 700;
   color: var(--primary);
   background: transparent;
   box-shadow: none;
-  border: 1px solid var(--primary);
 }
 
 .setting-desc {
