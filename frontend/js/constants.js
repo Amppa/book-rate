@@ -9,7 +9,8 @@ export const STORAGE_KEYS = {
   CACHE_PREFIX: "bookrate:cache:",
   RATING_PREFIX: "bookrate:rating:",
   HISTORY: "bookrate:recent-searches",
-  SOURCE_STATUS: "bookrate:source-status"
+  SOURCE_STATUS: "bookrate:source-status",
+  STEP2_PRELOAD: "bookrate:step2-preload"
 };
 
 export const ONE_DAY_MS = 24 * 60 * 60 * 1000;

@@ -78,6 +78,14 @@ function initSettings() {
     }
   });
 
+  const step2PreloadCb = document.querySelector("#setting-step2-preload");
+  if (step2PreloadCb) {
+    step2PreloadCb.checked = localStorage.getItem(STORAGE_KEYS.STEP2_PRELOAD) !== "false";
+    step2PreloadCb.addEventListener("change", (e) => {
+      localStorage.setItem(STORAGE_KEYS.STEP2_PRELOAD, String(e.target.checked));
+    });
+  }
+
   updateTableVisibility(ratingTable);
 }
 initSettings();
@@ -88,7 +96,7 @@ initSettings();
 function initSearchMode() {
   const STORAGE_KEY = STORAGE_KEYS.SEARCH_MODE;
   const savedMode = localStorage.getItem(STORAGE_KEY);
-  if (savedMode === "quick_search" || savedMode === "edition_search") {
+  if (savedMode === "quick_search" || savedMode === "popular_search" || savedMode === "edition_search") {
     state.searchMode = savedMode;
   } else {
     state.searchMode = "quick_search"; // Default is quick_search
@@ -121,6 +129,10 @@ initSearchMode();
 function updateSourceHint(titleSource) {
   const hintEl = document.querySelector("#source-hint");
   if (!hintEl) return;
+  if (titleSource === "popular_combo") {
+    hintEl.textContent = "💡 自動彙整 Open Library、Google Play、Goodreads、豆瓣 之熱門推薦版本";
+    return;
+  }
   const sourceObj = SOURCES.find((s) => s.id === titleSource);
   const hintText = (sourceObj && sourceObj.hint) ? sourceObj.hint.trim() : "";
   hintEl.textContent = hintText || "\u00A0";
@@ -258,6 +270,15 @@ async function searchWorks(query, page, titleSource = "open_library", bypassCach
       renderSearchError(titleSource, query, page, err.message || "搜尋發生錯誤");
     }
   }
+
+  // 自動背景預載其餘來源 (預設開啟，除非使用者明確取消勾選)
+  if (localStorage.getItem(STORAGE_KEYS.STEP2_PRELOAD) !== "false" && page === 1) {
+    SOURCES.forEach((s) => {
+      if (s.id !== titleSource) {
+        fetchWorksWithCache({ query, page: 1, source: s.id, bypassCache }).catch(() => {});
+      }
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -269,6 +290,86 @@ renderHistory((query) => { searchInput.value = query; });
 // Event bindings
 // ---------------------------------------------------------------------------
 
+const POPULAR_SOURCES = ["open_library", "google_play", "goodreads", "douban"];
+
+async function searchPopularMode(query, bypassCache = false) {
+  cancelActiveStream();
+  if (state.currentQuery !== query) {
+    detailsHeading.hidden = true;
+    tableWrap.hidden = true;
+    resultBody.replaceChildren();
+  }
+
+  state.currentQuery = query;
+  state.currentPage = 1;
+  state.currentTitleSource = "popular_combo";
+
+  candidateSection.hidden = false;
+  candidateHeading.hidden = false;
+  paginationControls.hidden = true;
+  goToStep(2);
+  updateTitleSourceTabs("popular_combo");
+  saveHistory(query);
+  renderHistory((q) => { searchInput.value = q; });
+  resetMetadataPanel(query);
+
+  candidateList.replaceChildren();
+  const loadingEl = document.createElement("div");
+  loadingEl.className = "no-results loading";
+  loadingEl.textContent = "正在從 Open Library、Google Play、Goodreads、豆瓣 尋找熱門版本…";
+  candidateList.append(loadingEl);
+
+  try {
+    const promises = POPULAR_SOURCES.map((sourceId) =>
+      fetchWorksWithCache({ query, page: 1, source: sourceId, bypassCache })
+    );
+    const settledResults = await Promise.allSettled(promises);
+
+    if (state.currentQuery !== query) return;
+
+    const recommendedWorks = [];
+    settledResults.forEach((res) => {
+      if (res.status === "fulfilled" && Array.isArray(res.value?.data) && res.value.data.length > 0) {
+        const sourceWorks = res.value.data;
+        let topWork = sourceWorks[0];
+        let maxCount = typeof topWork.rating?.rating_count === "number" ? topWork.rating.rating_count : 0;
+        for (let i = 1; i < sourceWorks.length; i++) {
+          const w = sourceWorks[i];
+          const count = typeof w.rating?.rating_count === "number" ? w.rating.rating_count : 0;
+          if (count > maxCount) {
+            maxCount = count;
+            topWork = w;
+          }
+        }
+        recommendedWorks.push(topWork);
+      }
+    });
+
+    if (!recommendedWorks.length) {
+      candidateList.replaceChildren();
+      const noResultsEl = document.createElement("div");
+      noResultsEl.className = "no-results";
+      noResultsEl.textContent = `在熱門來源中找不到「${query}」相關書籍`;
+      candidateList.append(noResultsEl);
+      return;
+    }
+
+    // 依序將各平台推薦書籍的 metadata 帶入面板
+    recommendedWorks.forEach((work) => {
+      chooseCandidate(work);
+    });
+
+    renderCandidates(recommendedWorks, {
+      onChooseCandidate: chooseCandidate,
+      onChooseEdition: chooseEdition
+    });
+  } catch (err) {
+    if (state.currentQuery === query) {
+      renderSearchError("popular_combo", query, 1, err.message || "搜尋發生錯誤");
+    }
+  }
+}
+
 // Search form
 searchForm.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -277,50 +378,27 @@ searchForm.addEventListener("submit", (event) => {
 
   if (state.searchMode === "quick_search") {
     directToStep3(query);
+  } else if (state.searchMode === "popular_search") {
+    searchPopularMode(query);
   } else {
     resetMetadataPanel(query);
     searchWorks(query, 1, "open_library");
   }
 });
 
-// Source tabs & Preload All button
+// Source tabs
 const tabsContainer = document.querySelector("#title-source-tabs-container");
 if (tabsContainer) {
-  tabsContainer.addEventListener("click", async (e) => {
-    const preloadBtn = e.target.closest("#btn-preload-sources");
-    if (preloadBtn) {
-      const q = searchInput.value.trim() || state.currentQuery;
-      if (!q || preloadBtn.disabled) return;
-
-      preloadBtn.disabled = true;
-      try {
-        const promises = SOURCES.map((s) =>
-          fetchWorksWithCache({ query: q, page: 1, source: s.id })
-        );
-        const results = await Promise.allSettled(promises);
-
-        // Retrieve the active source result directly from settled results or cache fallback
-        const activeIdx = SOURCES.findIndex((s) => s.id === state.currentTitleSource);
-        const activeResult = activeIdx !== -1 && results[activeIdx]?.status === "fulfilled"
-          ? results[activeIdx].value
-          : await fetchWorksWithCache({ query: q, page: 1, source: state.currentTitleSource });
-
-        if (activeResult?.data && state.currentQuery === q && state.currentPage === 1) {
-          renderSearchResults(state.currentTitleSource, q, 1, activeResult.data);
-        }
-      } catch (err) {
-        console.warn("Preload encountered errors:", err);
-      } finally {
-        preloadBtn.disabled = false;
-      }
-      return;
-    }
-
+  tabsContainer.addEventListener("click", (e) => {
     const btn = e.target.closest(".title-source-tab-btn");
-    if (btn && !btn.id) {
+    if (btn) {
       const sourceId = btn.dataset.sourceId;
       const q = searchInput.value.trim() || state.currentQuery;
-      if (q && sourceId) searchWorks(q, 1, sourceId);
+      if (q && sourceId === "popular_combo") {
+        searchPopularMode(q);
+      } else if (q && sourceId) {
+        searchWorks(q, 1, sourceId);
+      }
     }
   });
 }

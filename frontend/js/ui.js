@@ -125,13 +125,15 @@ export function renderTitleSourceTabs(container, currentTitleSource) {
     container.appendChild(btn);
   });
 
-  const preloadBtn = document.createElement("button");
-  preloadBtn.type = "button";
-  preloadBtn.id = "btn-preload-sources";
-  preloadBtn.className = "title-source-tab-btn btn-preload-tab";
-  preloadBtn.title = "一次預載所有平台搜尋結果至快取";
-  preloadBtn.textContent = "一鍵預載";
-  container.appendChild(preloadBtn);
+  const popularBtn = document.createElement("button");
+  popularBtn.type = "button";
+  popularBtn.className = "title-source-tab-btn btn-popular-tab";
+  if (currentTitleSource === "popular_combo") {
+    popularBtn.classList.add("active");
+  }
+  popularBtn.dataset.sourceId = "popular_combo";
+  popularBtn.textContent = "熱門組合";
+  container.appendChild(popularBtn);
 }
 
 export function initTableVisibilityStyles() {

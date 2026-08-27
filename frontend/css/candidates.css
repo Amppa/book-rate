@@ -43,13 +43,8 @@
   font-weight: 700;
 }
 
-.btn-preload-tab {
+.btn-popular-tab {
   margin-left: auto;
-}
-
-.btn-preload-tab:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 /* Candidate List & Container */

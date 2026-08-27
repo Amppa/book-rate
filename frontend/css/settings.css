@@ -43,7 +43,8 @@
 }
 
 .settings-details[open] {
-  width: 340px;
+  width: 420px;
+  max-width: calc(100vw - 2rem);
   padding: var(--space-4) var(--space-5) var(--space-5);
   background: var(--surface-card);
   border: 1px solid var(--border-light);
@@ -143,7 +144,7 @@
   position: absolute;
   top: var(--space-1);
   left: var(--space-1);
-  width: calc(50% - var(--space-1));
+  width: calc((100% - calc(var(--space-1) * 2)) / 3);
   height: calc(100% - calc(var(--space-1) * 2));
   background: var(--surface-card);
   border-radius: calc(var(--radius-lg) - var(--space-1));
@@ -154,12 +155,16 @@
   z-index: 1;
 }
 
-.search-mode-selector[data-selected="edition_search"] .mode-glider {
+.search-mode-selector[data-selected="quick_search"] .mode-glider {
+  transform: translateX(0);
+}
+
+.search-mode-selector[data-selected="popular_search"] .mode-glider {
   transform: translateX(100%);
 }
 
-.search-mode-selector[data-selected="quick_search"] .mode-glider {
-  transform: translateX(0);
+.search-mode-selector[data-selected="edition_search"] .mode-glider {
+  transform: translateX(200%);
 }
 
 .mode-tab-btn {
@@ -169,7 +174,7 @@
   color: var(--text-muted);
   border: 0;
   border-radius: calc(var(--radius-lg) - var(--space-1));
-  padding: var(--space-2) var(--space-4);
+  padding: var(--space-2) var(--space-2);
   font-size: var(--fs-md);
   font-weight: 700;
   display: inline-flex;
