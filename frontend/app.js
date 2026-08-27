@@ -363,6 +363,9 @@ async function searchPopularMode(query, bypassCache = false) {
       onChooseCandidate: chooseCandidate,
       onChooseEdition: chooseEdition
     });
+
+    // Popular 模式自動進入 Step 3 進行多平台評分比對
+    confirmToStep3();
   } catch (err) {
     if (state.currentQuery === query) {
       renderSearchError("popular_combo", query, 1, err.message || "搜尋發生錯誤");
@@ -416,7 +419,7 @@ btnPrevTo1.addEventListener("click", () => {
   goToStep(1);
 });
 btnPrevTo2.addEventListener("click", () => {
-  if (state.searchMode === "quick_search") {
+  if (state.searchMode === "quick_search" || state.searchMode === "popular_search") {
     goToStep(1);
   } else {
     goToStep(2);

@@ -25,6 +25,7 @@ _WAF_SIGNATURES = (
 
 class SearchStrategy:
     SEARCH_NAME = "search_name"
+    TITLE_LIST_FIRST = "title_list_first"
     TITLE_LIST = "title_list"
     TITLE_ZH_LIST = "title_zh_list"
     TITLE_LIST_FULL = "title_list_full"
@@ -599,8 +600,8 @@ class BaseSource:
                 except Exception as e:
                     network_error_msg = f"Error: {e}"
 
-        # 3. TITLE_LIST & TITLE_AUTHOR
-        elif strat in (SearchStrategy.TITLE_LIST, SearchStrategy.TITLE_AUTHOR):
+        # 3. TITLE_LIST_FIRST, TITLE_LIST & TITLE_AUTHOR
+        elif strat in (SearchStrategy.TITLE_LIST_FIRST, SearchStrategy.TITLE_LIST, SearchStrategy.TITLE_AUTHOR):
             titles_to_try = work.title_list if work.title_list else ([work.title] if work.title else [])
             if strat == SearchStrategy.TITLE_AUTHOR and work.author:
                 author_suffix = f" {work.author}"

@@ -31,7 +31,7 @@ export const SOURCES = [
 
 export const STRATEGIES = [
   { value: "search_name", label: "搜尋名稱 (User input title)" },
-  { value: "title_list", label: "書名列表 (短路)" },
+  { value: "title_list_first", label: "書名列表 (短路)" },
   { value: "title_list_full", label: "書名列表 (完整)" },
   { value: "isbn", label: "ISBN" },
 ];
@@ -111,6 +111,7 @@ export const LANGUAGE_NAME_MAP = {
 // Friendly display names for search strategies — centralised here to avoid duplication.
 export const STRATEGY_LABEL_MAP = {
   "search_name": "搜尋名稱",
+  "title_list_first": "書名列表 (短路)",
   "title_list": "書名列表 (短路)",
   "title_list_full": "書名列表 (完整)",
   "isbn": "ISBN",

@@ -199,6 +199,7 @@ function _resolveHeaderQuery(sourceId, strategies) {
 
   let query = "";
   switch (strategy) {
+    case "title_list_first":
     case "title_list":
     case "title_list_full":
       query = meta.titleList[0] || "";
@@ -255,6 +256,14 @@ export async function selectWork(work) {
     strategies = {};
     activeRateSourcesList.forEach((source) => {
       strategies[source] = "search_name";
+    });
+  } else if (state.searchMode === "popular_search") {
+    strategies = {};
+    activeRateSourcesList.forEach((source) => {
+      strategies[source] = "title_list_full";
+    });
+    document.querySelectorAll(".strategy-select").forEach((sel) => {
+      sel.value = "title_list_full";
     });
   }
 
