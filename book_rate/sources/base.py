@@ -267,7 +267,7 @@ class BaseSource:
     @property
     def default_strategy(self) -> str:
         """Default search strategy for this source."""
-        return SearchStrategy.TITLE_AUTHOR
+        return SearchStrategy.SEARCH_NAME
 
     def search_works(self, query: str, limit: int = 5, page: int = 1) -> List[Work]:
         """Search for works matching query string."""
@@ -616,7 +616,7 @@ class BaseSource:
 
         # 4. TITLE_ZH_LIST
         elif strat == SearchStrategy.TITLE_ZH_LIST:
-            titles_to_try = work.title_zh_list if work.title_zh_list else ([work.title] if work.title else [])
+            titles_to_try = work.title_zh_list if work.title_zh_list else (work.title_list if work.title_list else ([work.title] if work.title else []))
             rating = self._search_titles_short_circuit(titles_to_try, strat, search)
             if rating:
                 return rating
@@ -636,7 +636,7 @@ class BaseSource:
 
         # 6. FULL LIST STRATEGIES
         elif strat in (SearchStrategy.TITLE_LIST_FULL, SearchStrategy.TITLE_ZH_LIST_FULL):
-            titles_to_try = work.title_list if strat == SearchStrategy.TITLE_LIST_FULL else work.title_zh_list
+            titles_to_try = (work.title_list if strat == SearchStrategy.TITLE_LIST_FULL else (work.title_zh_list if work.title_zh_list else work.title_list))
             if not titles_to_try:
                 titles_to_try = [work.title] if work.title else []
             return self._fetch_full_list_ratings(titles_to_try, strat, search)

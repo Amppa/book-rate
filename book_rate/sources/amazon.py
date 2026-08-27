@@ -500,7 +500,7 @@ class AmazonSource(BaseSource):
 
     @property
     def default_strategy(self) -> str:
-        return "isbn_primary"
+        return "search_name"
 
 
 class AmazonJPSource(AmazonSource):

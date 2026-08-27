@@ -376,7 +376,7 @@ class StoryGraphSource(BaseSource):
 
     @property
     def default_strategy(self) -> str:
-        return "title_author"
+        return "search_name"
 
     def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> SourceRating:
         """Fetch StoryGraph rating for a Work using explicit SearchStrategy."""

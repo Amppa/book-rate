@@ -1,6 +1,6 @@
 import { state } from './state.js';
 import { SOURCES, SOURCE_PREFIX } from './constants.js';
-import { removeBrackets, hasCjk } from './utils.js';
+import { removeBrackets } from './utils.js';
 
 /**
  * Initialises wizard event listeners.
@@ -12,14 +12,10 @@ export function initWizard() {
     removeBracketsCb.addEventListener("change", (e) => {
       if (e.target.checked) {
         const titleEl = document.querySelector("#bm-title");
-        const titleZhEl = document.querySelector("#bm-title-zh");
         const authorEl = document.querySelector("#bm-author");
 
         if (titleEl && titleEl.value) {
           titleEl.value = titleEl.value.split('\n').map(removeBrackets).filter(Boolean).join('\n');
-        }
-        if (titleZhEl && titleZhEl.value) {
-          titleZhEl.value = titleZhEl.value.split('\n').map(removeBrackets).filter(Boolean).join('\n');
         }
         if (authorEl && authorEl.value) {
           authorEl.value = authorEl.value.split('\n').map(removeBrackets).filter(Boolean).join('\n');
@@ -97,7 +93,6 @@ export function chooseCandidate(work) {
   state.currentSelectedWork = work;
 
   const titleEl = document.querySelector("#bm-title");
-  const titleZhEl = document.querySelector("#bm-title-zh");
   const authorEl = document.querySelector("#bm-author");
   const publishDateEl = document.querySelector("#bm-publish-date");
   const isbnEl = document.querySelector("#bm-isbn");
@@ -107,11 +102,7 @@ export function chooseCandidate(work) {
   if (work.title) {
     let titleVal = work.title;
     if (removeBracketsActive) titleVal = removeBrackets(titleVal);
-    if (hasCjk(titleVal)) {
-      appendAndLimitTextarea(titleZhEl, titleVal, 4);
-    } else {
-      appendAndLimitTextarea(titleEl, titleVal, 4);
-    }
+    appendAndLimitTextarea(titleEl, titleVal, 5);
   }
 
   if (work.author_name && work.author_name.length > 0) {
@@ -121,14 +112,14 @@ export function chooseCandidate(work) {
     if (removeBracketsActive) {
       validAuthors = validAuthors.map(name => removeBrackets(name)).filter(Boolean);
     }
-    appendAndLimitTextarea(authorEl, validAuthors, 8);
+    appendAndLimitTextarea(authorEl, validAuthors, 5);
   }
 
   if (publishDateEl) publishDateEl.value = work.first_publish_year || "";
 
   if (work.isbn) {
     const isbnVal = Array.isArray(work.isbn) ? work.isbn[0] : work.isbn;
-    appendAndLimitTextarea(isbnEl, isbnVal, 8);
+    appendAndLimitTextarea(isbnEl, isbnVal, 5);
   }
 }
 
@@ -137,7 +128,6 @@ export function chooseEdition(work, edition) {
   chooseCandidate(work);
 
   const titleEl = document.querySelector("#bm-title");
-  const titleZhEl = document.querySelector("#bm-title-zh");
   const publishDateEl = document.querySelector("#bm-publish-date");
   const isbnEl = document.querySelector("#bm-isbn");
 
@@ -147,32 +137,26 @@ export function chooseEdition(work, edition) {
   if (titleVal) {
     let finalTitle = titleVal;
     if (removeBracketsActive) finalTitle = removeBrackets(finalTitle);
-    if (hasCjk(finalTitle)) {
-      appendAndLimitTextarea(titleZhEl, finalTitle, 4);
-    } else {
-      appendAndLimitTextarea(titleEl, finalTitle, 4);
-    }
+    appendAndLimitTextarea(titleEl, finalTitle, 5);
   }
 
   const pubDateVal = edition.publish_date || (work.first_publish_year ? String(work.first_publish_year) : "");
   if (publishDateEl && pubDateVal) publishDateEl.value = pubDateVal;
 
   const isbnVal = edition.isbn_13 || edition.isbn_10;
-  if (isbnEl && isbnVal) appendAndLimitTextarea(isbnEl, isbnVal, 8);
+  if (isbnEl && isbnVal) appendAndLimitTextarea(isbnEl, isbnVal, 5);
 }
 
 /** Clears the Step-2 metadata panel (called on a new search). */
 export function resetMetadataPanel(query) {
   const searchNameEl = document.querySelector("#bm-search-name");
   const titleEl = document.querySelector("#bm-title");
-  const titleZhEl = document.querySelector("#bm-title-zh");
   const authorEl = document.querySelector("#bm-author");
   const publishDateEl = document.querySelector("#bm-publish-date");
   const isbnEl = document.querySelector("#bm-isbn");
 
   if (searchNameEl) searchNameEl.value = query || "";
   if (titleEl) titleEl.value = "";
-  if (titleZhEl) titleZhEl.value = "";
   if (authorEl) authorEl.value = "";
   if (publishDateEl) publishDateEl.value = "";
   if (isbnEl) isbnEl.value = "";
@@ -192,7 +176,6 @@ export function directToStep3(query) {
   resetMetadataPanel(query);
 
   const titleEl = document.querySelector("#bm-title");
-  const titleZhEl = document.querySelector("#bm-title-zh");
   const isbnEl = document.querySelector("#bm-isbn");
 
   const clean = query.replace(/[- ]/g, '');
@@ -201,11 +184,7 @@ export function directToStep3(query) {
   if (isIsbn) {
     if (isbnEl) isbnEl.value = clean;
   } else {
-    if (hasCjk(query)) {
-      if (titleZhEl) titleZhEl.value = query;
-    } else {
-      if (titleEl) titleEl.value = query;
-    }
+    if (titleEl) titleEl.value = query;
   }
 
   confirmToStep3();
@@ -218,10 +197,9 @@ export function directToStep3(query) {
 export function getStep3Metadata() {
   const searchName = document.querySelector("#s3-search-name")?.value.trim() || "";
   const titleList = (document.querySelector("#s3-title")?.value || "").split("\n").map(s => s.trim()).filter(Boolean);
-  const titleZhList = (document.querySelector("#s3-title-zh")?.value || "").split("\n").map(s => s.trim()).filter(Boolean);
   const authorList = (document.querySelector("#s3-author")?.value || "").split("\n").map(s => s.trim()).filter(Boolean);
   const isbnList = (document.querySelector("#s3-isbn")?.value || "").split("\n").map(s => s.trim()).filter(Boolean);
-  return { searchName, titleList, titleZhList, authorList, isbnList };
+  return { searchName, titleList, titleZhList: [], authorList, isbnList };
 }
 
 export function getSelectedStrategies() {
@@ -244,7 +222,7 @@ export function getActiveRateSourcesList() {
 }
 
 export function getSourceDefaultStrat(provId) {
-  return SOURCES.find(p => p.id === provId)?.defaultStrategy || "title_list";
+  return SOURCES.find(p => p.id === provId)?.defaultStrategy || "search_name";
 }
 
 // ---------------------------------------------------------------------------
@@ -258,7 +236,6 @@ export function getSourceDefaultStrat(provId) {
 export function confirmToStep3() {
   const searchNameVal = document.querySelector("#bm-search-name")?.value || "";
   const titleVal = document.querySelector("#bm-title")?.value.trim() || "";
-  const titleZhVal = document.querySelector("#bm-title-zh")?.value || "";
   const authorVal = document.querySelector("#bm-author")?.value.trim() || "";
   const publishDateVal = document.querySelector("#bm-publish-date")?.value.trim() || "";
   const isbnVal = document.querySelector("#bm-isbn")?.value.trim() || "";
@@ -271,14 +248,12 @@ export function confirmToStep3() {
   // Copy values to Step-3 metadata fields
   const s3SearchName = document.querySelector("#s3-search-name");
   const s3Title = document.querySelector("#s3-title");
-  const s3TitleZh = document.querySelector("#s3-title-zh");
   const s3Author = document.querySelector("#s3-author");
   const s3PublishDate = document.querySelector("#s3-publish-date");
   const s3Isbn = document.querySelector("#s3-isbn");
 
   if (s3SearchName) s3SearchName.value = searchNameVal;
   if (s3Title) s3Title.value = titleVal;
-  if (s3TitleZh) s3TitleZh.value = titleZhVal;
   if (s3Author) s3Author.value = authorVal;
   if (s3PublishDate) s3PublishDate.value = publishDateVal;
   if (s3Isbn) s3Isbn.value = isbnVal;
@@ -288,7 +263,7 @@ export function confirmToStep3() {
     const keyIdentifier = (isbnVal || searchNameVal || Date.now().toString()).trim().replace(/\s+/g, '_');
     workToUse = {
       key: "custom:" + keyIdentifier,
-      title: titleVal || (titleZhVal ? titleZhVal.split("\n")[0] : ""),
+      title: titleVal || "",
       author_name: authorVal ? [authorVal] : ["Unknown"],
       first_publish_year: publishDateVal,
       isbn: isbnVal
@@ -296,7 +271,7 @@ export function confirmToStep3() {
   } else {
     workToUse = {
       ...workToUse,
-      title: titleVal || workToUse.title || (titleZhVal ? titleZhVal.split("\n")[0] : ""),
+      title: titleVal || workToUse.title || "",
       author_name: authorVal ? authorVal.split(",").map((s) => s.trim()) : workToUse.author_name,
       first_publish_year: publishDateVal || workToUse.first_publish_year,
       isbn: isbnVal || workToUse.isbn

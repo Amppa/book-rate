@@ -15,25 +15,23 @@ export const STORAGE_KEYS = {
 export const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 export const SOURCES = [
-  { id: "open_library", label: "Open Library", url: "https://openlibrary.org", defaultStrategy: "title_list", enable_extend_editions: true, hint: "💡 官方API；中文書:少" },
-  { id: "google_books", label: "Google Book", url: "https://books.google.com", defaultStrategy: "title_list", hint: "💡 官方API；中文書:有。評分來自舊版網頁遺留資料，新版Google Book已無評分功能。" },
-  { id: "google_play", label: "Google Play", url: "https://play.google.com/store/books", defaultStrategy: "title_list", hint: "" },
-  { id: "goodreads", label: "Goodreads", url: "https://www.goodreads.com", defaultStrategy: "title_list", enable_extend_editions: true, hint: "💡 反爬蟲(WAF):中等" },
-  { id: "storygraph", label: "StoryGraph", url: "https://app.thestorygraph.com", defaultStrategy: "title_list", enable_extend_editions: true, hint: "💡 中文搜尋:不支援。反爬蟲(WAF):嚴格。注意：不支持中文書名！當找不到書的時候爬蟲會爬錯書。" },
-  { id: "amazon", label: "Amazon", url: "https://www.amazon.com", defaultStrategy: "title_list", hint: "💡 反爬蟲(WAF):嚴格。搜尋冷卻:1秒 (防封鎖)" },
-  { id: "amazon_jp", label: "Amazon JP", url: "https://www.amazon.co.jp", defaultStrategy: "title_list", hint: "💡 反爬蟲(WAF):嚴格。搜尋冷卻:1秒 (防封鎖)" },
-  { id: "douban", label: "豆瓣", url: "https://book.douban.com", defaultStrategy: "title_zh_list", enable_extend_editions: true, hint: "💡 搜尋冷卻:1秒 (防封鎖)" },
-  { id: "douban_api", label: "豆瓣 API", url: "https://book.douban.com", defaultStrategy: "title_zh_list", hint: "💡 豆瓣官方 API。只會顯示最接近的一本書。" },
-  { id: "readmoo", label: "讀墨", url: "https://readmoo.com", defaultStrategy: "title_zh_list", hint: "" },
-  { id: "books_tw", label: "博客來", url: "https://www.books.com.tw", defaultStrategy: "title_zh_list", hint: "💡 搜尋冷卻:1秒 (防封鎖)。同書名有可能是不同版本" },
+  { id: "open_library", label: "Open Library", url: "https://openlibrary.org", defaultStrategy: "search_name", enable_extend_editions: true, hint: "💡 官方API；中文書:少" },
+  { id: "google_books", label: "Google Book", url: "https://books.google.com", defaultStrategy: "search_name", hint: "💡 官方API；中文書:有。評分來自舊版網頁遺留資料，新版Google Book已無評分功能。" },
+  { id: "google_play", label: "Google Play", url: "https://play.google.com/store/books", defaultStrategy: "search_name", hint: "" },
+  { id: "goodreads", label: "Goodreads", url: "https://www.goodreads.com", defaultStrategy: "search_name", enable_extend_editions: true, hint: "💡 反爬蟲(WAF):中等" },
+  { id: "storygraph", label: "StoryGraph", url: "https://app.thestorygraph.com", defaultStrategy: "search_name", enable_extend_editions: true, hint: "💡 中文搜尋:不支援。反爬蟲(WAF):嚴格。注意：不支持中文書名！當找不到書的時候爬蟲會爬錯書。" },
+  { id: "amazon", label: "Amazon", url: "https://www.amazon.com", defaultStrategy: "search_name", hint: "💡 反爬蟲(WAF):嚴格。搜尋冷卻:1秒 (防封鎖)" },
+  { id: "amazon_jp", label: "Amazon JP", url: "https://www.amazon.co.jp", defaultStrategy: "search_name", hint: "💡 反爬蟲(WAF):嚴格。搜尋冷卻:1秒 (防封鎖)" },
+  { id: "douban", label: "豆瓣", url: "https://book.douban.com", defaultStrategy: "search_name", enable_extend_editions: true, hint: "💡 搜尋冷卻:1秒 (防封鎖)" },
+  { id: "douban_api", label: "豆瓣 API", url: "https://book.douban.com", defaultStrategy: "search_name", hint: "💡 豆瓣官方 API。只會顯示最接近的一本書。" },
+  { id: "readmoo", label: "讀墨", url: "https://readmoo.com", defaultStrategy: "search_name", hint: "" },
+  { id: "books_tw", label: "博客來", url: "https://www.books.com.tw", defaultStrategy: "search_name", hint: "💡 搜尋冷卻:1秒 (防封鎖)。同書名有可能是不同版本" },
 ];
 
 export const STRATEGIES = [
   { value: "search_name", label: "搜尋名稱 (User input title)" },
   { value: "title_list", label: "書名列表 (短路)" },
-  { value: "title_zh_list", label: "書名列表(CJK) (短路)" },
   { value: "title_list_full", label: "書名列表 (完整)" },
-  { value: "title_zh_list_full", label: "書名列表(CJK) (完整)" },
   { value: "isbn", label: "ISBN" },
 ];
 
@@ -113,9 +111,7 @@ export const LANGUAGE_NAME_MAP = {
 export const STRATEGY_LABEL_MAP = {
   "search_name": "搜尋名稱",
   "title_list": "書名列表 (短路)",
-  "title_zh_list": "書名列表(CJK) (短路)",
   "title_list_full": "書名列表 (完整)",
-  "title_zh_list_full": "書名列表(CJK) (完整)",
   "isbn": "ISBN",
   "source_id": "書籍ID (精確)"
 };

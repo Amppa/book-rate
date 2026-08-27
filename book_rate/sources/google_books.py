@@ -62,7 +62,7 @@ class GoogleBooksSource(BaseSource):
 
     @property
     def default_strategy(self) -> str:
-        return "isbn_primary"
+        return "search_name"
 
     def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> SourceRating:
         """Fetch Google Books rating for a Work via Google Books API."""

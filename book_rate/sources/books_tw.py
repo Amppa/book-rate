@@ -211,7 +211,7 @@ class BooksTwSource(BaseSource):
 
     @property
     def default_strategy(self) -> str:
-        return "title_zh_list"
+        return "search_name"
 
     @staticmethod
     def _clean_text(text: Optional[str]) -> Optional[str]:

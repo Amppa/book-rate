@@ -496,7 +496,7 @@ class DoubanSource(BaseSource):
 
     @property
     def default_strategy(self) -> str:
-        return "isbn_primary"
+        return "search_name"
 
     def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> SourceRating:
         """Fetch Douban rating for a Work using explicit SearchStrategy."""

@@ -186,8 +186,8 @@ class TestGooglePlayAdditional(unittest.TestCase):
             work_id="test_work_1",
             title="Thinking, Fast and Slow",
             author="Daniel Kahneman",
-            title_list=["Thinking, Fast and Slow"],
-            title_zh_list=["快思慢想"],
+            title_list=["Thinking, Fast and Slow", "快思慢想"],
+            title_zh_list=[],
             author_list=["Daniel Kahneman"],
             isbn_list=["9780374275631"]
         )

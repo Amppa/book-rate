@@ -11,8 +11,8 @@ class TestReadmooSource(unittest.TestCase):
             work_id="test_work_1",
             title="Thinking, Fast and Slow",
             author="Daniel Kahneman",
-            title_list=["Thinking, Fast and Slow"],
-            title_zh_list=["快思慢想"],
+            title_list=["Thinking, Fast and Slow", "快思慢想"],
+            title_zh_list=[],
             author_list=["Daniel Kahneman"],
             isbn_list=["9780374275631"]
         )
@@ -27,7 +27,7 @@ class TestReadmooSource(unittest.TestCase):
         """
         mock_fetch_html.return_value = html_content
         source = ReadmooSource()
-        rating = source.fetch_ratings(self.test_work, strategy="title_zh_list")
+        rating = source.fetch_ratings(self.test_work, strategy="title_list")
         self.assertIsNotNone(rating)
         self.assertEqual(rating.source_name, "Readmoo")
 

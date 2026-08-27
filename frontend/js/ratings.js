@@ -199,10 +199,6 @@ function _resolveHeaderQuery(sourceId, strategies) {
 
   let query = "";
   switch (strategy) {
-    case "title_zh_list":
-    case "title_zh_list_full":
-      query = meta.titleZhList[0] || "";
-      break;
     case "title_list":
     case "title_list_full":
       query = meta.titleList[0] || "";

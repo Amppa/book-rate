@@ -185,7 +185,7 @@ class ReadmooSource(BaseSource):
 
     @property
     def default_strategy(self) -> str:
-        return "title_author"
+        return "search_name"
 
     @classmethod
     def _extract_book_id_from_url(cls, url: str) -> Optional[str]:

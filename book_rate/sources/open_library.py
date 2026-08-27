@@ -103,7 +103,7 @@ class OpenLibrarySource(BaseSource):
 
     @property
     def default_strategy(self) -> str:
-        return "title_author"
+        return "search_name"
 
     def fetch_ratings(self, work: Work, strategy: Optional[str] = None) -> SourceRating:
         """Fetch dedicated rating object from Open Library ratings endpoint or via strategy."""

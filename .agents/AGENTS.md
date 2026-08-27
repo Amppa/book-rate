@@ -48,8 +48,7 @@ graph TD
 * **Book Metadata Resolution**:
   - Extracts metadata collections from editions into editable lists in the right-side **Metadata Editor Card**:
     - `search_name` (string): Raw user query.
-    - `title_list` (list): Alternative English/main titles (e.g. `["The Lord of the Rings", "LotR"]`).
-    - `title_zh_list` (list): Alternative CJK/Asian titles (e.g. `["魔戒", "指环王"]`).
+    - `title_list` (list): Alternative titles collected from sources/editions (e.g. `["The Lord of the Rings", "魔戒", "LotR"]`).
     - `author_list` (list): Author names.
     - `isbn_list` (list): ISBN-10/13 strings collected from editions.
 
@@ -78,16 +77,14 @@ graph TD
 | **Readmoo (讀墨)** | `readmoo` | `rm` / `rm:...` | Rate Provider |
 | **Books.com.tw (博客來)** | `books_tw` | `bk` / `bk:...` | Rate Provider |
 
-### 8 Single-Factor Search Strategies
-Configurable per-provider in table column headers:
+### Search Strategies
+Configurable per-provider in table column headers (all default to `search_name`):
 1. `search_name`: Searches platform exactly using the user's raw query.
 2. `title_list` (Short-circuit): Tries titles in `title_list` sequentially; short-circuits on first rating hit.
-3. `title_zh_list` (Short-circuit): Tries titles in `title_zh_list` sequentially; short-circuits on first hit.
-4. `title_list_full` (Full List): Queries all titles in `title_list`, displaying all matches vertically in the cell (1s delay).
-5. `title_zh_list_full` (Full List): Queries all titles in `title_zh_list`, displaying all matches vertically in the cell (1s delay).
-6. `isbn` (Short-circuit): Tries clean ISBNs in `isbn_list` sequentially.
-7. `source_id`: Direct ID lookup (Goodreads ID, Douban subject ID, Google Books volume ID, StoryGraph UUID).
-8. `title_author` (Default fallback): Combines main title with first author's name.
+3. `title_list_full` (Full List): Queries all titles in `title_list`, displaying all matches vertically in the cell (1s delay).
+4. `isbn` (Short-circuit): Tries clean ISBNs in `isbn_list` sequentially.
+5. `source_id`: Direct ID lookup (Goodreads ID, Douban subject ID, Google Books volume ID, StoryGraph UUID).
+6. `title_author` (Fallback): Combines main title with first author's name.
 
 ---
 
