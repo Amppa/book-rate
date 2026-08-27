@@ -40,7 +40,6 @@
   background: var(--primary-alpha-10);
   color: var(--primary);
   border-color: var(--primary);
-  font-weight: 700;
 }
 
 .btn-popular-tab {
