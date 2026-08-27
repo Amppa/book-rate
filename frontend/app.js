@@ -384,8 +384,10 @@ async function searchPopularMode(query, bypassCache = false) {
       onChooseEdition: chooseEdition
     });
 
-    // Popular 模式自動進入 Step 3 進行多平台評分比對
-    confirmToStep3();
+    // 只有在 Popular 模式下，才自動進入 Step 3 進行多平台評分比對
+    if (state.searchMode === "popular_search") {
+      confirmToStep3();
+    }
   } catch (err) {
     if (state.currentQuery === query) {
       renderSearchError("popular_combo", query, 1, err.message || "搜尋發生錯誤");
