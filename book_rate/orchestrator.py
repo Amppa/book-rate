@@ -112,7 +112,9 @@ class RatingOrchestrator:
 
     def _run_engines(self, ctx: dict, req: RatingRequestPayload):
         """Submit every engine concurrently and yield (engine_key, result) pairs."""
-        with ThreadPoolExecutor(max_workers=len(ctx["active_sources"]) or 1) as executor:
+        executor = ThreadPoolExecutor(max_workers=len(ctx["active_sources"]) or 1)
+        future_to_engine = {}
+        try:
             future_to_engine = {
                 executor.submit(
                     self._fetch_rating_for_engine,
@@ -122,6 +124,13 @@ class RatingOrchestrator:
             }
             for future in as_completed(future_to_engine):
                 yield future.result()
+        finally:
+            for f in future_to_engine:
+                f.cancel()
+            try:
+                executor.shutdown(wait=False, cancel_futures=True)
+            except TypeError:
+                executor.shutdown(wait=False)
 
     def evaluate_all(self, req: RatingRequestPayload) -> dict:
         ctx = self._prepare_context(req)

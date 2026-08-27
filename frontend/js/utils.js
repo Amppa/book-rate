@@ -1,6 +1,11 @@
 import { OPEN_LIBRARY_BASE_URL } from './constants.js';
 import { toSimplified } from './t2s.js';
 
+export function isSafeUrl(url) {
+  if (!url || typeof url !== "string") return false;
+  return /^https?:\/\//i.test(url.trim());
+}
+
 export function fetchJson(url) {
   return fetch(url).then(async (response) => {
     if (!response.ok) {

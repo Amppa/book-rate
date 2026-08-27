@@ -4,7 +4,7 @@
  */
 
 import { STRATEGY_LABEL_MAP } from './constants.js';
-import { displayRate, displayCount, getWorkExternalUrl } from './utils.js';
+import { displayRate, displayCount, getWorkExternalUrl, isSafeUrl } from './utils.js';
 import { buildBookDetailsElement } from './result-details.js';
 
 /**
@@ -98,11 +98,12 @@ export function resolveRatingDisplay(itemData, maxRate = 5) {
  */
 export function buildTitleElement(title, url) {
   if (!title) return null;
-  const el = document.createElement(url ? "a" : "div");
+  const safeUrl = isSafeUrl(url) ? url : null;
+  const el = document.createElement(safeUrl ? "a" : "div");
   el.className = "source-book-title";
   el.textContent = title;
-  if (url) {
-    el.href = url;
+  if (safeUrl) {
+    el.href = safeUrl;
     el.target = "_blank";
     el.rel = "noreferrer";
   }

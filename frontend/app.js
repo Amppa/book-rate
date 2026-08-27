@@ -202,7 +202,20 @@ function renderSearchError(titleSource, query, page, errorMsg) {
   if (isWaf) {
     const detailText = errStr || "WAF Challenge / HTTP 403 Forbidden";
     const searchUrl = getSourceSearchUrl(titleSource, query);
-    errorEl.innerHTML = `⚠️ 觸發 ${titleSourceName} 的反爬蟲風控<br>Details: ${detailText}<br>建議: 等待數分鐘，或 <a class="waf-alert-link" href="${searchUrl}" target="_blank" rel="noreferrer">手動搜尋 ↗</a>`;
+    errorEl.append(
+      document.createTextNode(`⚠️ 觸發 ${titleSourceName} 的反爬蟲風控`),
+      document.createElement("br"),
+      document.createTextNode(`Details: ${detailText}`),
+      document.createElement("br"),
+      document.createTextNode("建議: 等待數分鐘，或 ")
+    );
+    const link = document.createElement("a");
+    link.className = "waf-alert-link";
+    link.href = searchUrl;
+    link.target = "_blank";
+    link.rel = "noreferrer";
+    link.textContent = "手動搜尋 ↗";
+    errorEl.appendChild(link);
   } else {
     errorEl.classList.add("error");
     errorEl.textContent = errorMsg || "查詢失敗。";

@@ -3,7 +3,7 @@
  * Renders collapsible metadata panel (<details>) dynamically for all valid metadata keys.
  */
 
-import { getWorkExternalUrl } from './utils.js';
+import { getWorkExternalUrl, isSafeUrl } from './utils.js';
 
 export const KNOWN_FIELD_ORDER = [
   "author",
@@ -219,7 +219,8 @@ export function buildBookDetailsElement(bookInfo) {
     }
 
     if (key === "work_id") {
-      const url = bookInfo.url || getWorkExternalUrl(rawVal);
+      const rawUrl = bookInfo.url || getWorkExternalUrl(rawVal);
+      const url = isSafeUrl(rawUrl) ? rawUrl : null;
       if (url) {
         const link = document.createElement("a");
         link.href = url;
