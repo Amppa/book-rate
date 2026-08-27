@@ -162,10 +162,18 @@ function renderSearchLoading(titleSource, query) {
   const titleSourceName = sourceObj ? sourceObj.label : "資料庫";
 
   candidateList.replaceChildren();
-  const loadingEl = document.createElement("div");
-  loadingEl.className = "no-results loading";
-  loadingEl.textContent = `正從 「${titleSourceName}」 尋找「${query}」…`;
-  candidateList.append(loadingEl);
+  const container = document.createElement("div");
+  container.className = "loading-state-container";
+
+  const spinner = document.createElement("div");
+  spinner.className = "loading-spinner";
+
+  const text = document.createElement("div");
+  text.className = "loading-text";
+  text.textContent = `正從 「${titleSourceName}」 尋找「${query}」…`;
+
+  container.append(spinner, text);
+  candidateList.append(container);
 
   paginationControls.hidden = true;
 }
@@ -314,10 +322,22 @@ async function searchPopularMode(query, bypassCache = false) {
   resetMetadataPanel(query);
 
   candidateList.replaceChildren();
-  const loadingEl = document.createElement("div");
-  loadingEl.className = "no-results loading";
-  loadingEl.textContent = "正在從 Open Library、Google Play、Goodreads、豆瓣 尋找熱門版本…";
-  candidateList.append(loadingEl);
+  const loadingContainer = document.createElement("div");
+  loadingContainer.className = "loading-state-container";
+
+  const spinner = document.createElement("div");
+  spinner.className = "loading-spinner";
+
+  const text = document.createElement("div");
+  text.className = "loading-text";
+  text.textContent = "正在從 Open Library、Google Play、Goodreads、豆瓣 尋找熱門版本…";
+
+  const subtext = document.createElement("div");
+  subtext.className = "loading-subtext";
+  subtext.textContent = "正在比對各平台評分人數並自動選取…";
+
+  loadingContainer.append(spinner, text, subtext);
+  candidateList.append(loadingContainer);
 
   try {
     const promises = POPULAR_SOURCES.map((sourceId) =>

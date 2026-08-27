@@ -64,6 +64,53 @@
   color: var(--text-muted);
 }
 
+.loading-state-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8) var(--space-4);
+  margin: var(--space-4) 0;
+  gap: var(--space-3);
+  text-align: center;
+}
+
+.loading-spinner {
+  width: 38px;
+  height: 38px;
+  border: 3.5px solid var(--border-light);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-text {
+  font-size: var(--fs-md);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.loading-subtext {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 /* Candidate Cards */
 .candidate-card {
   display: flex;
