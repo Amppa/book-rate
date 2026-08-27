@@ -192,6 +192,15 @@ export function buildBookDetailsElement(bookInfo) {
 
   details.addEventListener("toggle", () => {
     summary.textContent = details.open ? DETAILS_EXPANDED_TEXT : DETAILS_COLLAPSED_TEXT;
+    if (details.open) {
+      content.animate(
+        [
+          { transform: "translateY(-4px)" },
+          { transform: "translateY(0)" }
+        ],
+        { duration: 200, easing: "ease" }
+      );
+    }
     if (!_isBatchUpdating) {
       window.dispatchEvent(new CustomEvent("bookrate:details-toggle"));
     }
