@@ -66,6 +66,8 @@ const INTERNAL_SKIP_KEYS = new Set([
 
 export const DETAILS_EXPANDED_TEXT = "details [-]";
 export const DETAILS_COLLAPSED_TEXT = "details [+]";
+export const ALL_DETAILS_EXPANDED_TEXT = "全部 details [-]";
+export const ALL_DETAILS_COLLAPSED_TEXT = "全部 details [+]";
 
 export const MAX_DETAIL_VALUE_LENGTH = 50;
 

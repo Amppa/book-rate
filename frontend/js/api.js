@@ -107,28 +107,42 @@ export async function streamWorkDetailsPost(payload, onMessage, onError, onDone,
         if (line.startsWith("data: ")) {
           const rawJson = line.slice(6).trim();
           if (rawJson === "[DONE]") {
-            if (onDone) onDone();
+            if (onDone) {
+              try { onDone(); } catch (cbErr) { console.error("Error in onDone callback:", cbErr); }
+            }
             return;
           }
           try {
             const data = JSON.parse(rawJson);
             if (data.type === "done") {
-              if (onDone) onDone();
+              if (onDone) {
+                try { onDone(); } catch (cbErr) { console.error("Error in onDone callback:", cbErr); }
+              }
               return;
             }
-            if (onMessage) onMessage(data);
+            if (onMessage) {
+              try {
+                onMessage(data);
+              } catch (cbErr) {
+                console.error("Error in onMessage callback:", cbErr, data);
+              }
+            }
           } catch (e) {
             console.error("Error parsing SSE JSON payload:", e, rawJson);
           }
         }
       }
     }
-    if (onDone) onDone();
+    if (onDone) {
+      try { onDone(); } catch (cbErr) { console.error("Error in onDone callback:", cbErr); }
+    }
   } catch (err) {
     if (err.name === "AbortError" || signal?.aborted) {
       // Silently handle aborted fetch without triggering error states
       return;
     }
-    if (onError) onError(err);
+    if (onError) {
+      try { onError(err); } catch (cbErr) { console.error("Error in onError callback:", cbErr); }
+    }
   }
 }
