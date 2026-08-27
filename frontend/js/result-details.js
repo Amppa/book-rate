@@ -128,16 +128,9 @@ export function initAllDetailsToggle(btnEl) {
  */
 export function syncAllDetailsButton() {
   if (!_allDetailsBtn) return;
-  const tableWrap = document.querySelector(".table-wrap");
   const allDetails = document.querySelectorAll(".source-book-details");
 
-  if (allDetails.length === 0 || (tableWrap && tableWrap.hidden)) {
-    _allDetailsBtn.style.display = "none";
-    return;
-  }
-
-  _allDetailsBtn.style.display = "inline-flex";
-  const hasClosed = Array.from(allDetails).some((d) => !d.open);
+  const hasClosed = allDetails.length === 0 || Array.from(allDetails).some((d) => !d.open);
   _allDetailsBtn.textContent = hasClosed ? ALL_DETAILS_COLLAPSED_TEXT : ALL_DETAILS_EXPANDED_TEXT;
   _allDetailsBtn.title = hasClosed ? "展開全部 Details" : "收合全部 Details";
 }

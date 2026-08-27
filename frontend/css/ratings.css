@@ -352,7 +352,7 @@ a.source-book-title:hover {
   padding: 2px 6px;
   border-radius: var(--radius-sm);
   user-select: none;
-  display: none;
+  display: inline-flex;
   background: transparent;
   border: none;
   outline: none;
