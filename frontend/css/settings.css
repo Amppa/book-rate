@@ -144,7 +144,7 @@
   position: absolute;
   top: var(--space-1);
   left: var(--space-1);
-  width: calc((100% - calc(var(--space-1) * 2)) / 3);
+  width: calc((100% - calc(var(--space-1) * 2)) / 4);
   height: calc(100% - calc(var(--space-1) * 2));
   background: var(--surface-card);
   border-radius: calc(var(--radius-lg) - var(--space-1));
@@ -165,6 +165,10 @@
 
 .search-mode-selector[data-selected="edition_search"] .mode-glider {
   transform: translateX(200%);
+}
+
+.search-mode-selector[data-selected="ai_search"] .mode-glider {
+  transform: translateX(300%);
 }
 
 .mode-tab-btn {

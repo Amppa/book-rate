@@ -15,7 +15,8 @@ import {
   initWizard, goToStep,
   chooseCandidate, chooseEdition,
   resetMetadataPanel, confirmToStep3,
-  getSourceDefaultStrat, getSelectedStrategies, directToStep3
+  getSourceDefaultStrat, getSelectedStrategies, directToStep3,
+  setupAiModeStep, confirmAiToStep3
 } from './js/wizard.js';
 import { renderCandidates } from './js/candidates.js';
 import { initRatings, selectWork, reQuerySingleSource, markSourceCellDisabled, updateTableHeaderLinks, cancelActiveStream } from './js/ratings.js';
@@ -44,6 +45,7 @@ const nextPageBtn = document.querySelector("#next-page-btn");
 const pageIndicator = document.querySelector("#page-indicator");
 const candidateHeading = document.querySelector("#candidate-heading");
 const btnPrevTo1 = document.querySelector("#btn-prev-to-1");
+const btnPrevTo1From2b = document.querySelector("#btn-prev-to-1-from-2b");
 const btnPrevTo2 = document.querySelector("#btn-prev-to-2");
 const ratingTable = document.querySelector("table");
 const scoreToggleBarEl = document.querySelector("#score-toggle-bar");
@@ -96,7 +98,7 @@ initSettings();
 function initSearchMode() {
   const STORAGE_KEY = STORAGE_KEYS.SEARCH_MODE;
   const savedMode = localStorage.getItem(STORAGE_KEY);
-  if (savedMode === "quick_search" || savedMode === "popular_search" || savedMode === "edition_search") {
+  if (savedMode === "quick_search" || savedMode === "popular_search" || savedMode === "edition_search" || savedMode === "ai_search") {
     state.searchMode = savedMode;
   } else {
     state.searchMode = "quick_search"; // Default is quick_search
@@ -405,6 +407,12 @@ searchForm.addEventListener("submit", (event) => {
     directToStep3(query);
   } else if (state.searchMode === "popular_search") {
     searchPopularMode(query);
+  } else if (state.searchMode === "ai_search") {
+    state.currentQuery = query;
+    saveHistory(query);
+    renderHistory((q) => { searchInput.value = q; });
+    setupAiModeStep(query);
+    goToStep("2b");
   } else {
     resetMetadataPanel(query);
     searchWorks(query, 1, "open_library");
@@ -440,11 +448,20 @@ nextPageBtn.addEventListener("click", () => {
 btnPrevTo1.addEventListener("click", () => {
   goToStep(1);
 });
+
+if (btnPrevTo1From2b) {
+  btnPrevTo1From2b.addEventListener("click", () => {
+    goToStep(1);
+  });
+}
+
 btnPrevTo2.addEventListener("click", () => {
   if (state.searchMode === "quick_search" || state.searchMode === "popular_search") {
     goToStep(1);
+  } else if (state.searchMode === "ai_search") {
+    goToStep("2b");
   } else {
-    goToStep(2);
+    goToStep("2a");
   }
   step3Status.textContent = "";
   step3Status.classList.remove("error");
@@ -452,6 +469,12 @@ btnPrevTo2.addEventListener("click", () => {
 
 const btnConfirmTo3 = document.querySelector("#btn-confirm-to-3");
 if (btnConfirmTo3) btnConfirmTo3.addEventListener("click", confirmToStep3);
+
+// Step 2b (AI Mode) event bindings
+const btnAiConfirmTo3 = document.querySelector("#btn-ai-confirm-to-3");
+if (btnAiConfirmTo3) {
+  btnAiConfirmTo3.addEventListener("click", confirmAiToStep3);
+}
 
 // Local cache refresh buttons
 const btnRefreshStep2 = document.querySelector("#btn-refresh-step-2");

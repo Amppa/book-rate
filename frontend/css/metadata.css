@@ -170,3 +170,69 @@ textarea.bm-input[readonly] {
   color: var(--text-muted);
   cursor: default;
 }
+
+/* AI Mode (Step 2b) Styles */
+.ai-section {
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.ai-hint-top {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  text-align: center;
+  margin: 0 0 var(--space-4) 0;
+}
+
+.ai-split-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-5);
+  align-items: stretch;
+}
+
+@media (max-width: 768px) {
+  .ai-split-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ai-card {
+  background: var(--surface-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.ai-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  flex: 1;
+}
+
+.ai-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 32px;
+}
+
+.ai-label {
+  font-size: var(--fs-md);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.ai-textarea {
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+  flex: 1;
+  min-height: 220px;
+}

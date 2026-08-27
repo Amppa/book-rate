@@ -34,9 +34,13 @@
             <button type="button" class="mode-tab-btn" data-mode="edition_search">
               <span class="mode-label">Editions Mode</span>
             </button>
+            <button type="button" class="mode-tab-btn" data-mode="ai_search">
+              <span class="mode-label">AI Mode</span>
+            </button>
           </div>
           <p class="setting-desc">"快速模式"直接以書名搜尋評分(step 1 -> 3)。<br>"熱門模式"自動比對 Open Library、Google
-            Play、Goodreads、豆瓣，帶入最多人評分的書籍(step 1 -> 2)。<br>"多版本模式"先搜尋相似版本，再找評分。(step 1, 2, 3)</p>
+            Play、Goodreads、豆瓣，帶入最多人評分的書籍(step 1 -> 2a)。<br>"多版本模式"先搜尋相似版本，再找評分。(step 1, 2a, 3)<br>"AI
+            模式"產生中英書名對照提示詞，貼上回覆後比對評分。(step 1, 2b, 3)</p>
         </div>
 
         <!-- 2. Step 2 搜尋預載 -->
@@ -109,13 +113,13 @@
           </form>
         </div>
 
-        <!-- 步驟 2 面板 -->
-        <div class="wizard-step" id="step-2">
+        <!-- 步驟 2a 面板 (Editions Mode) -->
+        <div class="wizard-step" id="step-2a">
           <div class="step-header">
             <button type="button" id="btn-prev-to-1" class="btn-secondary">← 上一步</button>
             <div id="candidate-heading" class="section-heading" hidden>
               <h2>
-                <small class="step-num">第 2 步</small>選取書籍版本
+                <small class="step-num">第 2a 步</small>選取書籍版本
                 <button type="button" id="btn-refresh-step-2" class="btn-icon-only" title="清除此搜尋快取並重新整理">↻</button>
               </h2>
             </div>
@@ -162,7 +166,8 @@
                   </div>
 
                   <div class="bm-field-group">
-                    <label for="bm-title">建議書名列表 (Titles from Source) <span id="bm-title-hint" class="bm-inline-hint"></span></label>
+                    <label for="bm-title">建議書名列表 (Titles from Source) <span id="bm-title-hint"
+                        class="bm-inline-hint"></span></label>
                     <textarea id="bm-title" class="bm-input" placeholder="最多5筆"></textarea>
                   </div>
 
@@ -182,6 +187,44 @@
                   </div>
                 </div>
               </aside>
+            </div>
+          </section>
+        </div>
+
+        <!-- 步驟 2b 面板 (AI Mode) -->
+        <div class="wizard-step" id="step-2b">
+          <div class="step-header">
+            <button type="button" id="btn-prev-to-1-from-2b" class="btn-secondary">← 上一步</button>
+            <div class="section-heading">
+              <h2>
+                <small class="step-num">第 2b 步</small>AI 書名對照
+              </h2>
+            </div>
+          </div>
+          <section id="ai-section" class="ai-section">
+            <p class="ai-hint-top">💡 請手動複製到網頁上 AI 搜尋。串接 AI API 還在開發中，先測試提示詞是否可以正常運行。</p>
+            <div class="ai-split-layout">
+              <!-- 左欄：提示詞 -->
+              <div class="ai-card">
+                <div class="ai-block">
+                  <div class="ai-block-header">
+                    <label for="ai-prompt-text" class="ai-label">AI 搜尋提示詞</label>
+                  </div>
+                  <textarea id="ai-prompt-text" class="bm-input ai-textarea" readonly rows="9"></textarea>
+                </div>
+              </div>
+
+              <!-- 右欄：手動貼上搜尋結果與確認按鈕 -->
+              <div class="ai-card">
+                <div class="ai-block">
+                  <div class="ai-block-header">
+                    <label for="ai-response-text" class="ai-label">手動貼上搜尋結果 (每行一筆)</label>
+                    <button type="button" id="btn-ai-confirm-to-3" class="btn-confirm-next">➜ Step 3</button>
+                  </div>
+                  <textarea id="ai-response-text" class="bm-input ai-textarea" rows="9"
+                    placeholder="範例：Atomic Habits&#10;原子習慣&#10;掌控习惯"></textarea>
+                </div>
+              </div>
             </div>
           </section>
         </div>

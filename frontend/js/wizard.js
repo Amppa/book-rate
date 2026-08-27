@@ -37,16 +37,27 @@ export function initWizard() {
 // ---------------------------------------------------------------------------
 
 export function goToStep(step) {
-  state.currentStep = step;
-  document.querySelectorAll(".wizard-step").forEach((el, index) => {
-    if (index + 1 === step) {
+  let stepId = String(step);
+  if (stepId === "1") stepId = "step-1";
+  else if (stepId === "2") {
+    stepId = (state.searchMode === "ai_search") ? "step-2b" : "step-2a";
+  } else if (stepId === "2a") stepId = "step-2a";
+  else if (stepId === "2b") stepId = "step-2b";
+  else if (stepId === "3") stepId = "step-3";
+  else if (!stepId.startsWith("step-")) {
+    stepId = "step-" + stepId;
+  }
+
+  state.currentStep = stepId;
+  document.querySelectorAll(".wizard-step").forEach((el) => {
+    if (el.id === stepId) {
       el.classList.add("active");
     } else {
       el.classList.remove("active");
     }
   });
 
-  if (step === 3) {
+  if (stepId === "step-3") {
     const strategyRow = document.querySelector("#score-strategy-row");
     if (strategyRow) {
       strategyRow.hidden = (state.searchMode === "quick_search");
@@ -54,6 +65,13 @@ export function goToStep(step) {
     const metadataCard = document.querySelector("#step3-metadata-card");
     if (metadataCard) {
       metadataCard.hidden = (state.searchMode === "quick_search");
+    }
+
+    // AI mode automatically selects title_list_full (書名列表 完整)
+    if (state.searchMode === "ai_search") {
+      document.querySelectorAll(".strategy-select").forEach((sel) => {
+        sel.value = "title_list_full";
+      });
     }
   }
 }
@@ -343,3 +361,95 @@ export function confirmToStep3() {
 
   window.dispatchEvent(new CustomEvent("bookrate:select-work", { detail: workToUse }));
 }
+
+/**
+ * Initializes Step 2b with generated prompt, clears previous response,
+ * and immediately copies the prompt to the clipboard.
+ */
+export async function setupAiModeStep(query) {
+  const promptText = [
+    `請提供書籍「${query}」的以下譯名：`,
+    `- 英文書名`,
+    `- 繁體中文書名`,
+    `- 簡體中文書名`,
+    `note:`,
+    `- 每行一個書名，不要加上序號、作者或額外說明文字。`,
+    `- 若台灣、中國、香港、英國、美國有多種不同譯名版本，請列出。最多5筆。`,
+    `- 若找不到對應語言的書名，請直接略過留空，不要輸出任何文字。`,
+    `- 若書本重名、不確定哪一本，請選擇知名度、影響力較高者。`
+  ].join("\n");
+  const promptEl = document.querySelector("#ai-prompt-text");
+  const responseEl = document.querySelector("#ai-response-text");
+  if (promptEl) promptEl.value = promptText;
+  if (responseEl) responseEl.value = "";
+
+  // Automatically copy to clipboard immediately
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(promptText);
+    } else if (promptEl) {
+      promptEl.select();
+      document.execCommand("copy");
+    }
+  } catch (e) {
+    if (promptEl) {
+      try {
+        promptEl.select();
+        document.execCommand("copy");
+      } catch (err) { }
+    }
+  }
+}
+
+/**
+ * Validates AI response in Step 2b, parses titles, writes strictly to s3-title,
+ * and navigates to Step 3.
+ */
+export function confirmAiToStep3() {
+  const responseEl = document.querySelector("#ai-response-text");
+  const rawText = responseEl ? responseEl.value.trim() : "";
+  if (!rawText) {
+    alert("請先貼上 AI 回覆的書名清單");
+    return;
+  }
+
+  const lines = rawText
+    .split("\n")
+    .map((line) => line.replace(/^[\s\d\.\-\*\•\–\—]+/, "").trim())
+    .filter(Boolean);
+
+  if (lines.length === 0) {
+    alert("請先貼上 AI 回覆的書名清單");
+    return;
+  }
+
+  // Deduplicate lines while preserving order
+  const uniqueLines = [];
+  const seen = new Set();
+  lines.forEach((line) => {
+    const norm = line.toLowerCase();
+    if (!seen.has(norm)) {
+      seen.add(norm);
+      uniqueLines.push(line);
+    }
+  });
+
+  // User requirement: write strictly to s3-title
+  const s3Title = document.querySelector("#s3-title");
+  if (s3Title) {
+    s3Title.value = uniqueLines.join("\n");
+  }
+
+  const query = state.currentQuery || document.querySelector("#title")?.value.trim() || "";
+  const keyIdentifier = (uniqueLines[0] || query || Date.now().toString()).trim().replace(/\s+/g, '_');
+  const workToUse = {
+    key: "custom:ai_" + keyIdentifier,
+    title: uniqueLines[0] || query || "",
+    author_name: ["Unknown"],
+    first_publish_year: "",
+    isbn: ""
+  };
+
+  window.dispatchEvent(new CustomEvent("bookrate:select-work", { detail: workToUse }));
+}
+
