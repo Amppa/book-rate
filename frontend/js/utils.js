@@ -6,22 +6,6 @@ export function isSafeUrl(url) {
   return /^https?:\/\//i.test(url.trim());
 }
 
-export function fetchJson(url) {
-  return fetch(url).then(async (response) => {
-    if (!response.ok) {
-      let detail = `HTTP ${response.status}`;
-      try {
-        const body = await response.json();
-        if (body && body.detail) detail = body.detail;
-      } catch (_) { }
-      const err = new Error(detail);
-      err.status = response.status;
-      throw err;
-    }
-    return response.json();
-  });
-}
-
 export function getSourceSearchUrl(sourceId, query) {
   const q = encodeURIComponent(query || "");
   switch (sourceId) {

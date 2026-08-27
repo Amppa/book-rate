@@ -170,7 +170,7 @@ function buildWorkDetailsPayload(work, engines, strategies, apiKey) {
   return {
     work_id: work.key,
     title: work.title || "",
-    author: work.author || "",
+    author: work.author || (Array.isArray(work.author_name) ? work.author_name.join(", ") : ""),
     engines: engines,
     strategies: strategies,
     search_name: meta.searchName || "",

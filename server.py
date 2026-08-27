@@ -13,6 +13,7 @@ from book_rate.models import RatingRequestPayload
 from book_rate.registry import SourceRegistry
 from book_rate.sources.base import SourceNetworkError
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="BookRate Aggregator")
@@ -82,5 +83,4 @@ if os.path.exists(frontend_path):
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     uvicorn.run("server:app", host="127.0.0.1", port=8000, reload=True)

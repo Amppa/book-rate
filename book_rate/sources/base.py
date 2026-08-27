@@ -2,6 +2,9 @@ import logging
 import re
 import subprocess
 from typing import List, Optional, Callable, Tuple, Any, Dict
+
+import requests
+
 from book_rate.models import Work, Edition, SourceRating, SourceStatus
 from book_rate.utils.isbn import clean_isbn, extract_isbns_from_work
 from book_rate.utils.rate_limiter import global_rate_limiter
@@ -69,7 +72,6 @@ class BaseSource:
         self.timeout = timeout
         self.cooldown = cooldown
         self.rate_limiter = global_rate_limiter
-        import requests
         self.session = requests.Session()
         self.session.headers.update(self.DEFAULT_HEADERS)
         self.last_network_error = None
