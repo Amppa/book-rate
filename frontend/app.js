@@ -18,7 +18,7 @@ import {
   getSourceDefaultStrat, getSelectedStrategies, directToStep3
 } from './js/wizard.js';
 import { renderCandidates } from './js/candidates.js';
-import { initRatings, selectWork, reQuerySingleSource, markSourceCellDisabled, updateTableHeaderLinks } from './js/ratings.js';
+import { initRatings, selectWork, reQuerySingleSource, markSourceCellDisabled, updateTableHeaderLinks, cancelActiveStream } from './js/ratings.js';
 import { initPresetsModal, initEditionsModal, initSourceInfoModal } from './js/modals.js';
 import { state } from './js/state.js';
 
@@ -212,6 +212,7 @@ function renderSearchError(titleSource, query, page, errorMsg) {
 }
 
 async function searchWorks(query, page, titleSource = "open_library", bypassCache = false) {
+  cancelActiveStream();
   if (state.currentQuery !== query || state.currentPage !== page) {
     detailsHeading.hidden = true;
     tableWrap.hidden = true;

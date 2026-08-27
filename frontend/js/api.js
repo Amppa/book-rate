@@ -24,7 +24,7 @@ export async function fetchWorksWithCache({ query, page = 1, source, bypassCache
   }
 
   // 2. In-flight request deduplication check
-  if (pendingRequests.has(cacheKey)) {
+  if (!bypassCache && pendingRequests.has(cacheKey)) {
     return pendingRequests.get(cacheKey);
   }
 
@@ -53,10 +53,13 @@ export async function fetchSearchWorks(query, page = 1, engines = [], googleKey 
     page: page,
     engines: engines.join(","),
   });
+  const headers = {};
   if (googleKey) {
-    params.set("google_key", googleKey);
+    headers["X-Google-Key"] = googleKey;
   }
-  const response = await fetch(`/api/search?${params.toString()}`);
+  const response = await fetch(`/api/search?${params.toString()}`, {
+    headers,
+  });
   if (!response.ok) {
     throw new Error(`Search request failed with status ${response.status}`);
   }
@@ -72,7 +75,7 @@ export async function fetchWorkEditions(workId) {
   return await response.json();
 }
 
-export async function streamWorkDetailsPost(payload, onMessage, onError, onDone) {
+export async function streamWorkDetailsPost(payload, onMessage, onError, onDone, { signal } = {}) {
   try {
     const response = await fetch("/api/work-details-stream", {
       method: "POST",
@@ -80,6 +83,7 @@ export async function streamWorkDetailsPost(payload, onMessage, onError, onDone)
         "Content-Type": "application/json",
       },
       body: JSON.stringify(payload),
+      signal,
     });
 
     if (!response.ok) {
@@ -121,6 +125,10 @@ export async function streamWorkDetailsPost(payload, onMessage, onError, onDone)
     }
     if (onDone) onDone();
   } catch (err) {
+    if (err.name === "AbortError" || signal?.aborted) {
+      // Silently handle aborted fetch without triggering error states
+      return;
+    }
     if (onError) onError(err);
   }
 }

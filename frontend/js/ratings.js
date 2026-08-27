@@ -24,6 +24,22 @@ export { renderSourceCell, syncAllDetailsButton, syncAllDetailsButton as updateF
 // DOM references injected at startup via initRatings()
 let _resultBody, _step3Status, _tableWrap, _detailsHeading;
 
+// Active stream controllers for aborting in-flight requests
+let activeStreamController = null;
+const singleSourceControllers = new Map();
+
+/**
+ * Aborts any currently active SSE stream connection(s).
+ */
+export function cancelActiveStream() {
+  if (activeStreamController) {
+    activeStreamController.abort();
+    activeStreamController = null;
+  }
+  singleSourceControllers.forEach((ctrl) => ctrl.abort());
+  singleSourceControllers.clear();
+}
+
 /**
  * Resolves source metadata, prefix, and maximum rating scale.
  * @param {string} sourceId - The engine identifier (e.g. 'douban', 'google_books')
@@ -273,6 +289,10 @@ export async function selectWork(work) {
     });
   });
 
+  cancelActiveStream();
+  const controller = new AbortController();
+  activeStreamController = controller;
+
   try {
     const payload = buildWorkDetailsPayload(work, pendingRateSources, strategies, apiKey);
 
@@ -307,9 +327,13 @@ export async function selectWork(work) {
         _step3Status.textContent = "";
       },
       () => {
+        if (activeStreamController === controller) {
+          activeStreamController = null;
+        }
         if (state.currentSelectedWork?.key !== work.key) return;
         _step3Status.textContent = "";
-      }
+      },
+      { signal: controller.signal }
     );
   } catch (error) {
     console.error(error);
@@ -356,6 +380,13 @@ export function reQuerySingleSource(work, sourceKey) {
     }
   }
 
+  const prevCtrl = singleSourceControllers.get(sourceKey);
+  if (prevCtrl) {
+    prevCtrl.abort();
+  }
+  const controller = new AbortController();
+  singleSourceControllers.set(sourceKey, controller);
+
   const apiKey = localStorage.getItem(STORAGE_KEYS.GOOGLE_API_KEY) || "";
   const payload = buildWorkDetailsPayload(work, [sourceKey], strategies, apiKey);
 
@@ -378,6 +409,11 @@ export function reQuerySingleSource(work, sourceKey) {
       if (state.currentSelectedWork?.key !== work.key) return;
       console.error("Single source re-query failed:", err);
     },
-    () => { }
+    () => {
+      if (singleSourceControllers.get(sourceKey) === controller) {
+        singleSourceControllers.delete(sourceKey);
+      }
+    },
+    { signal: controller.signal }
   );
 }

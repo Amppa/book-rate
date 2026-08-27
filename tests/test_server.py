@@ -48,6 +48,20 @@ class TestServerAPI(unittest.TestCase):
         self.assertEqual(data[1]["title"], "Mock Book GB")
 
     @patch("server.aggregator.search_works")
+    def test_api_search_google_key_header(self, mock_search):
+        mock_search.return_value = []
+        response = self.client.get("/api/search?q=test&engines=google_books", headers={"X-Google-Key": "HEADER_KEY_123"})
+        self.assertEqual(response.status_code, 200)
+        mock_search.assert_called_once_with("test", page=1, active_title_sources=["google_books"], google_key="HEADER_KEY_123")
+
+    @patch("server.aggregator.search_works")
+    def test_api_search_google_key_query_fallback(self, mock_search):
+        mock_search.return_value = []
+        response = self.client.get("/api/search?q=test&engines=google_books&google_key=QUERY_KEY_456")
+        self.assertEqual(response.status_code, 200)
+        mock_search.assert_called_once_with("test", page=1, active_title_sources=["google_books"], google_key="QUERY_KEY_456")
+
+    @patch("server.aggregator.search_works")
     def test_api_search_waf_error(self, mock_search):
         from book_rate.sources.base import SourceNetworkError
         mock_search.side_effect = SourceNetworkError("WAF Challenge", status_code=403)

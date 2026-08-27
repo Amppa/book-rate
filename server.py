@@ -4,7 +4,7 @@ import os
 from typing import Optional
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Header
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -29,10 +29,12 @@ DEFAULT_ENGINES_CSV = SourceRegistry.default_engines_csv()
 def api_search(
     q: str = Query(..., description="Search query"),
     page: int = Query(1, description="Page number"),
-    google_key: str = Query(None, description="Optional Google Books API Key"),
+    google_key: Optional[str] = Query(None, description="Optional Google Books API Key (Query param fallback)"),
+    x_google_key: Optional[str] = Header(None, alias="X-Google-Key", description="Optional Google Books API Key (Header)"),
     engines: str = Query(DEFAULT_ENGINES_CSV, description="Comma-separated engines to use"),
     cooldown: Optional[float] = Query(None, description="Optional minimum request cooldown in seconds")
 ):
+    effective_google_key = x_google_key or google_key
     logger.info("[Search API] q='%s', page=%s, engines='%s', cooldown=%s", q, page, engines, cooldown)
     active_title_sources = [e.strip() for e in engines.split(",") if e.strip()]
     if cooldown is not None:
@@ -41,7 +43,7 @@ def api_search(
             if inst and hasattr(inst, "cooldown"):
                 inst.cooldown = cooldown
     try:
-        return aggregator.search_works(q, page=page, active_title_sources=active_title_sources, google_key=google_key)
+        return aggregator.search_works(q, page=page, active_title_sources=active_title_sources, google_key=effective_google_key)
     except SourceNetworkError as sne:
         status = getattr(sne, "status_code", 403) or 403
         raise HTTPException(status_code=status, detail=str(sne))
