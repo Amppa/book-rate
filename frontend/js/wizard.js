@@ -1,25 +1,32 @@
 import { state } from './state.js';
 import { SOURCES, SOURCE_PREFIX } from './constants.js';
-import { removeBrackets } from './utils.js';
+import { removeBrackets, toHalfWidth, cleanIsbnText, normalizeComparisonKey } from './utils.js';
 
 /**
  * Initialises wizard event listeners.
  */
 export function initWizard() {
-  // Monitor the bracket removal checkbox and clean existing fields when checked
+  // Monitor the bracket removal checkbox and clean/deduplicate existing fields
   const removeBracketsCb = document.querySelector("#bm-remove-brackets");
   if (removeBracketsCb) {
     removeBracketsCb.addEventListener("change", (e) => {
-      if (e.target.checked) {
-        const titleEl = document.querySelector("#bm-title");
-        const authorEl = document.querySelector("#bm-author");
+      const isChecked = e.target.checked;
+      const titleEl = document.querySelector("#bm-title");
+      const authorEl = document.querySelector("#bm-author");
 
-        if (titleEl && titleEl.value) {
-          titleEl.value = titleEl.value.split('\n').map(removeBrackets).filter(Boolean).join('\n');
+      if (titleEl && titleEl.value) {
+        const lines = titleEl.value.split('\n').filter(Boolean);
+        titleEl.value = "";
+        const res = appendAndLimitTextarea(titleEl, lines, 5, { type: "title", removeBrackets: isChecked });
+        const hintEl = document.querySelector("#bm-title-hint");
+        if (hintEl && res && res.duplicateCount > 0) {
+          hintEl.textContent = "（已自動去重）";
         }
-        if (authorEl && authorEl.value) {
-          authorEl.value = authorEl.value.split('\n').map(removeBrackets).filter(Boolean).join('\n');
-        }
+      }
+      if (authorEl && authorEl.value) {
+        const lines = authorEl.value.split('\n').filter(Boolean);
+        authorEl.value = "";
+        appendAndLimitTextarea(authorEl, lines, 5, { type: "author", removeBrackets: isChecked });
       }
     });
   }
@@ -56,28 +63,70 @@ export function goToStep(step) {
 // ---------------------------------------------------------------------------
 
 /**
- * Appends unique, non-empty items to a textarea (one per line).
+ * Appends unique, non-empty items to a textarea (one per line) with normalization.
  * Keeps only the most recent `maxLimit` lines.
+ *
+ * @param {HTMLTextAreaElement|null} textareaEl
+ * @param {string|string[]} newItems
+ * @param {number} maxLimit
+ * @param {Object} [options]
+ * @param {string} [options.type] - "title" | "author" | "isbn" | "raw"
+ * @param {boolean} [options.removeBrackets] - whether to apply removeBrackets
+ * @returns {{ addedCount: number, duplicateCount: number }}
  */
-export function appendAndLimitTextarea(textareaEl, newItems, maxLimit) {
-  if (!textareaEl) return;
+export function appendAndLimitTextarea(textareaEl, newItems, maxLimit, options = {}) {
+  if (!textareaEl) return { addedCount: 0, duplicateCount: 0 };
 
   const items = Array.isArray(newItems) ? newItems : [newItems];
   const validItems = items.map(item => String(item).trim()).filter(Boolean);
-  if (validItems.length === 0) return;
+  if (validItems.length === 0) return { addedCount: 0, duplicateCount: 0 };
 
   const currentVal = textareaEl.value.trim();
-  let lines = currentVal ? currentVal.split('\n').map(s => s.trim()) : [];
+  let lines = currentVal ? currentVal.split('\n').map(s => s.trim()).filter(Boolean) : [];
 
-  validItems.forEach(item => {
-    if (!lines.includes(item)) lines.push(item);
+  const existingKeys = new Set(
+    lines.map(line => {
+      if (options.type === "isbn") return cleanIsbnText(line);
+      return normalizeComparisonKey(line, false);
+    })
+  );
+
+  let addedCount = 0;
+  let duplicateCount = 0;
+
+  validItems.forEach((rawItem) => {
+    let cleanItem = rawItem;
+    if (options.type === "isbn") {
+      cleanItem = cleanIsbnText(rawItem);
+    } else {
+      cleanItem = toHalfWidth(rawItem);
+      if (options.removeBrackets) {
+        cleanItem = removeBrackets(cleanItem);
+      }
+    }
+
+    if (!cleanItem) return;
+
+    const compKey = options.type === "isbn"
+      ? cleanItem
+      : normalizeComparisonKey(cleanItem, false);
+
+    if (existingKeys.has(compKey)) {
+      duplicateCount++;
+    } else {
+      existingKeys.add(compKey);
+      lines.push(cleanItem);
+      addedCount++;
+    }
   });
 
-  if (lines.length > maxLimit) lines = lines.slice(lines.length - maxLimit);
+  if (lines.length > maxLimit) {
+    lines = lines.slice(lines.length - maxLimit);
+  }
   textareaEl.value = lines.join('\n');
+
+  return { addedCount, duplicateCount };
 }
-
-
 
 // ---------------------------------------------------------------------------
 // Candidate / edition selection (fills Step-2 metadata panel)
@@ -91,30 +140,38 @@ export function chooseCandidate(work) {
   const authorEl = document.querySelector("#bm-author");
   const publishDateEl = document.querySelector("#bm-publish-date");
   const isbnEl = document.querySelector("#bm-isbn");
+  const hintEl = document.querySelector("#bm-title-hint");
 
   const removeBracketsActive = document.querySelector("#bm-remove-brackets")?.checked ?? false;
 
   if (work.title) {
-    let titleVal = work.title;
-    if (removeBracketsActive) titleVal = removeBrackets(titleVal);
-    appendAndLimitTextarea(titleEl, titleVal, 5);
+    const res = appendAndLimitTextarea(titleEl, work.title, 5, {
+      type: "title",
+      removeBrackets: removeBracketsActive
+    });
+    if (hintEl) {
+      if (res.duplicateCount > 0 && res.addedCount === 0) {
+        hintEl.textContent = "（已自動去重）";
+      } else if (res.addedCount > 0) {
+        hintEl.textContent = "";
+      }
+    }
   }
 
   if (work.author_name && work.author_name.length > 0) {
-    let validAuthors = work.author_name
+    const validAuthors = work.author_name
       .map(name => name.trim())
       .filter(name => name && name.toLowerCase() !== 'unknown');
-    if (removeBracketsActive) {
-      validAuthors = validAuthors.map(name => removeBrackets(name)).filter(Boolean);
-    }
-    appendAndLimitTextarea(authorEl, validAuthors, 5);
+    appendAndLimitTextarea(authorEl, validAuthors, 5, {
+      type: "author",
+      removeBrackets: removeBracketsActive
+    });
   }
 
   if (publishDateEl) publishDateEl.value = work.first_publish_year || "";
 
   if (work.isbn) {
-    const isbnVal = Array.isArray(work.isbn) ? work.isbn[0] : work.isbn;
-    appendAndLimitTextarea(isbnEl, isbnVal, 5);
+    appendAndLimitTextarea(isbnEl, work.isbn, 5, { type: "isbn" });
   }
 }
 
@@ -125,21 +182,30 @@ export function chooseEdition(work, edition) {
   const titleEl = document.querySelector("#bm-title");
   const publishDateEl = document.querySelector("#bm-publish-date");
   const isbnEl = document.querySelector("#bm-isbn");
+  const hintEl = document.querySelector("#bm-title-hint");
 
   const removeBracketsActive = document.querySelector("#bm-remove-brackets")?.checked ?? false;
 
   const titleVal = edition.title || work.title;
   if (titleVal) {
-    let finalTitle = titleVal;
-    if (removeBracketsActive) finalTitle = removeBrackets(finalTitle);
-    appendAndLimitTextarea(titleEl, finalTitle, 5);
+    const res = appendAndLimitTextarea(titleEl, titleVal, 5, {
+      type: "title",
+      removeBrackets: removeBracketsActive
+    });
+    if (hintEl) {
+      if (res.duplicateCount > 0 && res.addedCount === 0) {
+        hintEl.textContent = "（已自動去重）";
+      } else if (res.addedCount > 0) {
+        hintEl.textContent = "";
+      }
+    }
   }
 
   const pubDateVal = edition.publish_date || (work.first_publish_year ? String(work.first_publish_year) : "");
   if (publishDateEl && pubDateVal) publishDateEl.value = pubDateVal;
 
   const isbnVal = edition.isbn_13 || edition.isbn_10;
-  if (isbnEl && isbnVal) appendAndLimitTextarea(isbnEl, isbnVal, 5);
+  if (isbnEl && isbnVal) appendAndLimitTextarea(isbnEl, isbnVal, 5, { type: "isbn" });
 }
 
 /** Clears the Step-2 metadata panel (called on a new search). */
@@ -155,6 +221,8 @@ export function resetMetadataPanel(query) {
   if (authorEl) authorEl.value = "";
   if (publishDateEl) publishDateEl.value = "";
   if (isbnEl) isbnEl.value = "";
+  const hintEl = document.querySelector("#bm-title-hint");
+  if (hintEl) hintEl.textContent = "";
   state.currentSelectedWork = null;
 
   const splitLayout = document.querySelector(".step3-split-layout");

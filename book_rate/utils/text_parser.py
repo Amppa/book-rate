@@ -42,6 +42,50 @@ def clean_text(raw: Optional[str], max_len: Optional[int] = None) -> Optional[st
     return normalized
 
 
+def to_half_width(text: Optional[str]) -> str:
+    """Convert full-width ASCII characters and full-width spaces to half-width."""
+    if not text:
+        return ""
+    res = str(text).replace('\u3000', ' ')
+    chars = []
+    for ch in res:
+        code = ord(ch)
+        if 0xFF01 <= code <= 0xFF5E:
+            chars.append(chr(code - 0xFEE0))
+        else:
+            chars.append(ch)
+    return re.sub(r'\s+', ' ', "".join(chars)).strip()
+
+
+def remove_brackets(text: Optional[str]) -> str:
+    """Remove parenthesis and bracket content from a string."""
+    if not text:
+        return ""
+    pattern = r'\([^)]*\)|\[[^\]]*\]|\{[^}]*\}|（[^）]*）|【[^】]*】|《[^》]*》|〈[^〉]*〉|〔[^〕]*〕'
+    res = str(text)
+    prev = None
+    while res != prev:
+        prev = res
+        res = re.sub(pattern, '', res)
+    return re.sub(r'\s+', ' ', res).strip()
+
+
+def normalize_title_key(text: Optional[str], apply_remove_brackets: bool = False) -> str:
+    """
+    Generates a normalized comparison key for book titles:
+    - Half-width conversion
+    - Optional bracket removal
+    - Lowercase
+    - Collapsed whitespace
+    """
+    if not text:
+        return ""
+    val = to_half_width(text)
+    if apply_remove_brackets:
+        val = remove_brackets(val)
+    return re.sub(r'\s+', ' ', val.lower()).strip()
+
+
 def clean_author_name(name: Optional[str]) -> Optional[str]:
     """
     Cleans up author/translator string by stripping common prefixes and annotations.

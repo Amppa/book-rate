@@ -168,6 +168,44 @@ class TestTextParser(unittest.TestCase):
         info2["author"] = "Mutated"
         self.assertEqual(orig_dict["author"], "Custom Author")
 
+    def test_normalize_title_key_case_insensitivity(self):
+        """Test that different cases for the same title produce identical comparison keys."""
+        from book_rate.utils.text_parser import normalize_title_key
+
+        k1 = normalize_title_key("Thinking, Fast and Slow")
+        k2 = normalize_title_key("thinking, fast and slow")
+        k3 = normalize_title_key("THINKING, FAST AND SLOW")
+        k4 = normalize_title_key("  Thinking, Fast and Slow  ")
+
+        self.assertEqual(k1, k2)
+        self.assertEqual(k2, k3)
+        self.assertEqual(k3, k4)
+        self.assertEqual(k1, "thinking, fast and slow")
+
+    def test_normalize_title_key_fullwidth_and_brackets(self):
+        """Test fullwidth symbol conversion and bracket removal matching."""
+        from book_rate.utils.text_parser import normalize_title_key, to_half_width, remove_brackets
+
+        # Fullwidth symbols to halfwidth
+        self.assertEqual(
+            normalize_title_key("Thinking，Fast and Slow"),
+            normalize_title_key("Thinking, Fast and Slow")
+        )
+        self.assertEqual(
+            normalize_title_key("魔戒：王者再臨"),
+            normalize_title_key("魔戒:王者再臨")
+        )
+
+        # Bracket removal
+        self.assertEqual(
+            normalize_title_key("原子習慣（暢銷紀念版）", apply_remove_brackets=True),
+            normalize_title_key("原子習慣", apply_remove_brackets=True)
+        )
+        self.assertEqual(
+            normalize_title_key("Atomic Habits (Paperback Edition)", apply_remove_brackets=True),
+            normalize_title_key("atomic habits", apply_remove_brackets=True)
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

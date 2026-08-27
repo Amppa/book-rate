@@ -341,3 +341,11 @@ a.candidate-meta:hover {
 .waf-alert-link:hover {
   color: var(--text-primary);
 }
+
+.bm-inline-hint {
+  font-size: var(--fs-2xs);
+  font-weight: 500;
+  color: var(--primary);
+  margin-left: var(--space-2);
+  transition: opacity var(--transition-fast);
+}

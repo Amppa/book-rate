@@ -164,6 +164,45 @@ export function removeBrackets(str) {
 }
 
 /**
+ * Convert fullwidth characters (alphanumeric, symbols, fullwidth space) to standard halfwidth characters.
+ * @param {string} str
+ * @returns {string}
+ */
+export function toHalfWidth(str) {
+  if (!str) return "";
+  return String(str)
+    .replace(/[\u3000]/g, ' ')
+    .replace(/[\uFF01-\uFF5E]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Normalizes an ISBN string by stripping hyphens, spaces, and formatting to uppercase.
+ * @param {string} isbn
+ * @returns {string}
+ */
+export function cleanIsbnText(isbn) {
+  if (!isbn) return "";
+  return String(isbn).replace(/[-\s]/g, '').trim().toUpperCase();
+}
+
+/**
+ * Generates a normalized comparison key for deduplicating book metadata.
+ * @param {string} str
+ * @param {boolean} [applyRemoveBrackets=false]
+ * @returns {string}
+ */
+export function normalizeComparisonKey(str, applyRemoveBrackets = false) {
+  if (!str) return "";
+  let val = toHalfWidth(str);
+  if (applyRemoveBrackets) {
+    val = removeBrackets(val);
+  }
+  return val.toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+/**
  * Checks if a string contains CJK characters.
  * @param {string} str
  * @returns {boolean}
