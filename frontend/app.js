@@ -297,12 +297,16 @@ if (tabsContainer) {
         const promises = SOURCES.map((s) =>
           fetchWorksWithCache({ query: q, page: 1, source: s.id })
         );
-        await Promise.all(promises);
+        const results = await Promise.allSettled(promises);
 
-        // If current active source has updated cached data, render it
-        const currentResult = await fetchWorksWithCache({ query: q, page: 1, source: state.currentTitleSource });
-        if (currentResult && state.currentQuery === q && state.currentPage === 1) {
-          renderSearchResults(state.currentTitleSource, q, 1, currentResult.data);
+        // Retrieve the active source result directly from settled results or cache fallback
+        const activeIdx = SOURCES.findIndex((s) => s.id === state.currentTitleSource);
+        const activeResult = activeIdx !== -1 && results[activeIdx]?.status === "fulfilled"
+          ? results[activeIdx].value
+          : await fetchWorksWithCache({ query: q, page: 1, source: state.currentTitleSource });
+
+        if (activeResult?.data && state.currentQuery === q && state.currentPage === 1) {
+          renderSearchResults(state.currentTitleSource, q, 1, activeResult.data);
         }
       } catch (err) {
         console.warn("Preload encountered errors:", err);
