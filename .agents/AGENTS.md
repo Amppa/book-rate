@@ -79,12 +79,12 @@ graph TD
 
 ### Search Strategies
 Configurable per-provider in table column headers (all default to `search_name`):
-1. `search_name`: Searches platform exactly using the user's raw query.
-2. `title_list` (Short-circuit): Tries titles in `title_list` sequentially; short-circuits on first rating hit.
-3. `title_list_full` (Full List): Queries all titles in `title_list`, displaying all matches vertically in the cell (1s delay).
-4. `isbn` (Short-circuit): Tries clean ISBNs in `isbn_list` sequentially.
-5. `source_id`: Direct ID lookup (Goodreads ID, Douban subject ID, Google Books volume ID, StoryGraph UUID).
-6. `title_author` (Fallback): Combines main title with first author's name.
+1. `search_name`: Searches platform using the user's raw query.
+2. `title_list_first`: Tries titles in `title_list` sequentially until a match is found.
+3. `title_list_full`: Queries all titles in `title_list`, displaying all matches vertically in the cell (1s delay).
+4. `isbn`: Tries clean ISBNs in `isbn_list` sequentially.
+
+*(Note: Internal / backend fallback strategies such as `source_id` direct ID lookup and `title_author` combination are handled automatically in `BaseSource`.)*
 
 ---
 

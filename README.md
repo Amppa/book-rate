@@ -1,90 +1,74 @@
 # BookRate 📚
 
-跨平台圖書評分聚合器。支援多步驟精靈導引、書次元資料編輯與即時 SSE 串流評分比較。使用者可輸入書名、作者或 ISBN，一鍵聚合全球 10+ 個主流線上圖書平台的評分與評論資訊。
+跨平台圖書評分聚合工具。輸入書名、作者或 ISBN，即可一鍵整合全球 10+ 個主流圖書平台的讀者評分、評價人數與出版資訊。
 
 ---
 
-## 功能特性
+## 核心功能
 
-- **三步驟精靈導引流程 (Wizard Workflow)**：
-  - **第 1 步（搜尋）**：輸入關鍵字（書名、作者或 ISBN）搜尋候選作品。
-  - **第 2 步（選取與元資料編輯）**：檢視候選書籍卡片，支援按需展開已出版版本清單，並可檢閱與編輯書籍元資料（英文別名、CJK 中文書名、作者清單、ISBN 清單）。
-  - **第 3 步（比較與評分聚合）**：透過自訂搜尋策略並行查詢各平台，並以左右並排的比較表格即時呈現評分、評價人數與匹配連結。
-- **書籍詳細資訊折疊面板 (`<details>`)**：
-  - 各平台比對單元格支援展開詳細中繼資料：**作者**、**譯者**、**出版社**、**出版日期**、**叢書**、**語言**、**原作名**、**版本數**、**ISBN**、**ASIN**、**平台 ID**。
-  - 提供表頭全域 **`全部 details [+] / [-]`** 一鍵切換全部折疊面板。
-  - 數值長度保護機制（超過 50 字自動截斷並支援 Hover 浮動提示完整內容）。
-- **直接查詢模式 (Quick Mode - QM)**：跳過第 2 步的元資料編輯，搜尋後直接進行多平台評分比較。
-- **支援 10 大核心評分平台（+ 豆瓣 API）**：
-  - **Open Library**（官方 API）
-  - **Google Books**（官方 API）
-  - **Google Play Books**（網頁爬蟲 + ld+json 結構化資料）
-  - **Goodreads**（網頁爬蟲 + Next.js / Apollo State 深度解析）
-  - **StoryGraph**（網頁爬蟲 + Turbo Frame 評分解析）
-  - **Amazon 美國站**（網頁爬蟲）
-  - **Amazon 日本站**（網頁爬蟲）
-  - **豆瓣**（網頁爬蟲 + JSON-LD 結構化資料）
-  - **豆瓣 API**（官方 Suggest API）
-  - **讀墨 (Readmoo)**（網頁爬蟲）
-  - **博客來 (Books.com.tw)**（網頁爬蟲）
-- **按需展開版本清單 (On-Demand Edition Expansion)**：
-  - 支援 **Open Library**、**Goodreads**、**豆瓣** 與 **StoryGraph**。
-  - 點擊候選卡片時才發送非同步請求載入版本列表，不影響初始搜尋速度。
-- **6 種單因子搜尋策略**：可在比較表格各欄位下拉選單自訂切換（搜尋名稱、書名列表短路/完整、CJK 書名列表短路/完整、ISBN、平台專屬 ID）。
-- **並行處理與 SSE 即時串流**：後端使用 `ThreadPoolExecutor` 線程池並行查詢，透過 Server-Sent Events (SSE) 即時推送各平台評分更新。
-- **瀏覽器本機快取**：利用 `localStorage` 快取評分與平台連線狀態，避免重複發送請求。
-- **反爬蟲與防封鎖機制**：內建網域間隔冷卻（Cooldown）與命令列工具（Windows `curl.exe`）備用切換，繞過部分平台的 Cloudflare / TLS 指紋驗證。
+- **3 步驟導引流程**：
+  1. **搜尋書名**：輸入書名、作者或 ISBN 搜尋目標書籍。
+     <br>
+     <a href="docs/images/step1.JPG" target="_blank" rel="noopener noreferrer"><img src="docs/images/step1.JPG" alt="第 1 步：搜尋書名" width="600" /></a>
+  2. **確認書籍資訊**：自動整理候選版本與書名別名，亦可手動調整搜尋關鍵字。
+     <br>
+     <a href="docs/images/step2.JPG" target="_blank" rel="noopener noreferrer"><img src="docs/images/step2.JPG" alt="第 2 步：確認書籍資訊" width="600" /></a>
+  3. **評分比較**：以並排表格呈現各平台評分、評價人數與原始頁面連結。
+     <br>
+     <a href="docs/images/step3.JPG" target="_blank" rel="noopener noreferrer"><img src="docs/images/step3.JPG" alt="第 3 步：評分比較" width="600" /></a>
+- **快速模式 (Quick Mode)**：搜尋後直接進入評分比較，略過中間確認步驟。
+- **即時串流呈現**：多平台同時發送查詢，個別平台回傳結果即時顯示，無需等待全部載入完成。
+- **書籍詳細資料**：各平台比對結果均可展開檢視作者、譯者、出版社、出版日期及 ISBN 等資訊。
+- **出版版本清單**：支援 Open Library、Goodreads、豆瓣與 StoryGraph 展開多版本列表。
+- **本機快取機制**：查詢結果自動暫存於瀏覽器，提升重複查詢時的載入速度。
 
 ---
 
-## 安裝步驟
+## 支援平台
 
-1. **複製儲存庫**：
-   ```bash
-   git clone https://github.com/your-username/bookrate.git
-   cd bookrate
-   ```
+涵蓋繁中、簡中、歐美與日本的主要購書與書評社群：
 
-2. **安裝 Python 依賴套件**：
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **安裝測試工具（可選，執行自動化測試時需要）**：
-   ```bash
-   pip install -r requirements-dev.txt
-   ```
-
----
-
-## 快速開始
-
-1. **啟動後端伺服器**：
-   ```bash
-   python server.py
-   ```
-
-2. **開啟瀏覽器**：
-   造訪 `http://127.0.0.1:8000` 即可開始使用。
-
-3. **執行測試**：
-   ```bash
-   # 執行離線 Mock 測試（預設；保證不發送任何真實綱路請求）
-   pytest
-
-   # 執行真實連綱整合測試（會發送真實 HTTP 請求）
-   pytest -m live
-   ```
+| 平台名稱 | 涵蓋地區 / 特色說明 |
+| :--- | :--- |
+| **博客來 (Books.com.tw)** | 台灣代表性網路書店，繁體中文書目完整 |
+| **讀墨 (Readmoo)** | 台灣主要繁體中文電子書平台 |
+| **豆瓣讀書** | 華文圈主流書評社群，評論深度與讀者數量豐富 |
+| **豆瓣 API** | 豆瓣官方搜尋接口，提供快速檢索 |
+| **Goodreads** | 全球最大歐美書評社群（Amazon 旗下），外文書評分首選 |
+| **The StoryGraph** | 知名歐美獨立書評社群 |
+| **Google Books** | Google 圖書資料庫，收錄海量圖書資訊 |
+| **Google Play Books** | Google Play 電子書商店讀者評分 |
+| **Amazon 美國站** | 全球最大電商平台，讀者評價基數龐大 |
+| **Amazon 日本站** | 日本亞馬遜，日文書與輕小說評分首選 |
+| **Open Library** | 非營利開放式圖書資料庫，擁有龐大跨國版本資料 |
 
 ---
 
-## API 端點文件
+## 安裝與執行
 
-- **`GET /api/search?q={query}&engines={engines}&page={page}`**：在啟用的書名來源中搜尋候選書籍作品。
-- **`GET /api/work-editions?work_id={work_id}`**：取得指定作品的所有已出版版本詳細資訊。
-- **`POST /api/work-details`**：以 JSON 載荷同步取得並聚合各平台的評分結果。
-- **`POST /api/work-details-stream`**：SSE 串流端點，先回傳包含版本列表及 Open Library 評分的 `init` 事件，並並行查詢其他來源，即時推送各平台的 `source` 事件更新。
-- **`GET /api/source-status`**：並行檢測所有評分平台的連線狀態與延遲（Latency）。
+環境需求：**Python 3.9+**
+
+### 1. 下載儲存庫
+```bash
+git clone https://github.com/Amppa/book-rate.git
+cd book-rate
+```
+
+### 2. 安裝依賴套件
+```bash
+pip install -r requirements.txt
+```
+
+### 3. 啟動伺服器
+```bash
+python server.py
+```
+
+### 4. 開啟應用程式
+使用瀏覽器造訪 [http://127.0.0.1:8000](http://127.0.0.1:8000) 即可開始使用。
+
+> **💡 選用設定（Google Books API Key）**：  
+> Google Books 官方提供的公開查詢額度較有限。若需提高查詢穩定性，可於網頁右上角「設定」中填入個人的 Google Books API Key（可於 Google Cloud Console 免費申請）。
 
 ---
 
